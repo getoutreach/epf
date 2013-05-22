@@ -1,0 +1,19 @@
+{
+  "name": "ember-orm",
+  "version": "0.0.0",
+  "description": "An Ember.js ORM library that works.",
+  "main": "./lib/main.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": "https://github.com/ghempton/ember-orm.git",
+  "keywords": [
+    "ember.js",
+    "orm"
+  ],
+  "author": "Gordon L. Hempton",
+  "license": "BSD",
+  "devDependencies": {
+    "mocha": "1.9.x"
+  }
+}
