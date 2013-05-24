@@ -2,6 +2,8 @@ global.jQuery = require('jquery')
 require('../lib/vendor/ember-runtime');
 require('../lib/main');
 
+require("mocha-as-promised")();
+
 global.chai = require('chai');
 global.expect = chai.expect;
 

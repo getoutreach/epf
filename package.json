@@ -17,6 +17,7 @@
     "chai": "*",
     "mocha": "*",
     "ember-script": "*",
-    "jquery": "*"
+    "jquery": "*",
+    "mocha-as-promised": "*"
   }
 }

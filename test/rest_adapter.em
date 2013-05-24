@@ -1,4 +1,3 @@
-
 describe "Orm.RestAdapter", ->
 
   beforeEach ->
@@ -32,7 +31,6 @@ describe "Orm.RestAdapter", ->
     @container.register 'model:post', @Post, instantiate: false
 
   it 'should load data from the server', (done) ->
-
     @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
 
     adapter = @container.lookup('adapter:main')
@@ -44,4 +42,19 @@ describe "Orm.RestAdapter", ->
       expect(post.id).to.eq("1")
       expect(post.title).to.eq('mvcc ftw')
       expect(ajaxCalls).to.eql(['GET:/posts/1'])
-      done()
+
+  it 'should save data to the server', (done) ->
+    @ajaxResults['POST:/posts'] = posts: {id: 1, title: 'mvcc ftw'}
+
+    adapter = @container.lookup('adapter:main')
+    session = adapter.newSession()
+
+    ajaxCalls = @ajaxCalls
+
+    post = session.create('post')
+    post.title = 'mvcc ftw'
+
+    session.flush().then ->
+      expect(post.id).to.eq("1")
+      expect(post.title).to.eq('mvcc ftw')
+      expect(ajaxCalls).to.eql(['POST:/posts'])
