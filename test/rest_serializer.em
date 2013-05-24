@@ -17,17 +17,17 @@ describe 'Orm.RestSerializer', ->
       models = @serializer.deserialize(data)
       post = models[0]
       expect(post).to.be.an.instanceof(@Post)
-      expect(post.get('title')).to.eq('wat')
-      expect(post.get('longTitle')).to.eq('wat omgawd')
-      expect(post.get('id')).to.eq("1")
+      expect(post.title).to.eq('wat')
+      expect(post.longTitle).to.eq('wat omgawd')
+      expect(post.id).to.eq("1")
 
   describe 'serialization', ->
 
     it 'should serialize', ->
-      post = @Post.create();
-      post.set('id', 1);
-      post.set('title', 'wat');
-      post.set('longTitle', 'wat omgawd');
+      post = @Post.create()
+      post.id = 1
+      post.title = 'wat'
+      post.longTitle = 'wat omgawd'
       data = @serializer.serialize(post, includeId: true)
       expect(data).to.eql({id: 1, title: 'wat', long_title: 'wat omgawd'})
 

@@ -1,1 +1,1 @@
---compilers coffee:coffee-script
+--compilers em:./em

@@ -1,8 +1,10 @@
 TODO:
 * Think about updating store immediately for live sessions?
 * Generally examine literal types vs container string lookups
+* Give *all* models a type property?
 
 Flush Process
 1. session flush calls adapter
 2. adapter computes dirtiness
-  a. field-by-field diffs with store
+  a. field-by-field diffs with store values
+  b. potential revision conflicts with latest version in store
