@@ -1,0 +1,8 @@
+TODO:
+* Think about updating store immediately for live sessions?
+* Generally examine literal types vs container string lookups
+
+Flush Process
+1. session flush calls adapter
+2. adapter computes dirtiness
+  a. field-by-field diffs with store
