@@ -2,6 +2,7 @@ TODO:
 * Think about updating store immediately for live sessions?
 * Generally examine literal types vs container string lookups
 * Give *all* models a type property?
+* Should flush update models at the end or stream them in?
 
 Flush Process
 1. session flush calls adapter

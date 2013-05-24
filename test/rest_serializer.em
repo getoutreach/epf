@@ -26,10 +26,11 @@ describe 'Orm.RestSerializer', ->
     it 'should serialize', ->
       post = @Post.create()
       post.id = 1
+      post.clientId = "2"
       post.title = 'wat'
       post.longTitle = 'wat omgawd'
       data = @serializer.serialize(post, includeId: true)
-      expect(data).to.eql({id: 1, title: 'wat', long_title: 'wat omgawd'})
+      expect(data).to.eql({client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd'})
 
 
 

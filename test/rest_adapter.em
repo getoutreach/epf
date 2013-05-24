@@ -1,5 +1,7 @@
 describe "Orm.RestAdapter", ->
 
+
+
   beforeEach ->
     ajaxResults = @ajaxResults = {}
     ajaxCalls = @ajaxCalls = []
@@ -9,7 +11,7 @@ describe "Orm.RestAdapter", ->
           key = type + ":" + url
           json = ajaxResults[key]
           return reject("no data") unless json
-          json = json() if typeof json == 'function'
+          json = json(url, type, hash) if typeof json == 'function'
           ajaxCalls.push(key)
           Ember.run.later ( -> resolve(json) ), 0
 
@@ -44,7 +46,7 @@ describe "Orm.RestAdapter", ->
       expect(ajaxCalls).to.eql(['GET:/posts/1'])
 
   it 'should save data to the server', (done) ->
-    @ajaxResults['POST:/posts'] = posts: {id: 1, title: 'mvcc ftw'}
+    @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
 
     adapter = @container.lookup('adapter:main')
     session = adapter.newSession()
