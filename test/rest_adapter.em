@@ -97,6 +97,21 @@ describe "Orm.RestAdapter", ->
           expect(ajaxCalls).to.eql(['DELETE:/posts/1'])
 
 
+    it 'refreshes', ->
+      @adapter.loaded(@Post.create(id: "1", title: 'test'))
+      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'something new'}
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load(@Post, 1).then (post) ->
+        expect(post.title).to.eq('test')
+        expect(ajaxCalls).to.eql([])
+        session.refresh(post).then (post) ->
+          expect(post.title).to.eq('something new')
+          expect(ajaxCalls).to.eql(['GET:/posts/1'])
+
+
 
   context 'parent->children', ->
 
