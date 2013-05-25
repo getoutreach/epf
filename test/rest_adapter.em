@@ -64,6 +64,22 @@ describe "Orm.RestAdapter", ->
         expect(ajaxCalls).to.eql(['POST:/posts'])
 
 
+    it 'updates', ->
+      @ajaxResults['PUT:/posts/1'] = -> posts: {client_id: post.clientId, id: 1, title: 'updated'}
+
+      @adapter.loaded(@Post.create(id: "1", title: 'test'))
+
+      session = @adapter.newSession()
+      post = null
+      ajaxCalls = @ajaxCalls
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('test')
+        post.title = 'updated'
+        session.flush().then ->
+          expect(post.title).to.eq('updated')
+          expect(ajaxCalls).to.eql(['PUT:/posts/1'])
+
+
     it 'deletes', ->
       @ajaxResults['DELETE:/posts/1'] = {}
 
