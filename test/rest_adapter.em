@@ -1,7 +1,4 @@
 describe "Orm.RestAdapter", ->
-
-
-
   beforeEach ->
     ajaxResults = @ajaxResults = {}
     ajaxCalls = @ajaxCalls = []
@@ -26,37 +23,79 @@ describe "Orm.RestAdapter", ->
     @container.typeInjection 'adapter', 'store', 'store:main'
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
-    class @Post extends Orm.Model
-      title: Orm.attr('string')
-    @App.Post = @Post
+    @adapter = @container.lookup('adapter:main')
 
-    @container.register 'model:post', @Post, instantiate: false
+  context 'simple model', ->
 
-  it 'should load data from the server', (done) ->
-    @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
+    beforeEach ->
+      class @Post extends Orm.Model
+        title: Orm.attr('string')
+      @App.Post = @Post
 
-    adapter = @container.lookup('adapter:main')
-    session = adapter.newSession()
+      @container.register 'model:post', @Post, instantiate: false
 
-    ajaxCalls = @ajaxCalls
+    it 'loads data from the server', (done) ->
+      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
 
-    session.load(@Post, 1).then (post) ->
-      expect(post.id).to.eq("1")
-      expect(post.title).to.eq('mvcc ftw')
-      expect(ajaxCalls).to.eql(['GET:/posts/1'])
+      session = @adapter.newSession()
 
-  it 'should save data to the server', (done) ->
-    @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
+      ajaxCalls = @ajaxCalls
+      session.load(@Post, 1).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        expect(ajaxCalls).to.eql(['GET:/posts/1'])
 
-    adapter = @container.lookup('adapter:main')
-    session = adapter.newSession()
+    it 'saves data to the server', (done) ->
+      @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
 
-    ajaxCalls = @ajaxCalls
+      session = @adapter.newSession()
 
-    post = session.create('post')
-    post.title = 'mvcc ftw'
+      post = session.create('post')
+      post.title = 'mvcc ftw'
 
-    session.flush().then ->
-      expect(post.id).to.eq("1")
-      expect(post.title).to.eq('mvcc ftw')
-      expect(ajaxCalls).to.eql(['POST:/posts'])
+      ajaxCalls = @ajaxCalls
+      session.flush().then ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        expect(ajaxCalls).to.eql(['POST:/posts'])
+
+  context 'lazy parent->children', ->
+
+    beforeEach ->
+      class @Post extends Orm.Model
+        title: Orm.attr('string')
+      @App.Post = @Post
+
+      class @Comment extends Orm.Model
+        text: Orm.attr('string')
+        post: Orm.belongsTo(@Post)
+      @App.Comment = @Comment
+
+      @Post.reopen
+        comments: Orm.hasMany(@Comment)
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:comment', @Comment, instantiate: false
+
+    it 'loads data lazily', ->
+      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      @ajaxResults['GET:/comments/2'] = comments: {id: 2, title: 'first', post_id: 1}
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load(@Post, 1).then (post) ->
+        expect(ajaxCalls).to.eql(['GET:/posts/1'])
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        expect(post.comments.length).to.eq(1)
+        expect(post.comments.firstObject.text).to.be.undefined
+
+        post.comments.firstObject.then ->
+          expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/comments/2'])
+          expect(post.comments.firstObject.text).to.eq('first')
+          expect(post.comments.firstObject.post).to.eq(post)
+
+
+
+
