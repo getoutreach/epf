@@ -79,7 +79,7 @@ describe "Orm.RestAdapter", ->
 
     it 'loads data lazily', ->
       @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      @ajaxResults['GET:/comments/2'] = comments: {id: 2, title: 'first', post_id: 1}
+      @ajaxResults['GET:/comments/2'] = comments: {id: 2, text: 'first', post_id: 1}
 
       session = @adapter.newSession()
 
@@ -89,12 +89,13 @@ describe "Orm.RestAdapter", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         expect(post.comments.length).to.eq(1)
-        expect(post.comments.firstObject.text).to.be.undefined
+        comment = post.comments.firstObject
+        expect(comment.text).to.be.undefined
 
         post.comments.firstObject.then ->
           expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/comments/2'])
-          expect(post.comments.firstObject.text).to.eq('first')
-          expect(post.comments.firstObject.post).to.eq(post)
+          expect(comment.text).to.eq('first')
+          expect(comment.post.equals(post)).to.be.true
 
 
 
