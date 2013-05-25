@@ -1,4 +1,5 @@
 describe "Orm.RestAdapter", ->
+
   beforeEach ->
     ajaxResults = @ajaxResults = {}
     ajaxCalls = @ajaxCalls = []
@@ -25,6 +26,7 @@ describe "Orm.RestAdapter", ->
 
     @adapter = @container.lookup('adapter:main')
 
+
   context 'simple model', ->
 
     beforeEach ->
@@ -34,7 +36,8 @@ describe "Orm.RestAdapter", ->
 
       @container.register 'model:post', @Post, instantiate: false
 
-    it 'loads data from the server', (done) ->
+
+    it 'loads', ->
       @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
 
       session = @adapter.newSession()
@@ -45,7 +48,8 @@ describe "Orm.RestAdapter", ->
         expect(post.title).to.eq('mvcc ftw')
         expect(ajaxCalls).to.eql(['GET:/posts/1'])
 
-    it 'saves data to the server', (done) ->
+
+    it 'saves', ->
       @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
 
       session = @adapter.newSession()
@@ -58,6 +62,25 @@ describe "Orm.RestAdapter", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         expect(ajaxCalls).to.eql(['POST:/posts'])
+
+
+    it 'deletes', ->
+      @ajaxResults['DELETE:/posts/1'] = {}
+
+      @adapter.loaded(@Post.create(id: "1", title: 'test'))
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load('post', 1).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('test')
+        session.deleteModel(post)
+        session.flush().then ->
+          expect(post.isDeleted).to.be.true
+          expect(ajaxCalls).to.eql(['DELETE:/posts/1'])
+
+
 
   context 'parent->children', ->
 
@@ -77,7 +100,8 @@ describe "Orm.RestAdapter", ->
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:comment', @Comment, instantiate: false
 
-    it 'loads data lazily', ->
+
+    it 'loads lazily', ->
       @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
       @ajaxResults['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
 
@@ -98,25 +122,7 @@ describe "Orm.RestAdapter", ->
           expect(comment.post.equals(post)).to.be.true
 
 
-  describe 'flushing hierarchies', ->
-
-    beforeEach ->
-      class @Post extends Orm.Model
-        title: Orm.attr('string')
-      @App.Post = @Post
-
-      class @Comment extends Orm.Model
-        message: Orm.attr('string')
-        post: Orm.belongsTo(@Post)
-      @App.Comment = @Comment
-
-      @Post.reopen
-        comments: Orm.hasMany(@Comment)
-
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:comment', @Comment, instantiate: false
-
-    it 'saves parent->child', ->
+    it 'saves', ->
       @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
       @ajaxResults['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
 
@@ -140,6 +146,9 @@ describe "Orm.RestAdapter", ->
         expect(comment.post).to.eq(post)
         expect(post.comments.firstObject).to.eq(comment)
         expect(ajaxCalls).to.eql(['POST:/posts', 'POST:/comments'])
+
+    # it 'deletes child', ->
+    #   @adapter.load()
 
 
 
