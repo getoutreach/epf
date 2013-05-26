@@ -72,7 +72,6 @@ describe "Orm.RestAdapter", ->
       session = @adapter.newSession()
       post = null
       ajaxCalls = @ajaxCalls
-      debugger
       session.load('post', 1).then (post) ->
         expect(post.title).to.eq('test')
         post.title = 'updated'
@@ -111,6 +110,19 @@ describe "Orm.RestAdapter", ->
         session.refresh(post).then (post) ->
           expect(post.title).to.eq('something new')
           expect(ajaxCalls).to.eql(['GET:/posts/1'])
+
+
+    it 'finds', ->
+      @ajaxResults['GET:/posts'] = (url, type, hash) ->
+        expect(hash.data).to.eql({q: "aardvarks"})
+        posts: [{id: 1, title: 'aardvarks explained'}, {id: 2, title: 'aardvarks in depth'}]
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.find('post', {q: 'aardvarks'}).then (models) ->
+        expect(models.length).to.eq(2)
+        expect(ajaxCalls).to.eql(['GET:/posts'])
 
 
 
@@ -193,9 +205,11 @@ describe "Orm.RestAdapter", ->
       session.load('post', 1).then (post) ->
         comment = post.comments.firstObject
         session.deleteModel(comment)
+        # TODO: figure out how this should be done
+        #expect(post.comments.length).to.eq(0)
         session.flush().then ->
           expect(ajaxCalls).to.eql(['DELETE:/comments/2'])
-        #   #expect(post.comments.length).to.eq(0)
+          expect(post.comments.length).to.eq(0)
 
 
 
