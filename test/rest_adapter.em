@@ -72,6 +72,7 @@ describe "Orm.RestAdapter", ->
       session = @adapter.newSession()
       post = null
       ajaxCalls = @ajaxCalls
+      debugger
       session.load('post', 1).then (post) ->
         expect(post.title).to.eq('test')
         post.title = 'updated'
@@ -178,9 +179,23 @@ describe "Orm.RestAdapter", ->
         expect(post.comments.firstObject).to.eq(comment)
         expect(ajaxCalls).to.eql(['POST:/posts', 'POST:/comments'])
 
-    # it 'deletes child', ->
-    #   @adapter.load()
 
+    it 'deletes child', ->
+      @ajaxResults['DELETE:/comments/2'] = {}
+
+      post = @Post.create(id: "1", title: 'parent');
+      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      @adapter.loaded(post)
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load('post', 1).then (post) ->
+        comment = post.comments.firstObject
+        session.deleteModel(comment)
+        session.flush().then ->
+          expect(ajaxCalls).to.eql(['DELETE:/comments/2'])
+        #   #expect(post.comments.length).to.eq(0)
 
 
 
