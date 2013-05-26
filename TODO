@@ -4,10 +4,6 @@ TODO:
 * Give *all* models a type property?
 * Think about an ordered model array
 * Think about making all model arrays sets
-* Make session a subclass of store and add hierarchy
-
-Flush Process
-1. session flush calls adapter
-2. adapter computes dirtiness
-  a. field-by-field diffs with store values
-  b. potential revision conflicts with latest version in store
+* Cleanup old session models (e.g. after merge the promise is replaced)
+* Record array manager
+* Think through conflicts

@@ -7,10 +7,10 @@ describe "Orm.RestAdapter", ->
       ajax: (url, type, hash) ->
         new Ember.RSVP*.Promise (resolve, reject) ->
           key = type + ":" + url
+          ajaxCalls.push(key)
           json = ajaxResults[key]
           return reject("No data for #{key}") unless json
           json = json(url, type, hash) if typeof json == 'function'
-          ajaxCalls.push(key)
           Ember.run.later ( -> resolve(json) ), 0
 
     @App = Ember.Namespace.create()
@@ -124,6 +124,23 @@ describe "Orm.RestAdapter", ->
         expect(models.length).to.eq(2)
         expect(ajaxCalls).to.eql(['GET:/posts'])
 
+
+    it 'handles errors on update', ->
+      @ajaxResults['PUT:/posts/1'] = ->
+        throw responseText: JSON.stringify(errors: {title: 'title is too short'})
+
+      @adapter.loaded(@Post.create(id: "1", title: 'test'))
+
+      session = @adapter.newSession()
+      post = null
+      ajaxCalls = @ajaxCalls
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('test')
+        post.title = ''
+        session.flush().then null, (errors) ->
+          expect(post.title).to.eq('')
+          expect(post.errors).to.eql({title: 'title is too short'})
+          expect(ajaxCalls).to.eql(['PUT:/posts/1'])
 
 
   context 'parent->children', ->
