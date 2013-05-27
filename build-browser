@@ -1,0 +1,16 @@
+#!/usr/bin/env node node_modules/.bin/ember-script
+fs = require 'fs'
+path = require 'path'
+
+jsAst = (require 'commonjs-everywhere').cjsify 'lib/main.js', __dirname,
+  export: 'epf'
+  aliases: {}
+  handlers: {}
+
+{map, code} = (require 'escodegen').generate jsAst,
+  sourceMapRoot: __dirname
+  sourceMapWithCode: true
+  sourceMap: true
+
+fs.writeFile 'dist/epf.js', "#{code}\n/*\n//@ sourceMappingURL=eps.js.map\n*/"
+fs.writeFile 'dist/epf.js.map', map

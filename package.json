@@ -19,6 +19,8 @@
     "mocha": "*",
     "ember-script": "*",
     "jquery": "*",
-    "mocha-as-promised": "*"
+    "mocha-as-promised": "*",
+    "commonjs-everywhere": "*",
+    "escodegen": "*"
   }
 }
