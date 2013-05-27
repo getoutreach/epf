@@ -1,12 +1,12 @@
 
-describe 'Orm.RestSerializer', ->
+describe 'Ep.RestSerializer', ->
 
   before ->
     @container = new Ember.Container()
-    @container.register('serializer:main', Orm.RestSerializer)
-    @Post = Orm.Model.extend
-      title: Orm.attr('string')
-      longTitle: Orm.attr('string')
+    @container.register('serializer:main', Ep.RestSerializer)
+    @Post = Ep.Model.extend
+      title: Ep.attr('string')
+      longTitle: Ep.attr('string')
     @container.register('model:post', @Post, instantiate: false)
     @serializer = @container.lookup('serializer:main')
 
@@ -81,9 +81,9 @@ describe 'Orm.RestSerializer', ->
 
 # var serializer, Person, Animal, Cat;
 
-# module("DS.JSONSerializer - Mapping API", {
+# module("Ep.JSONSerializer - Mapping API", {
 #   setup: function() {
-#     serializer = DS.JSONSerializer.create();
+#     serializer = Ep.JSONSerializer.create();
 #     Person = MockModel.extend();
 #     window.Address = MockModel.extend();
 #   },
@@ -280,9 +280,9 @@ describe 'Orm.RestSerializer', ->
 #   equal(address.materializedId, 2);
 # });
 
-# module("DS.JSONSerializer - Transform API", {
+# module("Ep.JSONSerializer - Transform API", {
 #   setup: function() {
-#     serializer = DS.JSONSerializer.create();
+#     serializer = Ep.JSONSerializer.create();
 
 #     serializer.registerTransform('unobtainium', {
 #       serialize: function(value) {
@@ -318,9 +318,9 @@ describe 'Orm.RestSerializer', ->
 #   });
 # });
 
-# module("DS.JSONSerializer - Polymorphism API", {
+# module("Ep.JSONSerializer - Polymorphism API", {
 #   setup: function() {
-#     serializer = DS.JSONSerializer.create();
+#     serializer = Ep.JSONSerializer.create();
 #     serializer.keyForPolymorphicId = function(key) {
 #       equal(key, 'pet', 'keyForPolymorphicId was called');
 #       return 'pet_id';

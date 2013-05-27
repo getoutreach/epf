@@ -1,15 +1,16 @@
 {
-  "name": "ember-orm",
+  "name": "epf",
   "version": "0.0.0",
-  "description": "An Ember.js ORM library that works.",
+  "description": "An Ember.js Persistence Framework",
   "main": "./lib/main.js",
   "scripts": {
     "test": "mocha"
   },
-  "repository": "https://github.com/ghempton/ember-orm.git",
+  "repository": "https://github.com/ghempton/epf.git",
   "keywords": [
     "ember.js",
-    "orm"
+    "orm",
+    "persistence"
   ],
   "author": "Gordon L. Hempton",
   "license": "BSD",

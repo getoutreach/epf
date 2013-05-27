@@ -2,23 +2,23 @@ describe "relationships", ->
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
-    @container.register 'session:base', Orm.Session
+    @container.register 'session:base', Ep.Session
     @session = @container.lookup('session:base')
 
   context 'parent->children', ->
 
     beforeEach ->
-      class @Post extends Orm.Model
-        title: Orm.attr('string')
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
       @App.Post = @Post
 
-      class @Comment extends Orm.Model
-        text: Orm.attr('string')
-        post: Orm.belongsTo(@Post)
+      class @Comment extends Ep.Model
+        text: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
       @App.Comment = @Comment
 
       @Post.reopen
-        comments: Orm.hasMany(@Comment)
+        comments: Ep.hasMany(@Comment)
 
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:comment', @Comment, instantiate: false

@@ -1,3 +1,1 @@
-# Ember ORM
-
-An Ember.js ORM library which works.
+# Ember.js Persistence API

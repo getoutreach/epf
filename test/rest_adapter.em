@@ -1,9 +1,9 @@
-describe "Orm.RestAdapter", ->
+describe "Ep.RestAdapter", ->
 
   beforeEach ->
     ajaxResults = @ajaxResults = {}
     ajaxCalls = @ajaxCalls = []
-    class @RestAdapter extends Orm.RestAdapter
+    class @RestAdapter extends Ep.RestAdapter
       ajax: (url, type, hash) ->
         new Ember.RSVP*.Promise (resolve, reject) ->
           key = type + ":" + url
@@ -16,10 +16,10 @@ describe "Orm.RestAdapter", ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
 
-    @container.register 'session:base', Orm.Session
-    @container.register 'serializer:main', Orm.RestSerializer
+    @container.register 'session:base', Ep.Session
+    @container.register 'serializer:main', Ep.RestSerializer
     @container.register 'adapter:main', @RestAdapter
-    @container.register 'store:main', Orm.Store
+    @container.register 'store:main', Ep.Store
 
     @container.typeInjection 'adapter', 'store', 'store:main'
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
@@ -30,8 +30,8 @@ describe "Orm.RestAdapter", ->
   context 'simple model', ->
 
     beforeEach ->
-      class @Post extends Orm.Model
-        title: Orm.attr('string')
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
       @App.Post = @Post
 
       @container.register 'model:post', @Post, instantiate: false
@@ -146,17 +146,17 @@ describe "Orm.RestAdapter", ->
   context 'parent->children', ->
 
     beforeEach ->
-      class @Post extends Orm.Model
-        title: Orm.attr('string')
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
       @App.Post = @Post
 
-      class @Comment extends Orm.Model
-        message: Orm.attr('string')
-        post: Orm.belongsTo(@Post)
+      class @Comment extends Ep.Model
+        message: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
       @App.Comment = @Comment
 
       @Post.reopen
-        comments: Orm.hasMany(@Comment)
+        comments: Ep.hasMany(@Comment)
 
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:comment', @Comment, instantiate: false
