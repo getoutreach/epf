@@ -222,8 +222,7 @@ describe "Ep.RestAdapter", ->
       session.load('post', 1).then (post) ->
         comment = post.comments.firstObject
         session.deleteModel(comment)
-        # TODO: figure out how this should be done
-        #expect(post.comments.length).to.eq(0)
+        expect(post.comments.length).to.eq(0)
         session.flush().then ->
           expect(ajaxCalls).to.eql(['DELETE:/comments/2'])
           expect(post.comments.length).to.eq(0)

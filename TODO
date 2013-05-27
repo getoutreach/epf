@@ -7,3 +7,6 @@ TODO:
 * Cleanup old session models (e.g. after merge the promise is replaced)
 * Record array manager
 * Think through conflicts
+* http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/Session.html
+* Second level cache mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/CacheMode.html
+* Flush mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/FlushMode.html

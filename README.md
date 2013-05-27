@@ -1,1 +1,1 @@
-# Ember.js Persistence API
+# Ember.js Persistence Framework
