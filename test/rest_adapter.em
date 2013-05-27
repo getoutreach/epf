@@ -18,7 +18,9 @@ describe "Ep.RestAdapter", ->
 
     @container.register 'session:base', Ep.Session
     @container.register 'serializer:main', Ep.RestSerializer
-    @container.register 'adapter:main', @RestAdapter
+    # TODO: adapter mappings are currently reified so in tests that
+    # customize these we need to re-instantiate
+    @container.register 'adapter:main', @RestAdapter, singleton: false
     @container.register 'store:main', Ep.Store
 
     @container.typeInjection 'adapter', 'store', 'store:main'
@@ -47,6 +49,22 @@ describe "Ep.RestAdapter", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         expect(ajaxCalls).to.eql(['GET:/posts/1'])
+
+
+    it 'loads when plural specified', ->
+      @RestAdapter.configure 'plurals',
+        post: 'postsandthings'
+      # Re-instantiate since mappings are reified
+      @adapter = @container.lookup('adapter:main')
+      @ajaxResults['GET:/postsandthings/1'] = postsandthings: {id: 1, title: 'mvcc ftw'}
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load(@Post, 1).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        expect(ajaxCalls).to.eql(['GET:/postsandthings/1'])
 
 
     it 'saves', ->
@@ -143,7 +161,7 @@ describe "Ep.RestAdapter", ->
           expect(ajaxCalls).to.eql(['PUT:/posts/1'])
 
 
-  context 'parent->children', ->
+  context 'one->many', ->
 
     beforeEach ->
       class @Post extends Ep.Model
@@ -228,6 +246,54 @@ describe "Ep.RestAdapter", ->
           expect(post.comments.length).to.eq(0)
 
 
+  context "one->one", ->
 
+    beforeEach ->
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
+      @App.Post = @Post
+
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
+      @App.User = @User
+
+      @Post.reopen
+        user: Ep.belongsTo(@User)
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:user', @User, instantiate: false
+
+
+    it 'child can be null', ->
+      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: null}
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load(@Post, 1).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq("mvcc ftw")
+        expect(post.user).to.be.null
+
+
+    it 'loads lazily', ->
+      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: 2}
+      @ajaxResults['GET:/users/2'] = users: {id: 2, name: 'brogrammer', post_id: 1}
+      
+      session = @adapter.newSession()
+
+      ajaxCalls = @ajaxCalls
+      session.load(@Post, 1).then (post) ->
+        expect(ajaxCalls).to.eql(['GET:/posts/1'])
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        user = post.user
+        expect(user.name).to.be.undefined
+
+        post.user.then ->
+          expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/users/2'])
+          expect(user.name).to.eq('brogrammer')
+          expect(user.post.equals(post)).to.be.true
 
 

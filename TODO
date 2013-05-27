@@ -10,3 +10,6 @@ TODO:
 * http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/Session.html
 * Second level cache mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/CacheMode.html
 * Flush mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/FlushMode.html
+
+
+* Explore Copy on Write (COW) as an optimization
