@@ -158,7 +158,7 @@ describe "Ep.RestAdapter", ->
         session.flush().then null, (errors) ->
           expect(post.title).to.eq('')
           expect(post.errors).to.eql({title: 'title is too short'})
-          expect(ajaxCalls).to.eql(['PUT:/posts/1'])
+          expect(ajaxCalls).to.eql(['PUT:/posts/1'])       
 
 
   context 'one->many', ->
@@ -244,6 +244,31 @@ describe "Ep.RestAdapter", ->
         session.flush().then ->
           expect(ajaxCalls).to.eql(['DELETE:/comments/2'])
           expect(post.comments.length).to.eq(0)
+
+
+    context 'embedded', ->
+
+      beforeEach ->
+        @RestAdapter.map @Post,
+          comments: { embedded: 'always' }
+        # Re-instantiate since mappings are reified
+        @adapter = @container.lookup('adapter:main')
+
+
+      it 'loads', ->
+        @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
+
+        session = @adapter.newSession()
+
+        ajaxCalls = @ajaxCalls
+        session.load(@Post, 1).then (post) ->
+          expect(ajaxCalls).to.eql(['GET:/posts/1'])
+          expect(post.id).to.eq("1")
+          expect(post.title).to.eq('mvcc ftw')
+          expect(post.comments.length).to.eq(1)
+          comment = post.comments.firstObject
+          expect(comment.message).to.eq 'first'
+          expect(comment.post.equals(post)).to.be.true
 
 
   context "one->one", ->
