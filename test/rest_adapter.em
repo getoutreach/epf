@@ -314,6 +314,10 @@ describe "Ep.RestAdapter", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         user = post.user
+        # TODO this should be a string, but not super
+        # important since it is coerced on load
+        #expect(user.id).to.eq("2")
+        expect(user.id).to.eq(2)
         expect(user.name).to.be.undefined
 
         post.user.then ->
