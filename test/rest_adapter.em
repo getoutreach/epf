@@ -1,5 +1,7 @@
 describe "Ep.RestAdapter", ->
 
+  adapter = null
+
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
@@ -18,6 +20,7 @@ describe "Ep.RestAdapter", ->
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
     @adapter = @container.lookup('adapter:main')
+    adapter = @adapter
 
 
   context 'simple model', ->
@@ -153,7 +156,6 @@ describe "Ep.RestAdapter", ->
 
 
     it 'loads then updates', ->
-      it 'loads', ->
       @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
       @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'no more fsm'}
 
@@ -169,7 +171,6 @@ describe "Ep.RestAdapter", ->
         session.flush().then ->
           expect(ajaxCalls).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
           expect(post.title).to.eq('no more fsm')
-
 
 
   context 'one->many', ->
@@ -236,6 +237,20 @@ describe "Ep.RestAdapter", ->
         expect(comment.post).to.eq(post)
         expect(post.comments.firstObject).to.eq(comment)
         expect(ajaxCalls).to.eql(['POST:/posts', 'POST:/comments'])
+
+
+    it 'updates with unloaded child', ->
+      @adapter.r['GET:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      @adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated', comment_ids: [2]}
+      session = @adapter.newSession()
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('mvcc ftw')
+        expect(adapter.h).to.eql(['GET:/posts/1'])
+        post.title = 'updated'
+        session.flush().then ->
+          expect(post.title).to.eq('updated')
+          expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
+
 
 
     it 'deletes child', ->
@@ -325,10 +340,7 @@ describe "Ep.RestAdapter", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         user = post.user
-        # TODO this should be a string, but not super
-        # important since it is coerced on load
-        #expect(user.id).to.eq("2")
-        expect(user.id).to.eq(2)
+        expect(user.id).to.eq("2")
         expect(user.name).to.be.undefined
 
         post.user.then ->

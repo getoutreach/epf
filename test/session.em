@@ -45,4 +45,9 @@ describe "Ep.Session", ->
       expect(@session.orphans.toArray()).to.eql([@lazyPost])
 
 
+  it 'can create with hash', ->
+    @post = @session.create('post', title: 'test')
+    expect(@post.title).to.eq('test')
+
+
 
