@@ -7,11 +7,10 @@ describe 'Ep.Model', ->
     @App.User = @User
     @container = new Ember.Container()
     @container.register 'model:user', @User, instantiate: false
-    @App.__container__ = @container
-    Ep.__app__ = @App
+    Ep.__container__ = @container
 
   afterEach ->
-    delete Ep.__app__
+    delete Ep.__container__
 
 
   it 'can use .find', ->
