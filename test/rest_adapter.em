@@ -1,20 +1,11 @@
 describe "Ep.RestAdapter", ->
 
   beforeEach ->
-    ajaxResults = @ajaxResults = {}
-    ajaxCalls = @ajaxCalls = []
-    class @RestAdapter extends Ep.RestAdapter
-      ajax: (url, type, hash) ->
-        new Ember.RSVP*.Promise (resolve, reject) ->
-          key = type + ":" + url
-          ajaxCalls.push(key)
-          json = ajaxResults[key]
-          return reject("No data for #{key}") unless json
-          json = json(url, type, hash) if typeof json == 'function'
-          Ember.run.later ( -> resolve(json) ), 0
-
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
+
+    # TestAdapter already is a subclass
+    @RestAdapter = require('./support/test_rest_adapter').extend()
 
     @container.register 'session:base', Ep.Session
     @container.register 'serializer:main', Ep.RestSerializer
@@ -40,11 +31,11 @@ describe "Ep.RestAdapter", ->
 
 
     it 'loads', ->
-      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
+      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load(@Post, 1).then (post) ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
@@ -56,11 +47,11 @@ describe "Ep.RestAdapter", ->
         post: 'postsandthings'
       # Re-instantiate since mappings are reified
       @adapter = @container.lookup('adapter:main')
-      @ajaxResults['GET:/postsandthings/1'] = postsandthings: {id: 1, title: 'mvcc ftw'}
+      @adapter.r['GET:/postsandthings/1'] = postsandthings: {id: 1, title: 'mvcc ftw'}
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load(@Post, 1).then (post) ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
@@ -68,14 +59,14 @@ describe "Ep.RestAdapter", ->
 
 
     it 'saves', ->
-      @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
+      @adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
 
       session = @adapter.newSession()
 
       post = session.create('post')
       post.title = 'mvcc ftw'
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.flush().then ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
@@ -83,13 +74,13 @@ describe "Ep.RestAdapter", ->
 
 
     it 'updates', ->
-      @ajaxResults['PUT:/posts/1'] = -> posts: {client_id: post.clientId, id: 1, title: 'updated'}
+      @adapter.r['PUT:/posts/1'] = -> posts: {client_id: post.clientId, id: 1, title: 'updated'}
 
       @adapter.loaded(@Post.create(id: "1", title: 'test'))
 
       session = @adapter.newSession()
       post = null
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         expect(post.title).to.eq('test')
         post.title = 'updated'
@@ -99,13 +90,13 @@ describe "Ep.RestAdapter", ->
 
 
     it 'deletes', ->
-      @ajaxResults['DELETE:/posts/1'] = {}
+      @adapter.r['DELETE:/posts/1'] = {}
 
       @adapter.loaded(@Post.create(id: "1", title: 'test'))
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('test')
@@ -117,11 +108,11 @@ describe "Ep.RestAdapter", ->
 
     it 'refreshes', ->
       @adapter.loaded(@Post.create(id: "1", title: 'test'))
-      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'something new'}
+      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'something new'}
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load(@Post, 1).then (post) ->
         expect(post.title).to.eq('test')
         expect(ajaxCalls).to.eql([])
@@ -131,34 +122,54 @@ describe "Ep.RestAdapter", ->
 
 
     it 'finds', ->
-      @ajaxResults['GET:/posts'] = (url, type, hash) ->
+      @adapter.r['GET:/posts'] = (url, type, hash) ->
         expect(hash.data).to.eql({q: "aardvarks"})
         posts: [{id: 1, title: 'aardvarks explained'}, {id: 2, title: 'aardvarks in depth'}]
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.find('post', {q: 'aardvarks'}).then (models) ->
         expect(models.length).to.eq(2)
         expect(ajaxCalls).to.eql(['GET:/posts'])
 
 
     it 'handles errors on update', ->
-      @ajaxResults['PUT:/posts/1'] = ->
+      @adapter.r['PUT:/posts/1'] = ->
         throw responseText: JSON.stringify(errors: {title: 'title is too short'})
 
       @adapter.loaded(@Post.create(id: "1", title: 'test'))
 
       session = @adapter.newSession()
       post = null
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         expect(post.title).to.eq('test')
         post.title = ''
         session.flush().then null, (errors) ->
           expect(post.title).to.eq('')
           expect(post.errors).to.eql({title: 'title is too short'})
-          expect(ajaxCalls).to.eql(['PUT:/posts/1'])       
+          expect(ajaxCalls).to.eql(['PUT:/posts/1'])
+
+
+    it 'loads then updates', ->
+      it 'loads', ->
+      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
+      @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'no more fsm'}
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @adapter.h
+      session.load(@Post, 1).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        expect(ajaxCalls).to.eql(['GET:/posts/1'])
+
+        post.title = 'no more fsm'
+        session.flush().then ->
+          expect(ajaxCalls).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
+          expect(post.title).to.eq('no more fsm')
+
 
 
   context 'one->many', ->
@@ -181,12 +192,12 @@ describe "Ep.RestAdapter", ->
 
 
     it 'loads lazily', ->
-      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      @ajaxResults['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
+      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      @adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load(@Post, 1).then (post) ->
         expect(ajaxCalls).to.eql(['GET:/posts/1'])
         expect(post.id).to.eq("1")
@@ -202,8 +213,8 @@ describe "Ep.RestAdapter", ->
 
 
     it 'saves', ->
-      @ajaxResults['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
-      @ajaxResults['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
+      @adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
+      @adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
 
       session = @adapter.newSession()
 
@@ -216,7 +227,7 @@ describe "Ep.RestAdapter", ->
 
       expect(post.comments.firstObject).to.eq(comment)
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.flush().then ->
         expect(post.id).to.not.be.null
         expect(post.title).to.eq('topological sort')
@@ -228,7 +239,7 @@ describe "Ep.RestAdapter", ->
 
 
     it 'deletes child', ->
-      @ajaxResults['DELETE:/comments/2'] = {}
+      @adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
       post.comments.addObject(@Comment.create(id: "2", message: 'child'))
@@ -236,7 +247,7 @@ describe "Ep.RestAdapter", ->
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         comment = post.comments.firstObject
         session.deleteModel(comment)
@@ -256,11 +267,11 @@ describe "Ep.RestAdapter", ->
 
 
       it 'loads', ->
-        @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
+        @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
 
         session = @adapter.newSession()
 
-        ajaxCalls = @ajaxCalls
+        ajaxCalls = @adapter.h
         session.load(@Post, 1).then (post) ->
           expect(ajaxCalls).to.eql(['GET:/posts/1'])
           expect(post.id).to.eq("1")
@@ -291,11 +302,11 @@ describe "Ep.RestAdapter", ->
 
 
     it 'child can be null', ->
-      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: null}
+      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: null}
 
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load(@Post, 1).then (post) ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq("mvcc ftw")
@@ -303,12 +314,12 @@ describe "Ep.RestAdapter", ->
 
 
     it 'loads lazily', ->
-      @ajaxResults['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: 2}
-      @ajaxResults['GET:/users/2'] = users: {id: 2, name: 'brogrammer', post_id: 1}
+      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: 2}
+      @adapter.r['GET:/users/2'] = users: {id: 2, name: 'brogrammer', post_id: 1}
       
       session = @adapter.newSession()
 
-      ajaxCalls = @ajaxCalls
+      ajaxCalls = @adapter.h
       session.load(@Post, 1).then (post) ->
         expect(ajaxCalls).to.eql(['GET:/posts/1'])
         expect(post.id).to.eq("1")

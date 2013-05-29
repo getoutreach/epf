@@ -74,6 +74,29 @@ describe 'Ep.RestSerializer', ->
         expect(data).to.eql({client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd'})
 
 
+      it 'handles unloaded lazy model', ->
+        lazyPost = Ep.LazyModel.create
+          id: 1,
+          clientId: "2"
+          type: @Post
+        data = @serializer.serialize(lazyPost, includeId: true)
+        expect(data).to.eql client_id: "2", id: 1
+
+
+      it 'handles loaded lazy model', ->
+        post = @Post.create()
+        post.id = 1
+        post.clientId = "2"
+        post.title = 'wat'
+        post.longTitle = 'wat omgawd'
+        lazyPost = Ep.LazyModel.create
+          id: 1,
+          type: @Post
+        lazyPost.resolve(post)
+        data = @serializer.serialize(lazyPost, includeId: true)
+        expect(data).to.eql client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd'
+
+
       it 'obeys mapped attributes', ->
         @serializer.map @Post,
           title: { key: 'POST_TITLE' }

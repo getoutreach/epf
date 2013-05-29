@@ -5,6 +5,7 @@ describe "relationships", ->
     @container.register 'session:base', Ep.Session
     @session = @container.lookup('session:base')
 
+
   context 'parent->children', ->
 
     beforeEach ->
@@ -23,11 +24,13 @@ describe "relationships", ->
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:comment', @Comment, instantiate: false
 
+
     it 'belongsTo updates inverse for new records', ->
       post = @session.create('post')
       comment = @session.create('comment')
       comment.post = post
       expect(post.comments.firstObject).to.eq(comment)
+
 
     it 'hasMany updates inverse for new records', ->
       post = @session.create('post')
