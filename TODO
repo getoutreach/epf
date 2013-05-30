@@ -20,3 +20,5 @@ TODO:
 * setting inverse is broken when set during create
 
 * reuse models during merging if not associated with a session
+
+* enforce client ids just above the serialization level to simplify checking identity

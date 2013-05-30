@@ -44,7 +44,7 @@ describe "rest", ->
         post.comments.firstObject.then ->
           expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/comments/2'])
           expect(comment.message).to.eq('first')
-          expect(comment.post.equals(post)).to.be.true
+          expect(comment.post.isEqual(post)).to.be.true
 
 
     it 'saves', ->
@@ -151,7 +151,7 @@ describe "rest", ->
           expect(post.comments.length).to.eq(1)
           comment = post.comments.firstObject
           expect(comment.message).to.eq 'first'
-          expect(comment.post.equals(post)).to.be.true
+          expect(comment.post.isEqual(post)).to.be.true
 
 
       it 'updates child', ->

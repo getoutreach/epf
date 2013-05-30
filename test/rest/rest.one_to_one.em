@@ -55,4 +55,4 @@ describe "rest", ->
         post.user.then ->
           expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/users/2'])
           expect(user.name).to.eq('brogrammer')
-          expect(user.post.equals(post)).to.be.true
+          expect(user.post.isEqual(post)).to.be.true
