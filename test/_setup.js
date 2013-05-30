@@ -1,6 +1,6 @@
 global.jQuery = require('jquery')
-require('../lib/vendor/ember-runtime');
-require('../lib/main');
+require('../vendor/ember-runtime');
+require('../lib/index');
 
 require("mocha-as-promised")();
 

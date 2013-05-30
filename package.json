@@ -2,7 +2,7 @@
   "name": "epf",
   "version": "0.0.0",
   "description": "An Ember.js Persistence Framework",
-  "main": "./lib/main.js",
+  "main": "./lib/index.js",
   "scripts": {
     "test": "mocha"
   },
@@ -21,6 +21,7 @@
     "jquery": "*",
     "mocha-as-promised": "*",
     "commonjs-everywhere": "*",
-    "escodegen": "*"
+    "escodegen": "*",
+    "emberjs": "https://github.com/emberjs/ember.js.git"
   }
 }

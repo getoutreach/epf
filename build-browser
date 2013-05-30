@@ -2,7 +2,7 @@
 fs = require 'fs'
 path = require 'path'
 
-jsAst = (require 'commonjs-everywhere').cjsify 'lib/main.js', __dirname,
+jsAst = (require 'commonjs-everywhere').cjsify 'lib/index.js', __dirname,
   export: 'epf'
   aliases: {}
   handlers: {}

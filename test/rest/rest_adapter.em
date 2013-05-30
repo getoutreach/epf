@@ -7,7 +7,7 @@ describe "Ep.RestAdapter", ->
     @container = new Ember.Container()
 
     # TestAdapter already is a subclass
-    @RestAdapter = require('./support/test_rest_adapter').extend()
+    @RestAdapter = require('../support/test_rest_adapter').extend()
 
     @container.register 'session:base', Ep.Session
     @container.register 'serializer:main', Ep.RestSerializer
