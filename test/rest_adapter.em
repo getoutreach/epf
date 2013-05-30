@@ -307,11 +307,12 @@ describe "Ep.RestAdapter", ->
         session.load(@Post, 1).then (post) ->
           expect(adapter.h).to.eql(['GET:/posts/1'])
           comment = post.comments.firstObject
-          comment.title = 'first again'
+          comment.message = 'first again'
           session.flush().then ->
             expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
             expect(post.comments.firstObject).to.eq(comment)
-            expect(comment.title).to.eq('first again')
+            expect(comment.message).to.eq('first again')
+
 
       it 'adds child', ->
         @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
