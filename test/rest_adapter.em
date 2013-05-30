@@ -279,6 +279,7 @@ describe "Ep.RestAdapter", ->
           comments: { embedded: 'always' }
         # Re-instantiate since mappings are reified
         @adapter = @container.lookup('adapter:main')
+        adapter = @adapter
 
 
       it 'loads', ->
@@ -295,6 +296,42 @@ describe "Ep.RestAdapter", ->
           comment = post.comments.firstObject
           expect(comment.message).to.eq 'first'
           expect(comment.post.equals(post)).to.be.true
+
+
+      it 'updates child', ->
+        @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
+        @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first again'}]}
+
+        session = @adapter.newSession()
+
+        session.load(@Post, 1).then (post) ->
+          expect(adapter.h).to.eql(['GET:/posts/1'])
+          comment = post.comments.firstObject
+          comment.title = 'first again'
+          session.flush().then ->
+            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
+            expect(post.comments.firstObject).to.eq(comment)
+            expect(comment.title).to.eq('first again')
+
+      it 'adds child', ->
+        @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
+        @adapter.r['PUT:/posts/1'] =  -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post_id: 1, message: 'reborn'}]}
+        session = @adapter.newSession()
+
+        Comment = @Comment
+        comment = null
+        session.load(@Post, 1).then (post) ->
+          expect(adapter.h).to.eql(['GET:/posts/1'])
+          expect(post.comments.length).to.eq(0)
+          comment = session.create('comment', message: 'reborn')
+          comment.post = post
+          session.flush().then ->
+            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
+            expect(comment.message).to.eq('reborn')
+            expect(post.comments.firstObject).to.eq(comment)
+
+      #it 'removes child', ->
+
 
 
   context "one->one", ->

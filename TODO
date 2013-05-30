@@ -11,5 +11,12 @@ TODO:
 * Second level cache mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/CacheMode.html
 * Flush mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/FlushMode.html
 
+* Remove Ember.Deferred from LazyModel and instead simply have a promise property
 
 * Explore Copy on Write (COW) as an optimization
+
+* isNew should not be tied to ID
+
+* setting inverse is broken when set during create
+
+* reuse models during merging if not associated with a session
