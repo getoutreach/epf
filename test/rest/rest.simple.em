@@ -67,7 +67,9 @@ describe "rest", ->
       session = @adapter.newSession()
       post = null
       ajaxCalls = @adapter.h
-      session.load('post', 1).then (post) ->
+      session.load('post', 1).then (loadedPost) ->
+        post = loadedPost
+        console.log(post.toString())
         expect(post.title).to.eq('test')
         post.title = 'updated'
         session.flush().then ->

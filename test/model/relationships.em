@@ -3,7 +3,12 @@ describe "relationships", ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     @container.register 'session:base', Ep.Session
+    uuid = 1
+    adapter =
+      assignClientId: (model) ->
+        model.clientId = "cid" + (uuid++)
     @session = @container.lookup('session:base')
+    @session.adapter = adapter
 
 
   context 'parent->children', ->
