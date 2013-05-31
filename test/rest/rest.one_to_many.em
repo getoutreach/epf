@@ -171,7 +171,6 @@ describe "rest", ->
 
         ajaxCalls = @adapter.h
         session.load(@Post, 1).then (post) ->
-          debugger
           expect(ajaxCalls).to.eql(['GET:/posts/1'])
           expect(post.id).to.eq("1")
           expect(post.title).to.eq('mvcc ftw')
