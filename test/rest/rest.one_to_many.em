@@ -107,7 +107,7 @@ describe "rest", ->
 
 
     it 'deletes child and updates parent', ->
-      @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comment_ids: [2]}
       @adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
