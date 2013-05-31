@@ -73,6 +73,10 @@ describe "rest", ->
         expect(ajaxCalls).to.eql(['POST:/posts', 'POST:/comments'])
 
 
+    # TODO: saves child
+    # TODO: saves and updates sibling
+
+
     it 'updates with unloaded child', ->
       @adapter.r['GET:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
       @adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated', comment_ids: [2]}
@@ -128,6 +132,28 @@ describe "rest", ->
           expect(post.title).to.eq('childless')
 
 
+    it 'deletes parent and child', ->
+      @adapter.r['DELETE:/posts/1'] = {}
+      @adapter.r['DELETE:/comments/2'] = {}
+
+      post = @Post.create(id: "1", title: 'parent');
+      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      @adapter.loaded(post)
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @adapter.h
+      session.load('post', 1).then (post) ->
+        comment = post.comments.firstObject
+        session.deleteModel(comment)
+        expect(post.comments.length).to.eq(0)
+        session.deleteModel(post)
+        session.flush().then ->
+          expect(ajaxCalls).to.eql(['DELETE:/posts/1', 'DELETE:/comments/2'])
+          expect(post.isDeleted).to.be.true
+          expect(comment.isDeleted).to.be.true
+
+
     context 'embedded', ->
 
       beforeEach ->
@@ -145,6 +171,7 @@ describe "rest", ->
 
         ajaxCalls = @adapter.h
         session.load(@Post, 1).then (post) ->
+          debugger
           expect(ajaxCalls).to.eql(['GET:/posts/1'])
           expect(post.id).to.eq("1")
           expect(post.title).to.eq('mvcc ftw')
@@ -186,3 +213,40 @@ describe "rest", ->
             expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
             expect(comment.message).to.eq('reborn')
             expect(post.comments.firstObject).to.eq(comment)
+
+
+      it 'deletes child', ->
+        @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
+
+        post = @Post.create(id: "1", title: 'parent');
+        post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+        @adapter.loaded(post)
+
+        session = @adapter.newSession()
+
+        ajaxCalls = @adapter.h
+        session.load('post', 1).then (post) ->
+          comment = post.comments.firstObject
+          session.deleteModel(comment)
+          expect(post.comments.length).to.eq(0)
+          session.flush().then ->
+            expect(ajaxCalls).to.eql(['PUT:/posts/1'])
+            expect(post.comments.length).to.eq(0)
+
+
+      it 'deletes parent and child', ->
+        @adapter.r['DELETE:/posts/1'] = {}
+
+        post = @Post.create(id: "1", title: 'parent');
+        post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+        @adapter.loaded(post)
+
+        session = @adapter.newSession()
+
+        # TODO: once we have support for side deletions beef up this test
+        ajaxCalls = @adapter.h
+        session.load('post', 1).then (post) ->
+          session.deleteModel(post)
+          session.flush().then ->
+            expect(ajaxCalls).to.eql(['DELETE:/posts/1'])
+            expect(post.isDeleted).to.be.true

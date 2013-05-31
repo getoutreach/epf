@@ -7,7 +7,7 @@ describe "relationships", ->
     @session.store = Ep.Store.create()
 
 
-  context 'parent->children', ->
+  context 'one->many', ->
 
     beforeEach ->
       class @Post extends Ep.Model
@@ -26,18 +26,77 @@ describe "relationships", ->
       @container.register 'model:comment', @Comment, instantiate: false
 
 
-    it 'belongsTo updates inverse for new records', ->
+    it 'belongsTo updates inverse', ->
       post = @session.create('post')
       comment = @session.create('comment')
       comment.post = post
-      expect(post.comments.firstObject).to.eq(comment)
+      expect(post.comments.toArray()).to.eql([comment])
+      comment.post = null
+      expect(post.comments.toArray()).to.eql([])
 
 
-    it 'hasMany updates inverse for new records', ->
+    it 'belongsTo updates inverse on delete', ->
+      post = @session.create('post')
+      comment = @session.create('comment')
+      comment.post = post
+      expect(post.comments.toArray()).to.eql([comment])
+      @session.deleteModel comment
+      expect(post.comments.toArray()).to.eql([])
+
+
+    it 'hasMany updates inverse', ->
       post = @session.create('post')
       comment = @session.create('comment')
       post.comments.addObject(comment)
       expect(comment.post).to.eq(post)
+      post.comments.removeObject(comment)
+      expect(comment.post).to.be.null
+
+
+    it 'hasMany updates inverse on delete', ->
+      post = @session.create('post')
+      comment = @session.create('comment')
+      post.comments.addObject(comment)
+      expect(comment.post).to.eq(post)
+      @session.deleteModel post
+      expect(comment.post).to.be.null
+
+
+  context 'one->one', ->
+    beforeEach ->
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
+      @App.Post = @Post
+
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
+      @App.User = @User
+
+      @Post.reopen
+        user: Ep.belongsTo(@User)
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:user', @User, instantiate: false
+
+
+    it 'updates inverse', ->
+      post = @session.create('post')
+      user = @session.create('user')
+      post.user = user
+      expect(user.post).to.eq(post)
+      post.user = null
+      expect(user.post).to.be.null
+
+
+    it 'updates inverse on delete', ->
+      post = @session.create('post')
+      user = @session.create('user')
+      post.user = user
+      expect(user.post).to.eq(post)
+      debugger
+      @session.deleteModel post
+      expect(user.post).to.be.null
 
 
 

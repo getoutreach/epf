@@ -21,6 +21,7 @@ describe 'Ep.EmbeddedManager', ->
     @adapter.serializer = Ep.RestSerializer.create()
     @manager = @adapter._embeddedManager
 
+
   it 'can determine if a record is embedded', ->
     @post = @Post.create(id: 1)
     @comment = @Comment.create(id: 2)

@@ -21,6 +21,12 @@ describe "rest", ->
       @Post.reopen
         user: Ep.belongsTo(@User)
 
+      @RestAdapter.map @Post,
+        user: { owner: false }
+      # Re-instantiate since mappings are reified
+      @adapter = @container.lookup('adapter:main')
+      adapter = @adapter
+
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:user', @User, instantiate: false
 
@@ -56,3 +62,22 @@ describe "rest", ->
           expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/users/2'])
           expect(user.name).to.eq('brogrammer')
           expect(user.post.isEqual(post)).to.be.true
+
+
+    it 'deletes one side', ->
+      @adapter.r['DELETE:/users/2'] = {}
+
+      post = @Post.create(id: "1", title: 'parent')
+      post.user = @User.create(id: "2", name: 'wes')
+      @adapter.loaded(post)
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @adapter.h
+      session.load('post', 1).then (post) ->
+        user = post.user
+        session.deleteModel(user)
+        expect(post.user).to.be.null
+        session.flush().then ->
+          expect(post.user).to.be.null
+          expect(ajaxCalls).to.eql(['DELETE:/users/2'])
