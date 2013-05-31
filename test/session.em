@@ -9,11 +9,7 @@ describe "Ep.Session", ->
     @App.Post = @Post
 
     @container.register 'model:post', @Post, instantiate: false
-    uuid = 1
-    adapter =
-      assignClientId: (model) ->
-        model.clientId = "cid" + (uuid++)
-    @session = Ep.Session.create(container: @container, adapter: adapter)
+    @session = Ep.Session.create(container: @container, store: Ep.Store.create())
 
 
   describe 'with orphaned proxy', ->

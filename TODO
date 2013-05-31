@@ -25,3 +25,9 @@ TODO:
 * enforce client ids just above the serialization level to simplify checking identity
 
 * merging needs to take into account deletion
+
+* switch to POJOs instead of Ember.Map for performance
+
+* explore setting meta flag to avoid multiple reifyClientId calls
+
+* set properties in bulk during merge (beingPropertyChange)
