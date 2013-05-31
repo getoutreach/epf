@@ -73,8 +73,50 @@ describe "rest", ->
         expect(ajaxCalls).to.eql(['POST:/posts', 'POST:/comments'])
 
 
-    # TODO: saves child
-    # TODO: saves and updates sibling
+    it 'saves child', ->
+      @adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post_id: 1}
+
+      session = @adapter.newSession()
+
+      post = @Post.create(id: "1", title: 'parent');
+      @adapter.loaded(post)
+
+      comment = null
+
+      session.load(@Post, 1).then (post) ->
+        comment = session.create('comment', message: 'new child')
+        comment.post = post
+        expect(post.comments.toArray()).to.eql([comment])
+        session.flush().then ->
+          expect(post.comments.toArray()).to.eql([comment])
+          expect(comment.message).to.eq('new child')
+          expect(adapter.h).to.eql(['POST:/comments'])
+
+
+    it 'updates parent, updates child, and saves sibling', ->
+      @adapter.r['PUT:/posts/1'] = -> post: {id: 1, title: 'polychild', comment_ids: [2]}
+      @adapter.r['PUT:/comments/2'] = -> comments: {id: 2, title: 'original sibling', post_id: 1}
+      @adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post_id: 1}
+
+      session = @adapter.newSession()
+
+      post = @Post.create(id: "1", title: 'parent');
+      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      @adapter.loaded(post)
+
+      comment = null
+      sibling = null
+
+      session.load(@Post, 1).then (post) ->
+        comment = post.comments.firstObject
+        sibling = session.create('comment', message: 'sibling')
+        sibling.post = post
+        comment.message = 'original sibling'
+        post.title = 'polychild'
+        expect(post.comments.toArray()).to.eql([comment, sibling])
+        session.flush().then ->
+          expect(post.comments.toArray()).to.eql([comment, sibling])
+          expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/comments/2', 'POST:/comments'])
 
 
     it 'updates with unloaded child', ->
