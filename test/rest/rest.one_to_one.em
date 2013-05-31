@@ -81,3 +81,22 @@ describe "rest", ->
         session.flush().then ->
           expect(post.user).to.be.null
           expect(ajaxCalls).to.eql(['DELETE:/users/2'])
+
+
+    it 'deletes both', ->
+      @adapter.r['DELETE:/posts/1'] = {}
+      @adapter.r['DELETE:/users/2'] = {}
+
+      post = @Post.create(id: "1", title: 'parent')
+      post.user = @User.create(id: "2", name: 'wes')
+      @adapter.loaded(post)
+
+      session = @adapter.newSession()
+
+      ajaxCalls = @adapter.h
+      session.load('post', 1).then (post) ->
+        user = post.user
+        session.deleteModel(user)
+        session.deleteModel(post)
+        session.flush().then ->
+          expect(ajaxCalls).to.eql(['DELETE:/posts/1', 'DELETE:/users/2'])

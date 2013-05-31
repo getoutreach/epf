@@ -4,7 +4,6 @@ TODO:
 * Think about an ordered model array
 * Think about making all model arrays sets
 * Cleanup old session models (e.g. after merge the promise is replaced)
-* Record array manager
 * Think through conflicts
 * http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/Session.html
 * Second level cache mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/CacheMode.html
@@ -16,10 +15,6 @@ TODO:
 
 * isNew should not be tied to ID
 
-* setting inverse is broken when set during create
-
-* reuse models during merging if not associated with a session
-
 * type should always be polymorphic base class
 
 * enforce client ids just above the serialization level to simplify checking identity
@@ -29,5 +24,3 @@ TODO:
 * switch to POJOs instead of Ember.Map for performance
 
 * explore setting meta flag to avoid multiple reifyClientId calls
-
-* set properties in bulk during merge (beingPropertyChange)

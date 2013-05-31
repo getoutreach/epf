@@ -44,6 +44,14 @@ describe "relationships", ->
       expect(post.comments.toArray()).to.eql([])
 
 
+    it 'belongsTo updates inverse when set during create', ->
+      comment = @session.create('comment', post: @session.create('post'))
+      post = comment.post
+      expect(post.comments.toArray()).to.eql([comment])
+      comment.post = null
+      expect(post.comments.toArray()).to.eql([])
+
+
     it 'hasMany updates inverse', ->
       post = @session.create('post')
       comment = @session.create('comment')
