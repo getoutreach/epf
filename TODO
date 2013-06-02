@@ -24,3 +24,5 @@ TODO:
 * switch to POJOs instead of Ember.Map for performance
 
 * explore setting meta flag to avoid multiple reifyClientId calls
+
+* use web workers instead of delayed materialization
