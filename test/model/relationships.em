@@ -102,7 +102,6 @@ describe "relationships", ->
       user = @session.create('user')
       post.user = user
       expect(user.post).to.eq(post)
-      debugger
       @session.deleteModel post
       expect(user.post).to.be.null
 

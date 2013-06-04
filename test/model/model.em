@@ -16,7 +16,7 @@ describe 'Ep.Model', ->
   it 'can use .find', ->
     User = @User
     class @SessionStub
-      load: (type, id) ->
+      find: (type, id) ->
         expect(type).to.eq(User)
         expect(id).to.eq(1)
         Ember.RSVP.resolve(type.create(id: id.toString()))
