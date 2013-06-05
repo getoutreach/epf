@@ -57,7 +57,7 @@ describe "Ep.Session", ->
       child = parent.newSession()
 
     it 'flushes updates immediately', ->
-      @adapter.loaded @Post.create(id: "1", title: 'original')
+      parent.merge @Post.create(id: "1", title: 'original')
 
       child.load('post', 1).then (childPost) ->
 
