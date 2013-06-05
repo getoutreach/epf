@@ -1,10 +1,12 @@
 describe "rest", ->
 
   adapter = null
+  session = null
 
   beforeEach ->
     require('./_shared').setupRest.apply(this)
     adapter = @adapter
+    session = @session
 
 
   context 'one->many', ->
@@ -27,14 +29,11 @@ describe "rest", ->
 
 
     it 'loads lazily', ->
-      @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      @adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
+      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
 
-      session = @adapter.newSession()
-
-      ajaxCalls = @adapter.h
-      session.load(@Post, 1).then (post) ->
-        expect(ajaxCalls).to.eql(['GET:/posts/1'])
+      session.load('post', 1).then (post) ->
+        expect(adapter.h).to.eql(['GET:/posts/1'])
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         expect(post.comments.length).to.eq(1)
@@ -42,16 +41,14 @@ describe "rest", ->
         expect(comment.message).to.be.undefined
 
         post.comments.firstObject.then ->
-          expect(ajaxCalls).to.eql(['GET:/posts/1', 'GET:/comments/2'])
+          expect(adapter.h).to.eql(['GET:/posts/1', 'GET:/comments/2'])
           expect(comment.message).to.eq('first')
           expect(comment.post.isEqual(post)).to.be.true
 
 
     it 'saves', ->
-      @adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
-      @adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
-
-      session = @adapter.newSession()
+      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
+      adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
 
       post = session.create('post')
       post.title = 'topological sort'
@@ -62,7 +59,6 @@ describe "rest", ->
 
       expect(post.comments.firstObject).to.eq(comment)
 
-      ajaxCalls = @adapter.h
       session.flush().then ->
         expect(post.id).to.not.be.null
         expect(post.title).to.eq('topological sort')
@@ -70,16 +66,13 @@ describe "rest", ->
         expect(comment.message).to.eq('seems good')
         expect(comment.post).to.eq(post)
         expect(post.comments.firstObject).to.eq(comment)
-        expect(ajaxCalls).to.eql(['POST:/posts', 'POST:/comments'])
+        expect(adapter.h).to.eql(['POST:/posts', 'POST:/comments'])
 
 
     it 'saves child', ->
-      @adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post_id: 1}
+      adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post_id: 1}
 
-      session = @adapter.newSession()
-
-      post = @Post.create(id: "1", title: 'parent');
-      @adapter.loaded(post)
+      session.merge @Post.create(id: "1", title: 'parent');
 
       comment = null
 
@@ -94,15 +87,13 @@ describe "rest", ->
 
 
     it 'updates parent, updates child, and saves sibling', ->
-      @adapter.r['PUT:/posts/1'] = -> post: {id: 1, title: 'polychild', comment_ids: [2]}
-      @adapter.r['PUT:/comments/2'] = -> comments: {id: 2, title: 'original sibling', post_id: 1}
-      @adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post_id: 1}
-
-      session = @adapter.newSession()
+      adapter.r['PUT:/posts/1'] = -> post: {id: 1, title: 'polychild', comment_ids: [2]}
+      adapter.r['PUT:/comments/2'] = -> comments: {id: 2, title: 'original sibling', post_id: 1}
+      adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post_id: 1}
 
       post = @Post.create(id: "1", title: 'parent');
       post.comments.addObject(@Comment.create(id: "2", message: 'child'))
-      @adapter.loaded(post)
+      session.merge post
 
       comment = null
       sibling = null
@@ -120,9 +111,8 @@ describe "rest", ->
 
 
     it 'updates with unloaded child', ->
-      @adapter.r['GET:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      @adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated', comment_ids: [2]}
-      session = @adapter.newSession()
+      adapter.r['GET:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated', comment_ids: [2]}
       session.load('post', 1).then (post) ->
         expect(post.title).to.eq('mvcc ftw')
         expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -133,65 +123,56 @@ describe "rest", ->
 
 
     it 'deletes child', ->
-      @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      @adapter.r['DELETE:/comments/2'] = {}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
       post.comments.addObject(@Comment.create(id: "2", message: 'child'))
-      @adapter.loaded(post)
+      session.merge post
 
-      session = @adapter.newSession()
-
-      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         comment = post.comments.firstObject
         session.deleteModel(comment)
         expect(post.comments.length).to.eq(0)
         session.flush().then ->
-          expect(ajaxCalls).to.eql(['DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['DELETE:/comments/2'])
           expect(post.comments.length).to.eq(0)
 
 
     it 'deletes child and updates parent', ->
-      @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comment_ids: [2]}
-      @adapter.r['DELETE:/comments/2'] = {}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comment_ids: [2]}
+      adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
       post.comments.addObject(@Comment.create(id: "2", message: 'child'))
-      @adapter.loaded(post)
+      session.merge post
 
-      session = @adapter.newSession()
-
-      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         comment = post.comments.firstObject
         session.deleteModel(comment)
         expect(post.comments.length).to.eq(0)
         post.title = 'childless'
         session.flush().then ->
-          expect(ajaxCalls).to.eql(['PUT:/posts/1', 'DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['PUT:/posts/1', 'DELETE:/comments/2'])
           expect(post.comments.length).to.eq(0)
           expect(post.title).to.eq('childless')
 
 
     it 'deletes parent and child', ->
-      @adapter.r['DELETE:/posts/1'] = {}
-      @adapter.r['DELETE:/comments/2'] = {}
+      adapter.r['DELETE:/posts/1'] = {}
+      adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
       post.comments.addObject(@Comment.create(id: "2", message: 'child'))
-      @adapter.loaded(post)
+      session.merge post
 
-      session = @adapter.newSession()
-
-      ajaxCalls = @adapter.h
       session.load('post', 1).then (post) ->
         comment = post.comments.firstObject
         session.deleteModel(comment)
         expect(post.comments.length).to.eq(0)
         session.deleteModel(post)
         session.flush().then ->
-          expect(ajaxCalls).to.eql(['DELETE:/posts/1', 'DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/comments/2'])
           expect(post.isDeleted).to.be.true
           expect(comment.isDeleted).to.be.true
 
@@ -204,16 +185,14 @@ describe "rest", ->
         # Re-instantiate since mappings are reified
         @adapter = @container.lookup('adapter:main')
         adapter = @adapter
+        session = adapter.newSession()
 
 
       it 'loads', ->
-        @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
+        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
 
-        session = @adapter.newSession()
-
-        ajaxCalls = @adapter.h
         session.load(@Post, 1).then (post) ->
-          expect(ajaxCalls).to.eql(['GET:/posts/1'])
+          expect(adapter.h).to.eql(['GET:/posts/1'])
           expect(post.id).to.eq("1")
           expect(post.title).to.eq('mvcc ftw')
           expect(post.comments.length).to.eq(1)
@@ -223,10 +202,8 @@ describe "rest", ->
 
 
       it 'updates child', ->
-        @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
-        @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first again'}]}
-
-        session = @adapter.newSession()
+        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
+        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first again'}]}
 
         session.load(@Post, 1).then (post) ->
           expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -239,11 +216,9 @@ describe "rest", ->
 
 
       it 'adds child', ->
-        @adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
-        @adapter.r['PUT:/posts/1'] =  -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post_id: 1, message: 'reborn'}]}
-        session = @adapter.newSession()
+        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
+        adapter.r['PUT:/posts/1'] =  -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post_id: 1, message: 'reborn'}]}
 
-        Comment = @Comment
         comment = null
         session.load(@Post, 1).then (post) ->
           expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -257,37 +232,31 @@ describe "rest", ->
 
 
       it 'deletes child', ->
-        @adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
+        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
 
         post = @Post.create(id: "1", title: 'parent');
         post.comments.addObject(@Comment.create(id: "2", message: 'child'))
-        @adapter.loaded(post)
+        session.merge post
 
-        session = @adapter.newSession()
-
-        ajaxCalls = @adapter.h
         session.load('post', 1).then (post) ->
           comment = post.comments.firstObject
           session.deleteModel(comment)
           expect(post.comments.length).to.eq(0)
           session.flush().then ->
-            expect(ajaxCalls).to.eql(['PUT:/posts/1'])
+            expect(adapter.h).to.eql(['PUT:/posts/1'])
             expect(post.comments.length).to.eq(0)
 
 
       it 'deletes parent and child', ->
-        @adapter.r['DELETE:/posts/1'] = {}
+        adapter.r['DELETE:/posts/1'] = {}
 
         post = @Post.create(id: "1", title: 'parent');
         post.comments.addObject(@Comment.create(id: "2", message: 'child'))
-        @adapter.loaded(post)
-
-        session = @adapter.newSession()
+        session.merge post
 
         # TODO: once we have support for side deletions beef up this test
-        ajaxCalls = @adapter.h
         session.load('post', 1).then (post) ->
           session.deleteModel(post)
           session.flush().then ->
-            expect(ajaxCalls).to.eql(['DELETE:/posts/1'])
+            expect(adapter.h).to.eql(['DELETE:/posts/1'])
             expect(post.isDeleted).to.be.true

@@ -1,10 +1,12 @@
 describe "rest rpc", ->
 
   adapter = null
+  session = null
 
   beforeEach ->
     require('./_shared').setupRest.apply(this)
     adapter = @adapter
+    session = @session
 
   context 'simple model', ->
 
@@ -17,12 +19,10 @@ describe "rest rpc", ->
       @container.register 'model:post', @Post, instantiate: false
 
     it 'calls on loaded model', ->
-      @adapter.r['POST:/posts/1/submit'] = ->
+      adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
-      @adapter.loaded @Post.create(id: "1", title: 'test', submitted: false)
-
-      session = @adapter.newSession()
+      session.merge @Post.create(id: "1", title: 'test', submitted: false)
 
       session.load('post', 1).then (post) ->
         session.remoteCall(post, 'submit').then ->
@@ -31,12 +31,10 @@ describe "rest rpc", ->
           expect(post.submitted).to.be.true
 
     it 'can accept parameters', ->
-      @adapter.r['POST:/posts/1/submit'] = ->
+      adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
-      @adapter.loaded @Post.create(id: "1", title: 'test', submitted: false)
-
-      session = @adapter.newSession()
+      session.merge @Post.create(id: "1", title: 'test', submitted: false)
 
       session.load('post', 1).then (post) ->
         session.remoteCall(post, 'submit', token: 'asd').then ->

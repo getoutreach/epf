@@ -2,9 +2,10 @@ describe "relationships", ->
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
+    @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session
-    @session = @container.lookup('session:base')
-    @session.store = Ep.Store.create()
+    @adapter = @container.lookup('adapter:main')
+    @session = @adapter.newSession()
 
 
   context 'one->many', ->

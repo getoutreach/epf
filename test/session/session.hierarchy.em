@@ -9,11 +9,9 @@ describe "Ep.Session", ->
     @App.Post = @Post
 
     @container.register 'model:post', @Post, instantiate: false
-    @container.register 'store:main', Ep.Store
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
 
-    @container.typeInjection 'adapter', 'store', 'store:main'
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
     @adapter = @container.lookup('adapter:main')
@@ -29,7 +27,8 @@ describe "Ep.Session", ->
       sessionA = @adapter.newSession()
       sessionB = @adapter.newSession()
 
-      @adapter.loaded @Post.create(id: "1", title: 'original')
+      sessionA.merge @Post.create(id: "1", title: 'original')
+      sessionB.merge @Post.create(id: "1", title: 'original')
 
     it 'updates are isolated', ->
       postA = null

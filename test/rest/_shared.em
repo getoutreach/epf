@@ -22,14 +22,15 @@ exports.setupRest = ->
   # TestAdapter already is a subclass
   @RestAdapter = TestRestAdapter.extend()
 
-  @container.register 'session:base', Ep.Session
+  @container.register 'session:base', Ep.Session, singleton: false
   @container.register 'serializer:main', Ep.RestSerializer
   # TODO: adapter mappings are currently reified so in tests that
   # customize these we need to re-instantiate
   @container.register 'adapter:main', @RestAdapter, singleton: false
-  @container.register 'store:main', Ep.Store
 
-  @container.typeInjection 'adapter', 'store', 'store:main'
   @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
   @adapter = @container.lookup('adapter:main')
+  # Can't use container since the adapter is non-singleton
+  # and injecting into the main session duplicates
+  @session = @adapter.newSession()
