@@ -104,7 +104,7 @@ describe "rest", ->
 
     it 'handles errors on update', ->
       adapter.r['PUT:/posts/1'] = ->
-        throw responseText: JSON.stringify(errors: {title: 'title is too short'})
+        throw status: 422, responseText: JSON.stringify(errors: {title: 'title is too short'})
 
       session.merge @Post.create(id: "1", title: 'test')
       session.load('post', 1).then (post) ->
