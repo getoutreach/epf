@@ -29,7 +29,6 @@ describe "rest", ->
 
 
     it 'loads lazily', ->
-      debugger
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
       adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
 
