@@ -32,3 +32,5 @@ TODO:
 * Think about the no returned data case more and make sure shadow is returned
 
 * move dirty listening to the session (so copies don't have observer overhead)
+
+* belongsTo and addObject with hasMany should automatically add the model to the session (useful in the case of adding a detached model)

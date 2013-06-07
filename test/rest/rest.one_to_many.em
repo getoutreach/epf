@@ -248,6 +248,25 @@ describe "rest", ->
             expect(post.comments.length).to.eq(0)
 
 
+      it 'deletes multiple children in multiple flushes', ->
+        post = @Post.create(id: "1", title: 'parent');
+        post.comments.addObject @Comment.create(id: "2", message: 'thing 1')
+        post.comments.addObject @Comment.create(id: "3", message: 'thing 2')
+        post = session.merge(post)
+
+        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{post_id: "1", id: "3", message: 'thing 2'}]}
+
+        session.deleteModel post.comments.objectAt(0)
+        session.flush().then ->
+          expect(adapter.h).to.eql(['PUT:/posts/1'])
+          expect(post.comments.length).to.eq(1)
+          session.deleteModel post.comments.objectAt(0)
+          adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
+          session.flush().then ->
+            expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/posts/1'])
+            expect(post.comments.length).to.eq(0)
+
+
       it 'deletes parent and child', ->
         adapter.r['DELETE:/posts/1'] = {}
 
