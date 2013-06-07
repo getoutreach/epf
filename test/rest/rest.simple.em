@@ -65,6 +65,29 @@ describe "rest", ->
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
 
+    it 'updates multiple times', ->
+      adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated'}
+
+      post = session.merge @Post.create(id: "1", title: 'test')
+
+      expect(post.title).to.eq('test')
+      post.title = 'updated'
+
+      session.flush().then ->
+        expect(post.title).to.eq('updated')
+        expect(adapter.h).to.eql(['PUT:/posts/1'])
+
+        adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated again'}
+        post.title = 'updated again'
+        session.flush().then ->
+          expect(post.title).to.eq('updated again')
+          expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/posts/1'])
+
+          session.flush().then -> # NO-OP
+            expect(post.title).to.eq('updated again')
+            expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/posts/1'])
+
+
     it 'deletes', ->
       adapter.r['DELETE:/posts/1'] = {}
 

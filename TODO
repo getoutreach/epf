@@ -26,3 +26,7 @@ TODO:
 * explore setting meta flag to avoid multiple reifyClientId calls
 
 * use web workers instead of delayed materialization
+
+* fix embedded corner case where embedded child depends on other non-embedded records in the same flush (fix is to move embedded child deps to embedded root)
+
+* Think about the no returned data case more and make sure shadow is returned

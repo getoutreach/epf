@@ -40,4 +40,12 @@ describe "Ep.Session", ->
     expect(post.title).to.eq('test')
 
 
+  it 'can add lazy model', ->
+    post = Ep.LazyModel.create
+      id: "1"
+      type: @Post
+    added = session.add(post)
+    expect(added.session).to.eq(session)
+
+
 
