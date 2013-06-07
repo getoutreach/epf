@@ -30,3 +30,5 @@ TODO:
 * fix embedded corner case where embedded child depends on other non-embedded records in the same flush (fix is to move embedded child deps to embedded root)
 
 * Think about the no returned data case more and make sure shadow is returned
+
+* move dirty listening to the session (so copies don't have observer overhead)

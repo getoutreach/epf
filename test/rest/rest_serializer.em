@@ -61,6 +61,13 @@ describe 'Ep.RestSerializer', ->
         expect(post.id).to.eq("1")
 
 
+      it 'reads null client_id as null', ->
+        data = {posts: {client_id: null, id: 1, title: 'wat', long_title: 'wat omgawd'}}
+        models = @serializer.deserialize(data)
+        post = models[0]
+        expect(post.clientId).to.be.null
+
+
     describe 'serialization', ->
 
 
@@ -139,6 +146,7 @@ describe 'Ep.RestSerializer', ->
       models = @serializer.deserialize(data)
       comment = models[0]
       expect(comment.post).to.be.null
+      
 
 # var map = Ember.EnumerableUtils.map;
 

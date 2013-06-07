@@ -51,7 +51,9 @@ describe "rest", ->
 
     it 'creates new group and then deletes a member', ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
-      adapter.r['POST:/groups'] = -> groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post_id: "2"}], user_id: "1"}
+      adapter.r['POST:/groups'] = (url, type, hash) ->
+        expect(hash.data.group.members[0].role).to.eq('chief')
+        return groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post_id: "2"}], user_id: "1"}
 
       child = session.newSession()
       user = child.create 'user', name: 'wes'
