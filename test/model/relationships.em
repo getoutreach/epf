@@ -107,5 +107,48 @@ describe "relationships", ->
       expect(user.post).to.be.null
 
 
+  context 'multiple one->many', ->
+    beforeEach ->
+      class @Group extends Ep.Model
+        name: Ep.attr('string')
+      @App.Group = @Group
 
+      class @Member extends Ep.Model
+        role: Ep.attr('string')
+        group: Ep.belongsTo(@Group)
+      @App.Member = @Member
+
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+        groups: Ep.hasMany(@Group)
+        members: Ep.hasMany(@Member)
+      @App.User = @User
+
+      @Group.reopen
+        members: Ep.hasMany(@Member)
+        user: Ep.belongsTo(@User)
+
+      @Member.reopen
+        user: Ep.belongsTo(@User)
+
+      @container.register 'model:group', @Group, instantiate: false
+      @container.register 'model:member', @Member, instantiate: false
+      @container.register 'model:user', @User, instantiate: false
+
+
+    it 'updates inverse on delete', ->
+
+      group = @session.create('group')
+      user = @session.create('user')
+      member = @session.create('member', group: group, user: user)
+
+      expect(member.user).to.eq(user)
+      expect(member.group).to.eq(group)
+      expect(user.members.toArray()).to.eql([member])
+      expect(group.members.toArray()).to.eql([member])
+
+      @session.deleteModel member
+
+      expect(user.members.toArray()).to.eql([])
+      expect(group.members.toArray()).to.eql([])
 

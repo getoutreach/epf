@@ -53,7 +53,7 @@ describe "rest", ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
       adapter.r['POST:/groups'] = (url, type, hash) ->
         expect(hash.data.group.members[0].role).to.eq('chief')
-        return groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post_id: "2"}], user_id: "1"}
+        return groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post_id: "2", user_id: "1"}], user_id: "1"}
 
       child = session.newSession()
       user = child.create 'user', name: 'wes'
@@ -70,15 +70,26 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/users', 'POST:/groups'])
           expect(user.id).to.not.be.null
           expect(group.id).to.not.be.null
+          expect(group.members.length).to.eq(1)
+          expect(user.groups.length).to.eq(1)
+          expect(user.members.length).to.eq(1)
           expect(member.id).to.not.be.null
 
           child = session.newSession()
-          member = child.add(member);
-          child.deleteModel(member);
+          member = child.add(member)
+          user = child.add(user)
+          group = child.add(group)
+          child.deleteModel(member)
+          expect(user.members.length).to.eq(0)
+          expect(group.members.length).to.eq(0)
+          expect(user.groups.length).to.eq(1)
 
           adapter.r['PUT:/groups/2'] = -> groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [], user_id: "1"}
           child.flush().then ->
             expect(member.get('isDeleted')).to.be.true
+            expect(group.members.length).to.eq(0)
+            expect(user.members.length).to.eq(0)
+            expect(user.groups.length).to.eq(1)
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
 
 
