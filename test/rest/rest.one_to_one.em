@@ -89,3 +89,16 @@ describe "rest", ->
         session.deleteModel(post)
         session.flush().then ->
           expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/users/2'])
+
+
+    it.only 'creates on server', ->
+      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user_id: 2}
+      adapter.r['GET:/users/2'] = users: {id: 1, name: 'derp', post_id: 1}
+
+      post = session.create 'post', title: 'herp'
+
+      session.flush().then ->
+        expect(adapter.h).to.eql ['POST:/posts']
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('herp')
+        expect(post.user).to.not.be.null

@@ -233,7 +233,9 @@ describe "rest", ->
 
 
       it 'deletes child', ->
-        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
+        adapter.r['PUT:/posts/1'] = (url, type, hash) ->
+          expect(hash.data.post.comments.length).to.eq(0)
+          return posts: {id: 1, title: 'mvcc ftw', comments: []}
 
         post = @Post.create(id: "1", title: 'parent');
         post.comments.addObject(@Comment.create(id: "2", message: 'child'))
