@@ -106,7 +106,6 @@ describe "rest", ->
         post.title = 'polychild'
         expect(post.comments.toArray()).to.eql([comment, sibling])
         session.flush().then ->
-          debugger
           expect(post.comments.toArray()).to.eql([comment, sibling])
           expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/comments/2', 'POST:/comments'])
 

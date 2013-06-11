@@ -91,7 +91,7 @@ describe "rest", ->
           expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/users/2'])
 
 
-    it.only 'creates on server', ->
+    it 'creates on server', ->
       adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user_id: 2}
       adapter.r['GET:/users/2'] = users: {id: 1, name: 'derp', post_id: 1}
 

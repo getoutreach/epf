@@ -119,6 +119,7 @@ describe 'Ep.RestSerializer', ->
   context 'one->many', ->
 
     beforeEach ->
+      @App = Ember.Namespace.create()
       class @Post extends Ep.Model
         title: Ep.attr('string')
       @App.Post = @Post
@@ -146,6 +147,66 @@ describe 'Ep.RestSerializer', ->
       models = @serializer.deserialize(data)
       comment = models[0]
       expect(comment.post).to.be.null
+
+
+  context 'one->many embedded', ->
+
+    beforeEach ->
+      @App = Ember.Namespace.create()
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
+      @App.Post = @Post
+
+      class @Comment extends Ep.Model
+        post: Ep.belongsTo(@Post)
+      @App.Comment = @Comment
+
+      @Post.reopen
+        comments: Ep.hasMany(@Comment)
+
+      @serializer.map @Post,
+        comments: { embedded: 'always' }
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:comment', @Comment, instantiate: false
+
+
+    it 'deserializes null belongsTo', ->
+      data = {comments: [{id: 1, title: 'wat', post: null}] }
+      models = @serializer.deserialize(data)
+      comment = models[0]
+      expect(comment.post).to.be.null
+
+
+  context 'one->one embedded', ->
+
+    beforeEach ->
+      @App = Ember.Namespace.create()
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
+      @App.Post = @Post
+
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
+      @App.User = @User
+
+      @Post.reopen
+        user: Ep.belongsTo(@User)
+
+      @serializer.map @Post,
+        user: { embedded: 'always' }
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:user', @User, instantiate: false
+
+
+    it 'deserializes null belongsTo', ->
+      data = {posts: [{id: 1, title: 'wat', user: null}] }
+      models = @serializer.deserialize(data)
+      post = models[0]
+      expect(post.user).to.be.null
+
       
 
 # var map = Ember.EnumerableUtils.map;
