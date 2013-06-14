@@ -21,7 +21,6 @@
     "jquery": "*",
     "mocha-as-promised": "*",
     "commonjs-everywhere": "*",
-    "escodegen": "*",
-    "emberjs": "https://github.com/emberjs/ember.js.git"
+    "escodegen": "*"
   }
 }
