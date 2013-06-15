@@ -53,6 +53,14 @@ describe "relationships", ->
       expect(post.comments.toArray()).to.eql([])
 
 
+    it 'belongsTo adds object to session', ->
+      post = @session.merge(@Post.create(id: '1'))
+      comment = @session.merge(@Comment.create(id: '2'))
+
+      comment.post = @Post.create(id: '1')
+      expect(comment.post).to.eq(post)
+
+
     it 'hasMany updates inverse', ->
       post = @session.create('post')
       comment = @session.create('comment')
@@ -69,6 +77,14 @@ describe "relationships", ->
       expect(comment.post).to.eq(post)
       @session.deleteModel post
       expect(comment.post).to.be.null
+
+
+    it 'hasMany adds to session', ->
+      post = @session.merge(@Post.create(id: '1'))
+      comment = @session.merge(@Comment.create(id: '2'))
+
+      post.comments.addObject @Comment.create(id: '2')
+      expect(post.comments.firstObject).to.eq(comment)
 
 
   context 'one->one', ->
