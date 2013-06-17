@@ -1,1 +1,1 @@
-# Ember.js Persistence Framework
+# Ember.js Persistence Foundation

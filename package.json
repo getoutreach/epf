@@ -1,7 +1,7 @@
 {
   "name": "epf",
   "version": "0.0.0",
-  "description": "An Ember.js Persistence Framework",
+  "description": "Ember.js Persistence Foundation",
   "main": "./lib/index.js",
   "scripts": {
     "test": "mocha"
@@ -10,10 +10,10 @@
   "keywords": [
     "ember.js",
     "orm",
-    "persistence"
+    "persistence",
+    "sync"
   ],
   "author": "Gordon L. Hempton",
-  "license": "BSD",
   "devDependencies": {
     "chai": "*",
     "mocha": "*",
