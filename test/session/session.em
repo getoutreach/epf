@@ -18,7 +18,41 @@ describe "Ep.Session", ->
     session = adapter.newSession()
 
 
-  describe 'with orphaned proxy', ->
+  describe 'create', ->
+
+
+    it 'works with hash', ->
+      post = session.create('post', title: 'test')
+      expect(post.title).to.eq('test')
+
+
+  describe 'add', ->
+
+
+    it 'works with lazy models', ->
+      post = Ep.LazyModel.create
+        id: "1"
+        type: @Post
+      added = session.add(post)
+      expect(added.session).to.eq(session)
+
+
+    it 'reuses detached model', ->
+      post = @Post.create(title: 'test')
+      expect(session.add(post)).to.eq(post)
+
+
+    it 'overwrites unloaded models', ->
+      lazy = Ep.LazyModel.create(id: '1', type: @Post)
+      session.add(lazy)
+      post = @Post.create(id: '1', title: 'post')
+      session.add(post)
+      expect(session.getModel(lazy)).to.eq(post)
+      session.add(lazy)
+      expect(session.getModel(lazy)).to.eq(post)
+
+
+  context 'with orphaned proxy', ->
 
     beforeEach ->
       @lazyPost = session.merge Ep.LazyModel.create
@@ -33,19 +67,6 @@ describe "Ep.Session", ->
 
     it 'has proxy in orphans', ->
       expect(session.orphans.toArray()).to.eql([@lazyPost])
-
-
-  it 'can create with hash', ->
-    post = session.create('post', title: 'test')
-    expect(post.title).to.eq('test')
-
-
-  it 'can add lazy model', ->
-    post = Ep.LazyModel.create
-      id: "1"
-      type: @Post
-    added = session.add(post)
-    expect(added.session).to.eq(session)
 
 
 
