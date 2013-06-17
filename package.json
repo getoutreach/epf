@@ -6,7 +6,7 @@
   "scripts": {
     "test": "mocha"
   },
-  "repository": "https://github.com/ghempton/epf.git",
+  "repository": "https://github.com/GroupTalent/epf.git",
   "keywords": [
     "ember.js",
     "orm",
