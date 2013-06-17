@@ -87,6 +87,12 @@ describe "relationships", ->
       expect(post.comments.firstObject).to.eq(comment)
 
 
+    it 'hasMany content can be set directly', ->
+      post = @session.merge(@Post.create(id: '1', comments: [@Comment.create(id: '2')]))
+      expect(post.comments.length).to.eq(1)
+      expect(post.comments.firstObject.id).to.eq('2')
+
+
   context 'one->one', ->
     beforeEach ->
       class @Post extends Ep.Model

@@ -4,33 +4,18 @@ TODO:
 * Think about an ordered model array
 * Think about making all model arrays sets
 * Cleanup old session models (e.g. after merge the promise is replaced)
-* Think through conflicts
 * http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/Session.html
 * Second level cache mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/CacheMode.html
 * Flush mode: http://docs.jboss.org/hibernate/orm/3.5/javadoc/org/hibernate/FlushMode.html
-
 * Remove Ember.Deferred from LazyModel and instead simply have a promise property
-
 * Explore Copy on Write (COW) as an optimization
-
 * isNew should not be tied to ID
-
 * type should always be polymorphic base class
-
 * enforce client ids just above the serialization level to simplify checking identity
-
 * merging needs to take into account deletion
-
 * switch to POJOs instead of Ember.Map for performance
-
 * explore setting meta flag to avoid multiple reifyClientId calls
-
 * use web workers instead of delayed materialization
-
 * fix embedded corner case where embedded child depends on other non-embedded records in the same flush (fix is to move embedded child deps to embedded root)
-
 * Think about the no returned data case more and make sure shadow is returned
-
 * move dirty listening to the session (so copies don't have observer overhead)
-
-* belongsTo and addObject with hasMany should automatically add the model to the session (useful in the case of adding a detached model)

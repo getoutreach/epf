@@ -31,12 +31,10 @@ describe "Ep.Session", ->
       expect(post.title).to.eq('update 2')
 
       f1.then ->
-        # TODO: this will show update 1 because we are
-        # using 'theirs' by default. switch to 3-way
-        expect(post.title).to.eq('update 1')
-        post.title = 'update 2'
+        expect(post.title).to.eq('update 2')
+        post.title = 'update 3'
         session.flush().then ->
-          expect(post.title).to.eq('update 2')
+          expect(post.title).to.eq('update 3')
 
 
 
