@@ -8,6 +8,15 @@ describe "Ep.Session", ->
       title: Ep.attr('string')
     @App.Post = @Post
 
+    class @Comment extends Ep.Model
+      text: Ep.attr('string')
+      post: Ep.belongsTo(@Post)
+    @App.Comment = @Comment
+
+    @Post.reopen
+      comments: Ep.hasMany(@Comment)
+
+
     @container.register 'model:post', @Post, instantiate: false
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
@@ -56,7 +65,7 @@ describe "Ep.Session", ->
       parent = @adapter.newSession()
       child = parent.newSession()
 
-    it 'flushes updates immediately', ->
+    it 'flushes update immediately', ->
       parent.merge @Post.create(id: "1", title: 'original')
 
       child.load('post', 1).then (childPost) ->
@@ -68,6 +77,21 @@ describe "Ep.Session", ->
           f = child.flush()
           expect(parentPost.title).to.eq('child version')
           f
+
+    it 'does not mutate parent session relationships', ->
+      post = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2')])
+      expect(post.comments.length).to.eq(1)
+      child.add(post)
+      expect(post.comments.length).to.eq(1)
+
+
+    it 'adds hasMany correctly', ->
+      parentPost = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2')])
+      post = child.add(parentPost)
+      expect(post).to.not.eq(parentPost)
+      expect(post.comments.length).to.eq(1)
+      expect(post.comments.firstObject).to.not.eq(parentPost.firstObject)
+
 
 
 
