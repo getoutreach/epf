@@ -65,8 +65,5 @@ describe "Ep.Session", ->
     it 'has actual record in `models`', ->
       expect(session.models.toArray()).to.eql([@post])
 
-    it 'has proxy in orphans', ->
-      expect(session.orphans.toArray()).to.eql([@lazyPost])
-
 
 

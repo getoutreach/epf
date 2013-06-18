@@ -54,7 +54,3 @@ Ember.config.overridePrototypeMixin = function(PrototypeMixin) {
 };
 
 Ember.RSVP.Promise.prototype.then = syncForTest(Ember.RSVP.Promise.prototype.then);
-
-Ep.Session.reopen({
-  load: syncForTest()
-});
