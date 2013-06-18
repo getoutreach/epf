@@ -23,6 +23,7 @@ exports.setupRest = ->
   @RestAdapter = TestRestAdapter.extend()
 
   @container.register 'session:base', Ep.Session, singleton: false
+  @container.register 'session:child', Ep.ChildSession, singleton: false
   @container.register 'serializer:main', Ep.RestSerializer
   # TODO: adapter mappings are currently reified so in tests that
   # customize these we need to re-instantiate

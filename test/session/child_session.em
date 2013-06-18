@@ -15,6 +15,7 @@ describe "Ep.ChildSession", ->
     @container.register 'model:post', @Post, instantiate: false
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
+    @container.register 'session:child', Ep.ChildSession, singleton: false
 
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
