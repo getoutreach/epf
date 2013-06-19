@@ -24,12 +24,12 @@ describe "Ep.ChildSession", ->
     parent = adapter.newSession()
     session = parent.newSession()
 
-  it 'supports findQuery', ->
+  it 'supports query', ->
     Post = @Post
-    adapter.findQuery = (type, query) ->
+    adapter.query = (type, query) ->
       expect(query).to.eql({q: "herpin"})
       Ember.RSVP.resolve([Post.create(id: "1", title: 'herp'), Post.create(id: "2", title: 'derp')])
-    session.findQuery('post', {q: "herpin"}).then (models) ->
+    session.query('post', {q: "herpin"}).then (models) ->
       expect(models.length).to.eq(2)
 
 
