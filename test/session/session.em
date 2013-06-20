@@ -17,6 +17,9 @@ describe "Ep.Session", ->
     adapter = @container.lookup('adapter:main')
     session = adapter.newSession()
 
+  afterEach ->
+    session.destroy()
+
 
   describe 'create', ->
 

@@ -64,6 +64,16 @@ describe 'Ep.PerField', ->
     expect(post.user.id).to.be.null
 
 
+  it 'keeps ours if only modified in ours', ->
+    post = session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyA', user: App.User.create(id: '2'), comments: [App.Comment.create(id: '3')])
+    session.create App.Comment, post: post
+    expect(post.comments.length).to.eq(2)
+    newData = App.Post.create(id: '1', title: 'titleA', body: 'bodyA', user: App.User.create(id: '2'), comments: [App.Comment.create(id: '3')])
+    newData.comments.firstObject.post = newData
+    session.merge newData
+    expect(post.comments.length).to.eq(2)
+
+
   it 'still merges model if removed from belongsTo in ours', ->
     post = session.merge App.Post.create(id: '1', title: 'herp', user: App.User.create(id: '2'))
     user = post.user

@@ -79,6 +79,15 @@ describe "relationships", ->
       expect(comment.post).to.be.null
 
 
+    # it 'hasMany updates inverse on create', ->
+    #   post = @session.create('post', comments: [])
+    #   comment = @session.create('comment')
+    #   post.comments.addObject(comment)
+    #   expect(comment.post).to.eq(post)
+    #   @session.deleteModel post
+    #   expect(comment.post).to.be.null
+
+
     it 'hasMany adds to session', ->
       post = @session.merge(@Post.create(id: '1'))
       comment = @session.merge(@Comment.create(id: '2'))
