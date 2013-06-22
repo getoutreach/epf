@@ -106,3 +106,22 @@ describe "rest", ->
         expect(post.title).to.eq('update3')
         shadow = session.getShadow(post)
         expect(shadow.title).to.eq('twerkin')
+
+
+    it 'can retry after failure', ->
+      count = 0
+      adapter.r['PUT:/posts/1'] = (url, type, hash) ->
+        if count++ == 0
+          throw "plz twerk again"
+        posts: {id: 1, title: hash.data.post.title, submitted: "true"}
+      post = session.merge @Post.create(id: "1", title: 'twerkin', submitted: false)
+      post.title = 'update1'
+      session.flush().then null, ->
+        expect(post.title).to.eq('update1')
+        shadow = session.getShadow(post)
+        expect(shadow.title).to.eq('twerkin')
+
+        session.flush().then ->
+          expect(post.title).to.eq('update1')
+          shadow = session.getShadow(post)
+          expect(shadow.title).to.eq('update1')
