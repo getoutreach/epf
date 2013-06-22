@@ -1,4 +1,4 @@
-describe "rest rpc", ->
+describe "rest", ->
 
   adapter = null
   session = null
@@ -8,7 +8,7 @@ describe "rest rpc", ->
     adapter = @adapter
     session = @session
 
-  context 'simple model', ->
+  context 'rpc with simple model', ->
 
     beforeEach ->
       class @Post extends Ep.Model

@@ -14,7 +14,10 @@ exports.setupRest = ->
         json = adapter.r[key]
         return reject("No data for #{key}") unless json
         json = json(url, type, hash) if typeof json == 'function'
-        Ember.run.later ( -> resolve(json) ), 0
+        adapter.runLater ( -> resolve(json) ), 0
+
+    runLater: (callback) ->
+      Ember.run.later callback, 0
 
   @App = Ember.Namespace.create()
   @container = new Ember.Container()
