@@ -1,7 +1,7 @@
 {
   "name": "epf",
   "version": "0.0.0",
-  "description": "Ember.js Persistence Foundation",
+  "description": "Epf is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection.",
   "main": "./lib/index.js",
   "scripts": {
     "test": "mocha"

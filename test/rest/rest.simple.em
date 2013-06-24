@@ -125,20 +125,6 @@ describe "rest", ->
         expect(adapter.h).to.eql(['GET:/posts'])
 
 
-    it 'handles errors on update', ->
-      adapter.r['PUT:/posts/1'] = ->
-        throw status: 422, responseText: JSON.stringify(errors: {title: 'title is too short'})
-
-      session.merge @Post.create(id: "1", title: 'test')
-      session.load('post', 1).then (post) ->
-        expect(post.title).to.eq('test')
-        post.title = ''
-        session.flush().then null, (errors) ->
-          expect(post.title).to.eq('')
-          expect(post.errors).to.eql({title: 'title is too short'})
-          expect(adapter.h).to.eql(['PUT:/posts/1'])
-
-
     it 'loads then updates', ->
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
       adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'no more fsm'}
