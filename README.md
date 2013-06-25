@@ -2,14 +2,14 @@
 
 Ember.js Persistence Foundation (epf) is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection. Defining characteristic of epf include:
 
-* Correctness is paramount. All other features, including performance, are secondary.
+* Correctness is paramount. All other features, including performance, are important, but secondary.
 * Built around synchronization. Models are never locked and framework semantics assume updates are always coming in from a backend.
 * Full support for relationships. Related models can be saved concurrently and the framework will automatically order requests around foreign key dependencies.
 * Robust handling of conflicts and errors.
 * Forking models is first-class within the framework.
 * All operations are structured around javascript promises.
 
-Built out of necessity, epf is a functional alternative to [ember-data](https://github.com/emberjs/data) and is used in production at [GroupTalent](https://grouptalent.com) with dozens of inter-related models.
+Epf is a functional alternative to [ember-data](https://github.com/emberjs/data) and is used in production at [GroupTalent](https://grouptalent.com) with dozens of inter-related models.
 
 ## Installation
 
@@ -35,13 +35,13 @@ App.Post = Ep.Model.extend({
 
 ### Loading Data
 
-The primary means of interacting with `epf` is through *session* instances. Epf automatically injects a primary session into all routes and controllers. To load data, you can use the `load` method on the session:
+The primary means of interacting with `epf` is through a `session`. Epf automatically injects a primary session into all routes and controllers. To load data, you can use the `load` method on the session:
 
 ```
 App.PostRoute = Ember.Route.extend({
   
-  model: function() {
-    return this.session.load(App.Post, 1);
+  model: function(params) {
+    return this.session.load('post', params.post_id);
   }
 
 });
@@ -52,8 +52,8 @@ For compatibility with the behavior of the Ember.js router, a `find` method is a
 ```
 App.PostRoute = Ember.Route.extend({
   
-  model: function() {
-    return App.Post.find(1);
+  model: function(params) {
+    return App.Post.find(params.post_id);
   }
 
 });
@@ -104,7 +104,9 @@ Sessions can be flushed at any point (even if other flushes are pending) and re-
 
 ```
 post.title = 'updated title';
-session.flush(); // the server returns an error during this flush
+session.flush().then(null, function() {
+  // the reject promise callback will be invoked on error
+});
 
 // do something here that should correct the error (e.g. fix validations)
 
@@ -122,9 +124,9 @@ var post = session.load(App.Post, 1);
 
 var childSession = session.newSession(); // this creates a "child" session
 
-var childPost = childSession.load(App.Post, 1); // this record only exists within
+var childPost = childSession.load(App.Post, 1); // this record instance is separate from its corresponding instance in the parent session
 
-post === childPost; // they are separate objects
+post === childPost; // returns false, they are separate instances
 post.isEqual(childPost); // this will return true
 
 childPost.title = 'something'; // this will not affect `post`
