@@ -7,11 +7,14 @@ describe "rest", ->
     require('./_shared').setupRest.apply(this)
     adapter = @adapter
     session = @session
+    Ep.__container__ = @container
+
+  afterEach ->
+    delete Ep.__container__
 
   describe "managing groups with embedded members", ->
 
     beforeEach ->
-      Ep.__container__ = @container
       class @Group extends Ep.Model
         name: Ep.attr('string')
       @App.Group = @Group
@@ -45,9 +48,6 @@ describe "rest", ->
       @adapter = @container.lookup('adapter:main')
       adapter = @adapter
       session = adapter.newSession()
-
-    afterEach ->
-      delete Ep.__container__
 
     it 'creates new group and then deletes a member', ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
@@ -91,6 +91,43 @@ describe "rest", ->
             expect(user.members.length).to.eq(0)
             expect(user.groups.length).to.eq(1)
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
+
+
+  describe "managing comments", ->
+
+    beforeEach ->
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
+      @App.Post = @Post
+
+      class @Comment extends Ep.Model
+        message: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
+      @App.Comment = @Comment
+
+      @Post.reopen
+        comments: Ep.hasMany(@Comment)
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:comment', @Comment, instantiate: false
+
+
+    it 'creates a new comment within a child session', ->
+      adapter.r['POST:/comments'] = -> comment: {client_id: comment.clientId, id: "3", message: "#2", post_id: "1"}
+
+      post = session.merge @Post.create(id: "1", title: "brogrammer's guide to beer pong")
+      session.merge @Comment.create(id: "2", message: "yo", post: post)
+
+      childSession = session.newSession()
+      childPost = childSession.add(post)
+      comment = childSession.create 'comment',
+        message: '#2',
+        post: childPost
+
+      childSession.flush().then ->
+        expect(childPost.comments.length).to.eq(2)
+        expect(post.comments.length).to.eq(2)
+
 
 
 
