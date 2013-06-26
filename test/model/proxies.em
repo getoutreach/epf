@@ -37,3 +37,20 @@ describe 'Ep.LazyModel', ->
     post = session.merge App.Post.create(id: '1', title: 'wat')
     post.comments.addObject App.Comment.create(id: '1', body: 'tmi')
     expect(lazyComment.post.title).to.eq('wat')
+
+
+  it 'cached load can resolve multiple times', ->
+    session.merge App.Post.create(id: "1", title: "wat")
+    promise = session.load(App.Post, 1)
+    promise.then (outerPost) ->
+      promise.then (innerPost) ->
+        expect(outerPost).to.eq(innerPost)
+
+
+  it 'lazy model can resolve multiple times', ->
+    session.merge App.Post.create(id: "1", title: "wat")
+    lazyModel = Ep.LazyModel.create(id: "1", type: App.Post, session: session)
+    lazyModel.then (outerResolution) ->
+      lazyModel.then (innerResolution) ->
+        expect(outerResolution).to.eq(innerResolution)
+
