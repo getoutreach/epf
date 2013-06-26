@@ -1,6 +1,7 @@
 #!/usr/bin/env node node_modules/.bin/ember-script
 fs = require 'fs'
 path = require 'path'
+mkdirp = require 'mkdirp'
 
 jsAst = (require 'commonjs-everywhere').cjsify 'lib/index.js', __dirname,
   export: 'epf'
@@ -14,8 +15,9 @@ jsAst = (require 'commonjs-everywhere').cjsify 'lib/index.js', __dirname,
 
 codeWithoutAsserts = code.replace(/^(\s)*Ember\.(assert|deprecate|warn|debug)\((.*)\).*$/mg, '')
 
-fs.writeFile 'dist/epf.js', "#{code}\n/*\n//@ sourceMappingURL=eps.js.map\n*/"
-fs.writeFile 'dist/epf.prod.js', codeWithoutAsserts
+mkdirp 'dist', ->
+  fs.writeFile 'dist/epf.js', "#{code}\n/*\n//@ sourceMappingURL=eps.js.map\n*/"
+  fs.writeFile 'dist/epf.prod.js', codeWithoutAsserts
 
-fs.writeFile 'dist/epf.js.map', map
-fs.writeFile 'dist/epf.prod.js.map', map
+  fs.writeFile 'dist/epf.js.map', map
+  fs.writeFile 'dist/epf.prod.js.map', map

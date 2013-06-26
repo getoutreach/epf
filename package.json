@@ -15,6 +15,7 @@
   ],
   "author": "Gordon L. Hempton",
   "devDependencies": {
+    "mkdirp": "*",
     "chai": "*",
     "mocha": "*",
     "ember-script": "*",
