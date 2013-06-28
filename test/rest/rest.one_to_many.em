@@ -46,7 +46,7 @@ describe "rest", ->
           expect(comment.post.isEqual(post)).to.be.true
 
 
-    it 'saves', ->
+    it 'creates', ->
       adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
       adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
 
@@ -69,7 +69,7 @@ describe "rest", ->
         expect(adapter.h).to.eql(['POST:/posts', 'POST:/comments'])
 
 
-    it 'saves child', ->
+    it 'creates child', ->
       adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post_id: 1}
 
       session.merge @Post.create(id: "1", title: 'parent');
@@ -84,6 +84,20 @@ describe "rest", ->
           expect(post.comments.toArray()).to.eql([comment])
           expect(comment.message).to.eq('new child')
           expect(adapter.h).to.eql(['POST:/comments'])
+
+
+    it 'create followed by delete does not hit server', ->
+      session.merge @Post.create(id: "1", title: 'parent');
+
+      comment = null
+
+      session.load(@Post, 1).then (post) ->
+        comment = session.create('comment', message: 'new child')
+        comment.post = post
+        session.deleteModel comment
+        session.flush().then ->
+          expect(adapter.h).to.eql([])
+          expect(comment.isDeleted).to.be.true
 
 
     it 'updates parent, updates child, and saves sibling', ->
