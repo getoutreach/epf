@@ -33,6 +33,16 @@ describe "rest", ->
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
 
+    it 'handles error on create', ->
+      adapter.r['POST:/posts'] = ->
+        throw status: 422, responseText: JSON.stringify(errors: {title: 'is lamerz'})
+
+      post = session.create 'post', title: 'errorz'
+      session.flush().then null, ->
+        expect(post.errors.title).to.eq('is lamerz')
+
+
+
     [401, 403, 404].forEach (errorCode) ->
 
       it "handles #{errorCode} on load", ->
