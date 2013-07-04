@@ -48,7 +48,9 @@ describe "rest", ->
 
     it 'creates', ->
       adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
-      adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
+      adapter.r['POST:/comments'] = (url, type, hash) ->
+        expect(hash.data.comment.post_id).to.eq(1)
+        return comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
 
       post = session.create('post')
       post.title = 'topological sort'
@@ -65,6 +67,7 @@ describe "rest", ->
         expect(comment.id).to.not.be.null
         expect(comment.message).to.eq('seems good')
         expect(comment.post).to.eq(post)
+        expect(comment.post.id).to.eq("1")
         expect(post.comments.firstObject).to.eq(comment)
         expect(adapter.h).to.eql(['POST:/posts', 'POST:/comments'])
 
