@@ -7,7 +7,7 @@ Gem::Specification.new do |gem|
   gem.name        = 'epf-source'
   gem.version     = package['version']
   gem.authors     = ['Gordon L. Hempton']
-  gem.email       = []
+  gem.email       = ['ghempton@gmail.com']
   gem.date        = Time.now.strftime('%Y-%m-%d')
   gem.summary     = 'Epf source code wrapper'
   gem.description = 'Epf source code wrapper for ruby libs.'
