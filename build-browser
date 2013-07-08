@@ -1,4 +1,4 @@
-#!/usr/bin/env node node_modules/.bin/ember-script
+#!/usr/bin/env coffee
 fs = require 'fs'
 path = require 'path'
 mkdirp = require 'mkdirp'
