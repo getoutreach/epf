@@ -99,3 +99,12 @@ describe 'Ep.PerField', ->
     session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'derp?', post: post)])
     expect(post.comments.length).to.eq(2)
     expect(comment.body).to.eq('derp?')
+
+
+  it 'will preserve local updates after multiple merges', ->
+    post = session.merge(App.Post.create(id: '1', title: 'A'))
+    post.title = 'B'
+    session.merge App.Post.create(id: '1', title: 'C')
+    expect(post.title).to.eq('B')
+    session.merge App.Post.create(id: '1', title: 'C')
+    expect(post.title).to.eq('B')
