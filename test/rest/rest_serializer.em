@@ -68,17 +68,27 @@ describe 'Ep.RestSerializer', ->
         expect(post.clientId).to.be.null
 
 
+      it 'reads revs', ->
+        data = {posts: {rev: 123, client_rev: 321, client_id: 1, id: 1, title: 'wat', long_title: 'wat omgawd'}}
+        models = @serializer.deserialize(data)
+        post = models[0]
+        expect(post.rev).to.eq(123)
+        expect(post.clientRev).to.eq(321)
+
+
     describe 'serialization', ->
 
 
       it 'serializes', ->
-        post = @Post.create()
-        post.id = 1
-        post.clientId = "2"
-        post.title = 'wat'
-        post.longTitle = 'wat omgawd'
+        post = @Post.create
+          id: 1
+          clientId: "2"
+          title: "wat"
+          longTitle: 'wat omgawd'
+          rev: 123
+          clientRev: 321
         data = @serializer.serialize(post, includeId: true)
-        expect(data).to.eql({client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd'})
+        expect(data).to.eql(client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd', rev: 123, client_rev: 321)
 
 
       it 'handles unloaded lazy model', ->
