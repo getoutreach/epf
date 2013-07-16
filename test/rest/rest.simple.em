@@ -102,6 +102,30 @@ describe "rest", ->
           expect(adapter.h).to.eql(['DELETE:/posts/1'])
 
 
+    it 'deletes multiple times in multiple flushes', ->
+      adapter.r['DELETE:/posts/1'] = {}
+
+      post1 = session.merge @Post.create(id: "1", title: 'thing 1')
+      post2 = session.merge @Post.create(id: "2", title: 'thing 2')
+
+      session.deleteModel post1
+
+      session.flush().then ->
+
+        expect(post1.isDeleted).to.be.true
+        expect(post2.isDeleted).to.be.false
+
+        adapter.r['DELETE:/posts/1'] = -> throw "already deleted"
+        adapter.r['DELETE:/posts/2'] = {}
+
+        session.deleteModel post2
+
+        session.flush().then ->
+          expect(post1.isDeleted).to.be.true
+          expect(post2.isDeleted).to.be.true
+
+
+
     it 'refreshes', ->
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'something new'}
 
