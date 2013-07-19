@@ -142,5 +142,5 @@ To build epf, follow the instructions below:
 * `git clone https://github.com/GroupTalent/epf`
 * `cd epf`
 * `npm install`
-* Tests are run via `mocha`
+* `npm test` to run the tests via `mocha`
 * To build a browser distributable, run the `build-browser` command in the repository root.
