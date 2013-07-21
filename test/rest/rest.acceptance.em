@@ -49,7 +49,7 @@ describe "rest", ->
       adapter = @adapter
       session = adapter.newSession()
 
-    it 'creates new group and then deletes a member', ->
+    xit 'creates new group and then deletes a member', ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
       adapter.r['POST:/groups'] = (url, type, hash) ->
         expect(hash.data.group.members[0].role).to.eq('chief')
