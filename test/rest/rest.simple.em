@@ -125,7 +125,6 @@ describe "rest", ->
           expect(post2.isDeleted).to.be.true
 
 
-
     it 'refreshes', ->
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'something new'}
 

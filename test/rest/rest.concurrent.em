@@ -79,7 +79,7 @@ describe "rest", ->
         expect(post.title).to.eq('update3')
 
 
-    xit 'cascades failures', ->
+    it 'cascades failures', ->
       calls = 0
       # interleave requests
       adapter.runLater = (callback) ->
@@ -93,8 +93,9 @@ describe "rest", ->
       adapter.r['PUT:/posts/1'] = (url, type, hash) ->
         if hash.data.post.title == 'update1'
           throw "twerkin too hard"
-        posts: {id: 1, title: hash.data.post.title, submitted: "true"}
-      post = session.merge @Post.create(id: "1", title: 'twerkin', submitted: false)
+        rev = parseInt(hash.data.post.title.split("update")[1])+1
+        posts: {id: 1, title: hash.data.post.title, submitted: "true", rev: rev}
+      post = session.merge @Post.create(id: "1", title: 'twerkin', submitted: false, rev: 1)
       post.title = 'update1'
       f1 = session.flush()
       post.title = 'update2'
@@ -108,7 +109,7 @@ describe "rest", ->
         expect(shadow.title).to.eq('twerkin')
 
 
-    xit 'can retry after failure', ->
+    it 'can retry after failure', ->
       count = 0
       adapter.r['PUT:/posts/1'] = (url, type, hash) ->
         if count++ == 0
