@@ -1,7 +1,7 @@
 {
   "name": "epf",
-  "version": "0.1.1",
-  "description": "Epf is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection.",
+  "version": "0.1.2",
+  "description": "A framework to keep you Ember.js apps in sync.",
   "main": "./lib/index.js",
   "scripts": {
     "test": "mocha"
@@ -14,6 +14,7 @@
     "sync"
   ],
   "author": "Gordon L. Hempton",
+  "license": "MIT",
   "devDependencies": {
     "mkdirp": "*",
     "chai": "*",
