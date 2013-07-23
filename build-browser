@@ -16,7 +16,7 @@ jsAst = (require 'commonjs-everywhere').cjsify 'lib/index.js', __dirname,
 codeWithoutAsserts = code.replace(/^(\s)*Ember\.(assert|deprecate|warn|debug)\((.*)\).*$/mg, '')
 
 mkdirp 'dist', ->
-  fs.writeFile 'dist/epf.js', "#{code}\n/*\n//@ sourceMappingURL=eps.js.map\n*/"
+  fs.writeFile 'dist/epf.js', "#{code}\n/*\n//@ sourceMappingURL=epf.js.map\n*/"
   fs.writeFile 'dist/epf.prod.js', codeWithoutAsserts
 
   fs.writeFile 'dist/epf.js.map', map
