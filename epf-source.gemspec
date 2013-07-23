@@ -13,7 +13,7 @@ Gem::Specification.new do |gem|
   gem.description = 'Epf source code wrapper for ruby libs.'
   gem.homepage    = 'https://github.com/GroupTalent/epf'
 
-  gem.files       = ['dist/epf.js', 'lib/epf/source.rb']
+  gem.files       = ['dist/epf.js', 'dist/epf.js.map', 'lib/epf/source.rb']
 
   gem.license     = 'MIT'
 end
