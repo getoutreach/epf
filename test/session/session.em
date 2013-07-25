@@ -31,7 +31,6 @@ describe "Ep.Session", ->
 
   describe 'add', ->
 
-
     it 'works with lazy models', ->
       post = Ep.LazyModel.create
         id: "1"
@@ -53,6 +52,16 @@ describe "Ep.Session", ->
       expect(session.getModel(lazy)).to.eq(post)
       session.add(lazy)
       expect(session.getModel(lazy)).to.eq(post)
+
+
+  describe 'merge', ->
+
+    it 'works with proxy with no corresponding record in session', ->
+      post = @Post.create(id: '1', title: 'someday')
+      lazy = Ep.LazyModel.create
+        content: post
+      merged = session.merge(lazy)
+      expect(merged.id).to.eq('1')
 
 
   context 'with orphaned proxy', ->
