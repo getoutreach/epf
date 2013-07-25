@@ -63,6 +63,7 @@ describe "rest", ->
 
       session.flush().then ->
         expect(post.id).to.not.be.null
+        expect(post.isNew).to.be.false
         expect(post.title).to.eq('topological sort')
         expect(comment.id).to.not.be.null
         expect(comment.message).to.eq('seems good')
@@ -267,6 +268,22 @@ describe "rest", ->
           session.flush().then ->
             expect(adapter.h).to.eql(['PUT:/posts/1'])
             expect(post.comments.length).to.eq(0)
+
+
+      it 'new parent creates and deletes child before flush', ->
+        adapter.r['POST:/posts'] = (url, type, hash) -> 
+          expect(hash.data.post.comments.length).to.eq(0)
+          return posts: {id: 1, title: 'mvcc ftw', comments: []}
+
+        post = session.create(@Post, title: 'parent')
+        comment = session.create(@Comment, title: 'child')
+        post.comments.pushObject comment
+        post.comments.removeObject comment
+
+        session.flush().then ->
+          expect(post.comments.length).to.eq(0)
+          expect(post.isNew).to.be.false
+
 
 
       it 'deletes multiple children in multiple flushes', ->
