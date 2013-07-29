@@ -1,5 +1,7 @@
 # Ember.js Persistence Foundation
 
+[![Build Status](https://travis-ci.org/GroupTalent/epf.png)](https://travis-ci.org/GroupTalent/epf)
+
 Ember.js Persistence Foundation (epf) is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection. Defining characteristic of epf include:
 
 * Correctness is paramount. All other features, including performance, are important, but secondary.
