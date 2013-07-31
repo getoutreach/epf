@@ -102,3 +102,69 @@ describe "rest", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('herp')
         expect(post.user).to.not.be.null
+
+
+  context "one->one embedded", ->
+
+    beforeEach ->
+      class @Post extends Ep.Model
+        title: Ep.attr('string')
+      @App.Post = @Post
+
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+        post: Ep.belongsTo(@Post)
+      @App.User = @User
+
+      @Post.reopen
+        user: Ep.belongsTo(@User)
+
+      @RestAdapter.map @Post,
+        user: { embedded: 'always' }
+      # Re-instantiate since mappings are reified
+      @adapter = @container.lookup('adapter:main')
+      adapter = @adapter
+      session = adapter.newSession()
+
+      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:user', @User, instantiate: false
+
+
+    it 'creates child', ->
+      adapter.r['PUT:/posts/1'] = -> posts: {id: "1", title: 'parent', user: {client_id: post.user.clientId, id: '2', name: 'child'}}
+
+      post = session.merge @Post.create(id: "1", title: 'parent')
+
+      post.user = session.create 'user', name: 'child'
+
+      session.flush().then ->
+        expect(adapter.h).to.eql(['PUT:/posts/1'])
+        expect(post.user.isNew).to.be.false
+        expect(post.user.id).to.eq('2')
+
+
+    it 'creates hierarchy', ->
+      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user: {client_id: post.user.clientId, id: 1, name: 'derp', post_id: 1}}
+
+      post = session.create 'post', title: 'herp'
+      post.user = session.create 'user', name: 'derp'
+
+      session.flush().then ->
+        expect(adapter.h).to.eql ['POST:/posts']
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('herp')
+        expect(post.user.name).to.eq('derp')
+
+
+    it 'deletes parent', ->
+      adapter.r['DELETE:/posts/1'] = {}
+
+      post = @Post.create(id: "1", title: 'parent')
+      post.user = @User.create(id: "2", name: 'wes')
+      post = session.merge post
+
+      session.deleteModel(post)
+      session.flush().then ->
+        expect(adapter.h).to.eql(['DELETE:/posts/1'])
+        expect(post.isDeleted).to.be.true
+

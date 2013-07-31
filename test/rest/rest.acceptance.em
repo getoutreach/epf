@@ -129,6 +129,65 @@ describe "rest", ->
         expect(post.comments.length).to.eq(2)
 
 
+  describe "two levels of embedded", ->
+
+    beforeEach ->
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+      @App.User = @User
+
+      class @Profile extends Ep.Model
+        bio: Ep.attr('string')
+        user: Ep.belongsTo(@User)
+      @App.Profile = @Profile
+
+      class @Tag extends Ep.Model
+        name: Ep.attr('string')
+        profile: Ep.belongsTo(@Profile)
+      @App.User = @User
+
+      @Profile.reopen
+        tags: Ep.hasMany(@Tag)
+
+      @User.reopen
+        profile: Ep.belongsTo(@Profile)
+
+
+      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:profile', @Profile, instantiate: false
+      @container.register 'model:tags', @Tag, instantiate: false
+
+      @RestAdapter.map @User,
+        profile: { embedded: 'always' }
+
+      @RestAdapter.map @Profile,
+        tags: { embedded: 'always' }
+
+      # Re-instantiate since mappings are reified
+      @adapter = @container.lookup('adapter:main')
+      adapter = @adapter
+      session = adapter.newSession()
+
+    it 'deletes root', ->
+      adapter.r['DELETE:/users/1'] = {}
+
+      user = session.merge @User.create
+        id: '1'
+        name: 'abby'
+        profile: @Profile.create
+          id: '2'
+          bio: 'asd'
+          tags: [@Tag.create(id: '3', name: 'java')]
+
+      session.deleteModel(user)
+      session.flush().then ->
+        expect(adapter.h).to.eql(['DELETE:/users/1'])
+        expect(user.isDeleted).to.be.true
+
+
+
+
+
 
 
 
