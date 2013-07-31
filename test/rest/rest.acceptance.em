@@ -134,28 +134,24 @@ describe "rest", ->
     beforeEach ->
       class @User extends Ep.Model
         name: Ep.attr('string')
+        profile: Ep.belongsTo('profile')
       @App.User = @User
 
       class @Profile extends Ep.Model
         bio: Ep.attr('string')
-        user: Ep.belongsTo(@User)
+        user: Ep.belongsTo('user')
+        tags: Ep.hasMany('tag')
       @App.Profile = @Profile
 
       class @Tag extends Ep.Model
         name: Ep.attr('string')
-        profile: Ep.belongsTo(@Profile)
+        profile: Ep.belongsTo('profile')
       @App.User = @User
-
-      @Profile.reopen
-        tags: Ep.hasMany(@Tag)
-
-      @User.reopen
-        profile: Ep.belongsTo(@Profile)
 
 
       @container.register 'model:user', @User, instantiate: false
       @container.register 'model:profile', @Profile, instantiate: false
-      @container.register 'model:tags', @Tag, instantiate: false
+      @container.register 'model:tag', @Tag, instantiate: false
 
       @RestAdapter.map @User,
         profile: { embedded: 'always' }
