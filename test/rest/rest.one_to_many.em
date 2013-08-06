@@ -228,9 +228,9 @@ describe "rest", ->
           comment = post.comments.firstObject
           comment.message = 'first again'
           session.flush().then ->
-            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
             expect(post.comments.firstObject).to.eq(comment)
             expect(comment.message).to.eq('first again')
+            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
 
 
       it 'adds child', ->

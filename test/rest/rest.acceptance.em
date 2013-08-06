@@ -124,9 +124,15 @@ describe "rest", ->
         message: '#2',
         post: childPost
 
-      childSession.flush().then ->
+      expect(childPost.comments.length).to.eq(2)
+
+      promise = childSession.flush().then ->
         expect(childPost.comments.length).to.eq(2)
         expect(post.comments.length).to.eq(2)
+
+      expect(childPost.comments.length).to.eq(2)
+      expect(post.comments.length).to.eq(2)
+      promise
 
 
   describe "two levels of embedded", ->
