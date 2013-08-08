@@ -35,7 +35,7 @@ describe 'Ep.LazyModel', ->
   it 'loads belongsTo immediately if already loaded in session', ->
     lazyComment = session.add Ep.LazyModel.create(id: '1', type: App.Comment)
     post = session.merge App.Post.create(id: '1', title: 'wat')
-    post.comments.addObject App.Comment.create(id: '1', body: 'tmi')
+    post.comments.addObject session.merge(App.Comment.create(id: '1', body: 'tmi'))
     expect(lazyComment.post.title).to.eq('wat')
 
 

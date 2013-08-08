@@ -38,7 +38,6 @@ describe "Ep.Session", ->
       added = session.add(post)
       expect(added.session).to.eq(session)
 
-
     it 'reuses detached model', ->
       post = @Post.create(title: 'test')
       expect(session.add(post)).to.eq(post)
@@ -47,7 +46,7 @@ describe "Ep.Session", ->
     it 'overwrites unloaded models', ->
       lazy = Ep.LazyModel.create(id: '1', type: @Post)
       session.add(lazy)
-      post = @Post.create(id: '1', title: 'post')
+      post = session.merge(@Post.create(id: '1', title: 'post'))
       session.add(post)
       expect(session.getModel(lazy)).to.eq(post)
       session.add(lazy)
