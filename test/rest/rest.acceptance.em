@@ -92,6 +92,14 @@ describe "rest", ->
             expect(user.groups.length).to.eq(1)
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
 
+    it "doesn't choke when loading a group without a members key", ->
+      adapter.r['GET:/groups'] = groups: [{client_id: null, id: "1", name: "brogrammers", user_id: "1"}]
+
+      session.query("group").then (result) ->
+        expect(adapter.h).to.eql(['GET:/groups'])
+        expect(result.content.length).to.eq(1)
+        expect(result.content[0].name).to.eq("brogrammers")
+        expect(result.content[0].groups).to.be.undefined
 
   describe "managing comments", ->
 
