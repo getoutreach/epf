@@ -78,4 +78,40 @@ describe "Ep.Session", ->
       expect(session.models.toArray()).to.eql([@post])
 
 
+  describe 'rollback', ->
+    beforeEach ->
+      @post1 = session.merge Ep.LazyModel.create
+        content: @Post.create({id: '0'})
+      @post2 = session.merge Ep.LazyModel.create
+        content: @Post.create({id: '1'})
+      @post3 = session.merge Ep.LazyModel.create
+        content: @Post.create({id: '3'})
+      @post4 = session.merge Ep.LazyModel.create
+        content: @Post.create({id: '4'})
+      @post1.set('title', 'post1 title')
+      @post2.set('title', 'post2 title')
+      @post3.set('title', 'post3 title')
+      @post4.set('title', 'post4 title')
+
+    it 'works with a single model', ->
+      session.rollback(@post1)
+      expect(@post1.get('isDirty')).to.be.false
+      expect(session.get('dirtyModels').length).to.eq(3)
+
+    it 'works with a list of models in one arg', ->
+      session.rollback([@post1, @post2])
+      expect(@post1.get('isDirty')).to.be.false
+      expect(@post2.get('isDirty')).to.be.false
+      expect(session.get('dirtyModels').length).to.eq(2)
+
+    it 'works with a list of models in multiple args', ->
+      session.rollback(@post1, @post2, @post3)
+      expect(@post1.get('isDirty')).to.be.false
+      expect(@post2.get('isDirty')).to.be.false
+      expect(@post3.get('isDirty')).to.be.false
+      expect(session.get('dirtyModels').length).to.eq(1)
+
+    it 'works with no args on all dirty models', ->
+      session.rollback()
+      expect(session.get('dirtyModels').length).to.eq(0)
 
