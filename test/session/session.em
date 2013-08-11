@@ -96,20 +96,17 @@ describe "Ep.Session", ->
     it 'works with a single model', ->
       session.rollback(@post1)
       expect(@post1.get('isDirty')).to.be.false
-      expect(session.get('dirtyModels').length).to.eq(3)
 
     it 'works with a list of models in one arg', ->
       session.rollback([@post1, @post2])
       expect(@post1.get('isDirty')).to.be.false
       expect(@post2.get('isDirty')).to.be.false
-      expect(session.get('dirtyModels').length).to.eq(2)
 
     it 'works with a list of models in multiple args', ->
       session.rollback(@post1, @post2, @post3)
       expect(@post1.get('isDirty')).to.be.false
       expect(@post2.get('isDirty')).to.be.false
       expect(@post3.get('isDirty')).to.be.false
-      expect(session.get('dirtyModels').length).to.eq(1)
 
     it 'works with no args on all dirty models', ->
       session.rollback()
