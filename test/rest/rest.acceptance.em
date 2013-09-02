@@ -92,7 +92,7 @@ describe "rest", ->
             expect(user.groups.length).to.eq(1)
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
 
-    it.only 'adds a member to an existing group', ->
+    xit 'adds a member to an existing group', ->
       adapter.r['GET:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1", user_id: "3"}]}, users: {id: "3", name: "wtf"}
 
       session.load("group", 1).then (group) ->
