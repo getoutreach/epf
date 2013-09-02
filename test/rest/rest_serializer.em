@@ -5,6 +5,12 @@ describe 'Ep.RestSerializer', ->
     @Serializer = Ep.RestSerializer.extend()
     @container = new Ember.Container()
     @container.register('serializer:main', @Serializer)
+
+    @container.register('transform:boolean', Ep.BooleanTransform)
+    @container.register('transform:date', Ep.DateTransform)
+    @container.register('transform:number', Ep.NumberTransform)
+    @container.register('transform:string', Ep.StringTransform)
+    
     @serializer = @container.lookup('serializer:main')
 
 
