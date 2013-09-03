@@ -26,20 +26,6 @@ describe "rest", ->
         expect(adapter.h).to.eql(['GET:/posts/1'])
 
 
-    it 'loads when plural specified', ->
-      @RestAdapter.configure 'plurals',
-        post: 'postsandthings'
-      # Re-instantiate since mappings are reified
-      adapter = @container.lookup('adapter:main')
-      session = adapter.newSession()
-
-      adapter.r['GET:/postsandthings/1'] = postsandthings: {id: 1, title: 'mvcc ftw'}
-      session.load(@Post, 1).then (post) ->
-        expect(post.id).to.eq("1")
-        expect(post.title).to.eq('mvcc ftw')
-        expect(adapter.h).to.eql(['GET:/postsandthings/1'])
-
-
     it 'saves', ->
       adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw'}
 
