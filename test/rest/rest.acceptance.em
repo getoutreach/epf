@@ -42,12 +42,12 @@ describe "rest", ->
       @container.register 'model:member', @Member, instantiate: false
       @container.register 'model:user', @User, instantiate: false
 
-      @RestAdapter.map @Group,
-        members: { embedded: 'always' }
-      # Re-instantiate since mappings are reified
-      @adapter = @container.lookup('adapter:main')
-      adapter = @adapter
-      session = adapter.newSession()
+      GroupSerializer = Ep.RestSerializer.extend
+        properties:
+          members:
+            embedded: 'always'
+
+      @container.register 'serializer:group', GroupSerializer
 
     it 'creates new group and then deletes a member', ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
@@ -188,16 +188,19 @@ describe "rest", ->
       @container.register 'model:profile', @Profile, instantiate: false
       @container.register 'model:tag', @Tag, instantiate: false
 
-      @RestAdapter.map @User,
-        profile: { embedded: 'always' }
+      UserSerializer = Ep.RestSerializer.extend
+        properties:
+          profile:
+            embedded: 'always'
 
-      @RestAdapter.map @Profile,
-        tags: { embedded: 'always' }
+      @container.register 'serializer:user', UserSerializer
 
-      # Re-instantiate since mappings are reified
-      @adapter = @container.lookup('adapter:main')
-      adapter = @adapter
-      session = adapter.newSession()
+      ProfileSerializer = Ep.RestSerializer.extend
+        properties:
+          tags:
+            embedded: 'always'
+
+      @container.register 'serializer:profile', ProfileSerializer
 
     it 'deletes root', ->
       adapter.r['DELETE:/users/1'] = {}

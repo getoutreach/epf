@@ -21,12 +21,13 @@ describe "rest", ->
       @Post.reopen
         user: Ep.belongsTo(@User)
 
-      @RestAdapter.map @Post,
-        user: { owner: false }
-      # Re-instantiate since mappings are reified
-      @adapter = @container.lookup('adapter:main')
+      @adapter.reopen
+        configs:
+          post:
+            user: {owner: false}
+
       adapter = @adapter
-      session = adapter.newSession()
+      session = @session
 
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:user', @User, instantiate: false
@@ -119,12 +120,16 @@ describe "rest", ->
       @Post.reopen
         user: Ep.belongsTo(@User)
 
-      @RestAdapter.map @Post,
-        user: { embedded: 'always' }
-      # Re-instantiate since mappings are reified
-      @adapter = @container.lookup('adapter:main')
+
+      PostSerializer = Ep.RestSerializer.extend
+        properties:
+          user:
+            embedded: 'always'
+
       adapter = @adapter
-      session = adapter.newSession()
+      session = @session
+
+      @container.register 'serializer:post', PostSerializer
 
       @container.register 'model:post', @Post, instantiate: false
       @container.register 'model:user', @User, instantiate: false

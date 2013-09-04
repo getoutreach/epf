@@ -198,12 +198,12 @@ describe "rest", ->
     context 'embedded', ->
 
       beforeEach ->
-        @RestAdapter.map @Post,
-          comments: { embedded: 'always' }
-        # Re-instantiate since mappings are reified
-        @adapter = @container.lookup('adapter:main')
-        adapter = @adapter
-        session = adapter.newSession()
+        PostSerializer = Ep.RestSerializer.extend
+          properties:
+            comments:
+              embedded: 'always'
+
+        @container.register 'serializer:post', PostSerializer
 
 
       it 'loads', ->
