@@ -17,6 +17,7 @@ describe "Ep.ChildSession", ->
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
     @container.register 'session:child', Ep.ChildSession, singleton: false
+    @container.register 'serializer:main', Ep.RestSerializer
 
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
