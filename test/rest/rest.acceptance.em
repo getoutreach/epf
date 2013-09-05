@@ -42,12 +42,12 @@ describe "rest", ->
       @container.register 'model:member', @Member, instantiate: false
       @container.register 'model:user', @User, instantiate: false
 
-      @RestAdapter.map @Group,
-        members: { embedded: 'always' }
-      # Re-instantiate since mappings are reified
-      @adapter = @container.lookup('adapter:main')
-      adapter = @adapter
-      session = adapter.newSession()
+      GroupSerializer = Ep.RestSerializer.extend
+        properties:
+          members:
+            embedded: 'always'
+
+      @container.register 'serializer:group', GroupSerializer
 
     it 'creates new group and then deletes a member', ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
@@ -55,18 +55,18 @@ describe "rest", ->
         expect(hash.data.group.members[0].role).to.eq('chief')
         return groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post_id: "2", user_id: "1"}], user_id: "1"}
 
-      child = session.newSession()
-      user = child.create 'user', name: 'wes'
+      childSession = session.newSession()
+      user = childSession.create 'user', name: 'wes'
       group = null
       member = null
-      child.flush().then ->
+      childSession.flush().then ->
         expect(user.id).to.not.be.null
         expect(adapter.h).to.eql(['POST:/users'])
-        child = session.newSession()
-        user = child.add(user)
-        group = child.create 'group', name: 'brogrammers', user: user
-        member = child.create 'member', role: 'chief', user: user, group: group
-        child.flush().then ->
+        childSession = session.newSession()
+        user = childSession.add(user)
+        group = childSession.create 'group', name: 'brogrammers', user: user
+        member = childSession.create 'member', role: 'chief', user: user, group: group
+        childSession.flush().then ->
           expect(adapter.h).to.eql(['POST:/users', 'POST:/groups'])
           expect(user.id).to.not.be.null
           expect(group.id).to.not.be.null
@@ -75,22 +75,23 @@ describe "rest", ->
           expect(user.members.length).to.eq(1)
           expect(member.id).to.not.be.null
 
-          child = session.newSession()
-          member = child.add(member)
-          user = child.add(user)
-          group = child.add(group)
-          child.deleteModel(member)
+          childSession = session.newSession()
+          member = childSession.add(member)
+          user = childSession.add(user)
+          group = childSession.add(group)
+          childSession.deleteModel(member)
           expect(user.members.length).to.eq(0)
           expect(group.members.length).to.eq(0)
           expect(user.groups.length).to.eq(1)
 
           adapter.r['PUT:/groups/2'] = -> groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [], user_id: "1"}
-          child.flush().then ->
+          childSession.flush().then ->
             expect(member.get('isDeleted')).to.be.true
             expect(group.members.length).to.eq(0)
             expect(user.members.length).to.eq(0)
             expect(user.groups.length).to.eq(1)
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
+
 
     it "doesn't choke when loading a group without a members key", ->
       adapter.r['GET:/groups'] = groups: [{client_id: null, id: "1", name: "brogrammers", user_id: "1"}]
@@ -100,6 +101,36 @@ describe "rest", ->
         expect(result.content.length).to.eq(1)
         expect(result.content[0].name).to.eq("brogrammers")
         expect(result.content[0].groups).to.be.undefined
+
+
+    it 'adds a member to an existing group', ->
+      adapter.r['GET:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1", user_id: "3"}]}, users: {id: "3", name: "wtf", member_id: "2"}
+
+      session.load("group", 1).then (group) ->
+        expect(adapter.h).to.eql(['GET:/groups/1'])
+
+        childSession = session.newSession()
+        childGroup = childSession.add(group)
+
+        existingMember = childGroup.members.firstObject
+        expect(existingMember.user).to.not.be.null
+        expect(existingMember.user.isDetached).to.be.false
+
+        member = childSession.create('member', {name: "mollie"})
+        childGroup.members.addObject(member)
+
+        expect(childGroup.members.length).to.eq(2)
+        expect(group.members.length).to.eq(1)
+
+        adapter.r['PUT:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1"}, {id: 3, client_id: member.clientId, name: "mollie", group_id: "1"}]}
+        promise = childSession.flush().then ->
+          expect(childGroup.members.length).to.eq(2)
+          expect(group.members.length).to.eq(2)
+          expect(adapter.h).to.eql(['GET:/groups/1', 'PUT:/groups/1'])
+
+        expect(group.members.length).to.eq(2)
+        promise
+
 
   describe "managing comments", ->
 
@@ -132,9 +163,15 @@ describe "rest", ->
         message: '#2',
         post: childPost
 
-      childSession.flush().then ->
+      expect(childPost.comments.length).to.eq(2)
+
+      promise = childSession.flush().then ->
         expect(childPost.comments.length).to.eq(2)
         expect(post.comments.length).to.eq(2)
+
+      expect(childPost.comments.length).to.eq(2)
+      expect(post.comments.length).to.eq(2)
+      promise
 
 
   describe "two levels of embedded", ->
@@ -161,16 +198,19 @@ describe "rest", ->
       @container.register 'model:profile', @Profile, instantiate: false
       @container.register 'model:tag', @Tag, instantiate: false
 
-      @RestAdapter.map @User,
-        profile: { embedded: 'always' }
+      UserSerializer = Ep.RestSerializer.extend
+        properties:
+          profile:
+            embedded: 'always'
 
-      @RestAdapter.map @Profile,
-        tags: { embedded: 'always' }
+      @container.register 'serializer:user', UserSerializer
 
-      # Re-instantiate since mappings are reified
-      @adapter = @container.lookup('adapter:main')
-      adapter = @adapter
-      session = adapter.newSession()
+      ProfileSerializer = Ep.RestSerializer.extend
+        properties:
+          tags:
+            embedded: 'always'
+
+      @container.register 'serializer:profile', ProfileSerializer
 
     it 'deletes root', ->
       adapter.r['DELETE:/users/1'] = {}

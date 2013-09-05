@@ -198,12 +198,12 @@ describe "rest", ->
     context 'embedded', ->
 
       beforeEach ->
-        @RestAdapter.map @Post,
-          comments: { embedded: 'always' }
-        # Re-instantiate since mappings are reified
-        @adapter = @container.lookup('adapter:main')
-        adapter = @adapter
-        session = adapter.newSession()
+        PostSerializer = Ep.RestSerializer.extend
+          properties:
+            comments:
+              embedded: 'always'
+
+        @container.register 'serializer:post', PostSerializer
 
 
       it 'loads', ->
@@ -228,9 +228,9 @@ describe "rest", ->
           comment = post.comments.firstObject
           comment.message = 'first again'
           session.flush().then ->
-            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
             expect(post.comments.firstObject).to.eq(comment)
             expect(comment.message).to.eq('first again')
+            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
 
 
       it 'adds child', ->
@@ -270,10 +270,34 @@ describe "rest", ->
             expect(post.comments.length).to.eq(0)
 
 
+      it 'deletes child with sibling', ->
+        adapter.r['PUT:/posts/1'] = (url, type, hash) ->
+          expect(hash.data.post.comments.length).to.eq(1)
+          return posts: {id: 1, title: 'mvcc ftw', comments: [{id: 3, client_id: sibling.clientId, post_id: 1, message: 'child2'}]}
+
+        post = @Post.create(id: "1", title: 'parent');
+        post.comments.addObject(@Comment.create(id: "2", message: 'child1'))
+        post.comments.addObject(@Comment.create(id: "3", message: 'child2'))
+        session.merge post
+
+        # HACK: required because all knowledge of embeddedness is tracked by the adapter
+        adapter._embeddedManager.updateParents(post);
+
+        sibling = null
+        session.load('post', 1).then (post) ->
+          comment = post.comments.firstObject
+          sibling = post.comments.lastObject
+          session.deleteModel(comment)
+          expect(post.comments.length).to.eq(1)
+          session.flush().then ->
+            expect(adapter.h).to.eql(['PUT:/posts/1'])
+            expect(post.comments.length).to.eq(1)
+
+
       it 'new parent creates and deletes child before flush', ->
         adapter.r['POST:/posts'] = (url, type, hash) -> 
           expect(hash.data.post.comments.length).to.eq(0)
-          return posts: {id: 1, title: 'mvcc ftw', comments: []}
+          return posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw', comments: []}
 
         post = session.create(@Post, title: 'parent')
         comment = session.create(@Comment, title: 'child')
@@ -283,6 +307,7 @@ describe "rest", ->
         session.flush().then ->
           expect(post.comments.length).to.eq(0)
           expect(post.isNew).to.be.false
+          expect(adapter.h).to.eql(['POST:/posts'])
 
 
 

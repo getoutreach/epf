@@ -13,6 +13,7 @@ describe "Ep.Session", ->
     @container.register 'model:post', @Post, instantiate: false
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
+    @container.register 'serializer:main', Ep.RestSerializer
 
     @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 

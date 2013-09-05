@@ -10,7 +10,16 @@ describe "Ep.Session", ->
       title: Ep.attr('string')
     @App.Post = @Post
 
+    class @Comment extends Ep.Model
+      body: Ep.attr('string')
+      post: Ep.belongsTo(@Post)
+    @App.Comment = @Comment
+
+    @Post.reopen
+      comments: Ep.hasMany(@Comment)
+
     @container.register 'model:post', @Post, instantiate: false
+    @container.register 'model:comment', @Comment, instantiate: false
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
 
@@ -38,7 +47,6 @@ describe "Ep.Session", ->
       added = session.add(post)
       expect(added.session).to.eq(session)
 
-
     it 'reuses detached model', ->
       post = @Post.create(title: 'test')
       expect(session.add(post)).to.eq(post)
@@ -47,7 +55,7 @@ describe "Ep.Session", ->
     it 'overwrites unloaded models', ->
       lazy = Ep.LazyModel.create(id: '1', type: @Post)
       session.add(lazy)
-      post = @Post.create(id: '1', title: 'post')
+      post = session.merge(@Post.create(id: '1', title: 'post'))
       session.add(post)
       expect(session.getModel(lazy)).to.eq(post)
       session.add(lazy)
@@ -62,6 +70,24 @@ describe "Ep.Session", ->
         content: post
       merged = session.merge(lazy)
       expect(merged.id).to.eq('1')
+
+
+    it 'reuses detached model', ->
+      post = @Post.create(id: "1", title: 'test')
+      expect(session.merge(post)).to.eq(post)
+
+
+    it 'handles merging detached model with hasMany child already in session', ->
+      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: Ep.LazyModel.create(type: @Post, id: "2"))
+      post = session.merge @Post.create(id: "2")
+      post.comments.addObject(@Comment.create(id: "1", body: "obscurity"))
+      expect(post.comments.firstObject).to.eq(comment)
+
+
+    it 'handles merging detached model with belongsTo child already in session', ->
+      post = session.merge @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")])
+      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2"))
+      expect(comment.post).to.eq(post)
 
 
   context 'with orphaned proxy', ->

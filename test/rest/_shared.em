@@ -28,6 +28,12 @@ exports.setupRest = ->
   @container.register 'session:base', Ep.Session, singleton: false
   @container.register 'session:child', Ep.ChildSession, singleton: false
   @container.register 'serializer:main', Ep.RestSerializer
+
+  @container.register('transform:boolean', Ep.BooleanTransform)
+  @container.register('transform:date', Ep.DateTransform)
+  @container.register('transform:number', Ep.NumberTransform)
+  @container.register('transform:string', Ep.StringTransform)
+
   # TODO: adapter mappings are currently reified so in tests that
   # customize these we need to re-instantiate
   @container.register 'adapter:main', @RestAdapter, singleton: false
