@@ -82,6 +82,19 @@ describe 'Ep.RestSerializer', ->
         expect(post.rev).to.eq(123)
         expect(post.clientRev).to.eq(321)
 
+      it 'respects aliases', ->
+        @serializer.reopen
+          aliases:
+            blog_post: 'post'
+
+        data = {blog_post: {id: 1, title: 'wat', long_title: 'wat omgawd'}}
+        models = @serializer.deserializePayload(data)
+        post = models[0]
+        expect(post).to.be.an.instanceof(@Post)
+        expect(post.title).to.eq('wat')
+        expect(post.longTitle).to.eq('wat omgawd')
+        expect(post.id).to.eq("1")
+
 
     describe 'serialization', ->
 
