@@ -93,7 +93,7 @@ describe "rest", ->
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
 
     it 'adds a member to an existing group', ->
-      adapter.r['GET:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1", user_id: "3"}]}, users: {id: "3", name: "wtf"}
+      adapter.r['GET:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1", user_id: "3"}]}, users: {id: "3", name: "wtf", member_id: "2"}
 
       session.load("group", 1).then (group) ->
         expect(adapter.h).to.eql(['GET:/groups/1'])
@@ -101,7 +101,6 @@ describe "rest", ->
         childSession = session.newSession()
         childGroup = childSession.add(group)
 
-        debugger
         existingMember = childGroup.members.firstObject
         expect(existingMember.user).to.not.be.null
         expect(existingMember.user.isDetached).to.be.false
