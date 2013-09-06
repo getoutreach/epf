@@ -18,7 +18,7 @@ describe "rest", ->
 
       @container.register 'model:post', @Post, instantiate: false
 
-    it 'calls on loaded model', ->
+    it 'works with loaded model as context', ->
       adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
@@ -29,6 +29,16 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
+
+
+    # it.only 'works with model name as context', ->
+    #   adapter.r['POST:/posts/import'] = ->
+    #     posts: [{id: 1, title: 'submitted', submitted: "true"}]
+
+    #   session.remoteCall('post', 'import').then ->
+    #     expect(adapter.h).to.eql(['POST:/posts/import'])
+    #     # TODO merging data in
+
 
     it 'can accept parameters', ->
       adapter.r['POST:/posts/1/submit'] = ->
