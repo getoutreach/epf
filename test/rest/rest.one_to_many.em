@@ -29,8 +29,8 @@ describe "rest", ->
 
 
     it 'loads lazily', ->
-      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post_id: 1}
+      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [2]}
+      adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post: 1}
 
       session.load('post', 1).then (post) ->
         expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -47,10 +47,10 @@ describe "rest", ->
 
 
     it 'creates', ->
-      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comment_ids: []}
+      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comments: []}
       adapter.r['POST:/comments'] = (url, type, hash) ->
-        expect(hash.data.comment.post_id).to.eq(1)
-        return comments: {client_id: comment.clientId, id: 2, message: 'seems good', post_id: 1}
+        expect(hash.data.comment.post).to.eq(1)
+        return comments: {client_id: comment.clientId, id: 2, message: 'seems good', post: 1}
 
       post = session.create('post')
       post.title = 'topological sort'
@@ -74,7 +74,7 @@ describe "rest", ->
 
 
     it 'creates child', ->
-      adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post_id: 1}
+      adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post: 1}
 
       session.merge @Post.create(id: "1", title: 'parent');
 
@@ -105,9 +105,9 @@ describe "rest", ->
 
 
     it 'updates parent, updates child, and saves sibling', ->
-      adapter.r['PUT:/posts/1'] = -> post: {id: 1, title: 'polychild', comment_ids: [2]}
-      adapter.r['PUT:/comments/2'] = -> comments: {id: 2, title: 'original sibling', post_id: 1}
-      adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post_id: 1}
+      adapter.r['PUT:/posts/1'] = -> post: {id: 1, title: 'polychild', comments: [2]}
+      adapter.r['PUT:/comments/2'] = -> comments: {id: 2, title: 'original sibling', post: 1}
+      adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post: 1}
 
       post = @Post.create(id: "1", title: 'parent');
       post.comments.addObject(@Comment.create(id: "2", message: 'child'))
@@ -129,8 +129,8 @@ describe "rest", ->
 
 
     it 'updates with unloaded child', ->
-      adapter.r['GET:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
-      adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated', comment_ids: [2]}
+      adapter.r['GET:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comment: [2]}
+      adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'updated', comment: [2]}
       session.load('post', 1).then (post) ->
         expect(post.title).to.eq('mvcc ftw')
         expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -141,7 +141,7 @@ describe "rest", ->
 
 
     it 'deletes child', ->
-      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment_ids: [2]}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comment: [2]}
       adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
@@ -158,7 +158,7 @@ describe "rest", ->
 
 
     it 'deletes child and updates parent', ->
-      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comment_ids: [2]}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comments: [2]}
       adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
@@ -207,7 +207,7 @@ describe "rest", ->
 
 
       it 'loads', ->
-        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
+        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post: 1, message: 'first'}]}
 
         session.load(@Post, 1).then (post) ->
           expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -220,8 +220,8 @@ describe "rest", ->
 
 
       it 'updates child', ->
-        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first'}]}
-        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post_id: 1, message: 'first again'}]}
+        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post: 1, message: 'first'}]}
+        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, post: 1, message: 'first again'}]}
 
         session.load(@Post, 1).then (post) ->
           expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -235,7 +235,7 @@ describe "rest", ->
 
       it 'adds child', ->
         adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
-        adapter.r['PUT:/posts/1'] =  -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post_id: 1, message: 'reborn'}]}
+        adapter.r['PUT:/posts/1'] =  -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post: 1, message: 'reborn'}]}
 
         comment = null
         session.load(@Post, 1).then (post) ->
@@ -273,7 +273,7 @@ describe "rest", ->
       it 'deletes child with sibling', ->
         adapter.r['PUT:/posts/1'] = (url, type, hash) ->
           expect(hash.data.post.comments.length).to.eq(1)
-          return posts: {id: 1, title: 'mvcc ftw', comments: [{id: 3, client_id: sibling.clientId, post_id: 1, message: 'child2'}]}
+          return posts: {id: 1, title: 'mvcc ftw', comments: [{id: 3, client_id: sibling.clientId, post: 1, message: 'child2'}]}
 
         post = @Post.create(id: "1", title: 'parent');
         post.comments.addObject(@Comment.create(id: "2", message: 'child1'))
@@ -320,7 +320,7 @@ describe "rest", ->
         # HACK: required because all knowledge of embeddedness is tracked by the adapter
         adapter._embeddedManager.updateParents(post);
 
-        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{post_id: "1", id: "3", message: 'thing 2'}]}
+        adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{post: "1", id: "3", message: 'thing 2'}]}
 
         session.deleteModel post.comments.objectAt(0)
         session.flush().then ->
