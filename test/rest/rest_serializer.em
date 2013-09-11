@@ -168,14 +168,14 @@ describe 'Ep.RestSerializer', ->
 
 
     it 'deserializes null hasMany', ->
-      data = {post: [{id: 1, title: 'wat', comment_ids: null}] }
+      data = {post: [{id: 1, title: 'wat', comments: null}] }
       models = @serializer.deserializePayload(data)
       post = models[0]
       expect(post.comments.length).to.eq(0)
 
 
     it 'deserializes null belongsTo', ->
-      data = {comments: [{id: 1, title: 'wat', post_id: null}] }
+      data = {comments: [{id: 1, title: 'wat', post: null}] }
       models = @serializer.deserializePayload(data)
       comment = models[0]
       expect(comment.post).to.be.null
