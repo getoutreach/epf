@@ -24,7 +24,6 @@ For now, as epf is in development, follow the development instructions to use ep
 By default, epf assumes that the backend is a REST api which sticks to pretty much the same conventions as ember-data's RESTAdapter needs. There are a few differences however:
 
 * EPF sets a `client_id` in the JSON for every model and expects this to be echoed back by the server. It uses this to keep it's internal idmap up to date.
-* Related keys still need to use _id and _ids (this is different from ember-data 1.0 beta 2)
 
 ### Defining Models
 

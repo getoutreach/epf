@@ -53,7 +53,7 @@ describe "rest", ->
       adapter.r['POST:/users'] = -> users: {client_id: user.clientId, id: "1", name: "wes"}
       adapter.r['POST:/groups'] = (url, type, hash) ->
         expect(hash.data.group.members[0].role).to.eq('chief')
-        return groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post_id: "2", user_id: "1"}], user_id: "1"}
+        return groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [{client_id: member.clientId, id: "3", role: "chief", post: "2", user: "1"}], user: "1"}
 
       childSession = session.newSession()
       user = childSession.create 'user', name: 'wes'
@@ -84,7 +84,7 @@ describe "rest", ->
           expect(group.members.length).to.eq(0)
           expect(user.groups.length).to.eq(1)
 
-          adapter.r['PUT:/groups/2'] = -> groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [], user_id: "1"}
+          adapter.r['PUT:/groups/2'] = -> groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [], user: "1"}
           childSession.flush().then ->
             expect(member.get('isDeleted')).to.be.true
             expect(group.members.length).to.eq(0)
@@ -94,7 +94,7 @@ describe "rest", ->
 
 
     it "doesn't choke when loading a group without a members key", ->
-      adapter.r['GET:/groups'] = groups: [{client_id: null, id: "1", name: "brogrammers", user_id: "1"}]
+      adapter.r['GET:/groups'] = groups: [{client_id: null, id: "1", name: "brogrammers", user: "1"}]
 
       session.query("group").then (result) ->
         expect(adapter.h).to.eql(['GET:/groups'])
@@ -104,7 +104,7 @@ describe "rest", ->
 
 
     it 'adds a member to an existing group', ->
-      adapter.r['GET:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1", user_id: "3"}]}, users: {id: "3", name: "wtf", member_id: "2"}
+      adapter.r['GET:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group: "1", user: "3"}]}, users: {id: "3", name: "wtf", member: "2"}
 
       session.load("group", 1).then (group) ->
         expect(adapter.h).to.eql(['GET:/groups/1'])
@@ -122,7 +122,7 @@ describe "rest", ->
         expect(childGroup.members.length).to.eq(2)
         expect(group.members.length).to.eq(1)
 
-        adapter.r['PUT:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1"}, {id: 3, client_id: member.clientId, name: "mollie", group_id: "1"}]}
+        adapter.r['PUT:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group: "1"}, {id: 3, client_id: member.clientId, name: "mollie", group: "1"}]}
         promise = childSession.flush().then ->
           expect(childGroup.members.length).to.eq(2)
           expect(group.members.length).to.eq(2)
@@ -152,7 +152,7 @@ describe "rest", ->
 
 
     it 'creates a new comment within a child session', ->
-      adapter.r['POST:/comments'] = -> comment: {client_id: comment.clientId, id: "3", message: "#2", post_id: "1"}
+      adapter.r['POST:/comments'] = -> comment: {client_id: comment.clientId, id: "3", message: "#2", post: "1"}
 
       post = session.merge @Post.create(id: "1", title: "brogrammer's guide to beer pong")
       session.merge @Comment.create(id: "2", message: "yo", post: post)
