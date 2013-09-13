@@ -150,4 +150,5 @@ To build epf, follow the instructions below:
 * `cd epf`
 * `npm install`
 * `npm test` to run the tests via `mocha`
-* To build a browser distributable, run the `build-browser` command in the repository root.
+* To build a browser distributable, run the `build-browser` command in the repository root with `ember-script build-browser` (make sure to install [ember-script](https://github.com/ghempton/ember-script) globally).
+
