@@ -19,7 +19,7 @@
     "mkdirp": "*",
     "chai": "*",
     "mocha": "*",
-    "ember-script": "*",
+    "ember-script": "0.0.9",
     "jquery": "*",
     "mocha-as-promised": "*",
     "commonjs-everywhere": "*",
