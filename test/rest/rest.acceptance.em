@@ -228,10 +228,49 @@ describe "rest", ->
         expect(adapter.h).to.eql(['DELETE:/users/1'])
         expect(user.isDeleted).to.be.true
 
+  describe 'multiple belongsTo', ->
+    beforeEach ->
+      class @Foo extends Ep.Model
+      @App.Foo = @Foo
+      class @Bar extends Ep.Model
+      @App.Bar = @Bar
+      class @Baz extends Ep.Model
+      @App.Baz = @Baz
 
+      @Foo.reopen
+        bar: Ep.belongsTo @Bar
+        baz: Ep.belongsTo @Baz
 
+      @Bar.reopen
+        foos: Ep.hasMany @Foo
 
+      @Baz.reopen
+        foos: Ep.hasMany @Foo
 
+      @container.register 'model:foo', @Foo, instantiate: false
+      @container.register 'model:bar', @Bar, instantiate: false
+      @container.register 'model:baz', @Baz, instantiate: false
 
+    it 'sets ids properly', ->
+      adapter.r['POST:/bars'] = -> bar: {client_id: bar.clientId, id: "1"}
+      adapter.r['POST:/bazs'] = -> baz: {client_id: baz.clientId, id: "1"}
+      adapter.r['POST:/foos'] = (url, type, hash) ->
+        expect(hash.data.foo.bar_id).to.eq '1'
+        expect(hash.data.foo.baz_id).to.eq '1'
+        foo: {client_id: foo.clientId, id: "1", bar_id: "1", baz_id: "1"}
 
-
+      childSession = session.newSession()
+      foo = childSession.create 'foo'
+      bar = childSession.create 'bar'
+      baz = childSession.create 'baz'
+      foo.set 'bar', bar
+      foo.set 'baz', baz
+      childSession.flush().thenn ->
+        expect(adapter.h).to.eql ['POST:bars', 'POST:/bazs' 'POST:/foos']
+        expect(foo.id).to.not.be.null
+        expect(bar.id).to.not.be.null
+        expect(baz.id).to.not.be.null
+        expect(foo.bar).to.not.be.null
+        expect(foo.baz).to.not.be.null
+        expect(bar.foos.length).to.eq 1
+        expect(baz.foos.length).to.eq 1
