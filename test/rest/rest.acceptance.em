@@ -255,8 +255,8 @@ describe "rest", ->
       adapter.r['POST:/bars'] = -> bar: {client_id: bar.clientId, id: "1"}
       adapter.r['POST:/bazs'] = -> baz: {client_id: baz.clientId, id: "1"}
       adapter.r['POST:/foos'] = (url, type, hash) ->
-        expect(hash.data.foo.bar_id).to.eq '1'
-        expect(hash.data.foo.baz_id).to.eq '1'
+        expect(hash.data.foo.bar_id).to.eq 1
+        expect(hash.data.foo.baz_id).to.eq 1
         foo: {client_id: foo.clientId, id: "1", bar_id: "1", baz_id: "1"}
 
       childSession = session.newSession()
@@ -265,8 +265,8 @@ describe "rest", ->
       baz = childSession.create 'baz'
       foo.set 'bar', bar
       foo.set 'baz', baz
-      childSession.flush().thenn ->
-        expect(adapter.h).to.eql ['POST:bars', 'POST:/bazs' 'POST:/foos']
+      childSession.flush().then ->
+        expect(adapter.h).to.eql ['POST:/bars', 'POST:/bazs', 'POST:/foos']
         expect(foo.id).to.not.be.null
         expect(bar.id).to.not.be.null
         expect(baz.id).to.not.be.null
