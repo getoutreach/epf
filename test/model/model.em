@@ -7,7 +7,13 @@ describe 'Ep.Model', ->
     class App.User extends Ep.Model
       name: Ep.attr('string')
     @container = new Ember.Container()
-    @container.register 'model:user', @User, instantiate: false
+    @container.register 'model:user', App.User, instantiate: false
+
+    class SessionStub
+      dirtyModels: ~> []
+
+    @container.register 'session:main', SessionStub
+
     Ep.__container__ = @container
 
   afterEach ->
@@ -17,10 +23,8 @@ describe 'Ep.Model', ->
   describe 'isDirty', ->
 
     before ->
-      class SessionStub
-        dirtyModels: ~> []
-
-      @container.register 'session:main', SessionStub
+      @container.lookup('session:main').dirtyModels = []
+      
 
     it 'returns false when detached', ->
       expect(App.User.create().isDirty).to.be.false
