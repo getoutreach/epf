@@ -244,3 +244,21 @@ describe 'Ep.RestSerializer', ->
       models = @serializer.deserializePayload(data)
       post = models[0]
       expect(post.user).to.be.null
+
+
+  context 'model with date attribute', ->
+    beforeEach ->
+      @Post = Ep.Model.extend
+        posted: Ep.attr('date')
+      @container.register 'model:post', @Post, instantiate: false
+
+
+    it 'serializes', ->
+      post = @Post.create
+        id: 1
+        clientId: "2"
+        posted: "2013-05-05"
+        rev: 123
+        clientRev: 321
+      data = @serializer.serialize(post, includeId: true)
+      expect(data).to.eql(client_id: "2", id: 1, posted: 'Sun, 05 May 2013 00:00:00 GMT', rev: 123, client_rev: 321)
