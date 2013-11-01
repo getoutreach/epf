@@ -59,3 +59,11 @@ describe 'Ep.Model', ->
 
     App.User.find(1).then (user) ->
       expect(user.id).to.eq("1")
+
+  it 'can rollback', ->
+    user = App.User.create()
+    class SessionStub
+      rollback: (model) ->
+        expect(model).to.eq(user)
+    user.session = SessionStub.create()
+    user.rollback()
