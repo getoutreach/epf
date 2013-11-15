@@ -30,6 +30,17 @@ describe "rest", ->
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
 
+    it 'handles remote calls on the collection', ->
+      adapter.r['POST:/posts/randomize'] = ->
+        posts: [{id: 1, title: 'submitted', submitted: true}, {id: 2, title: 'submitted2', submitted: true}]
+
+      session.remoteCall('post', 'randomize').then (models) ->
+          expect(models.length).to.eq(2)
+          expect(models.firstObject.title).to.eq('submitted')
+          expect(models.firstObject.submitted).to.be.true
+          expect(adapter.h).to.eql(['POST:/posts/randomize'])
+
+
 
     # it.only 'works with model name as context', ->
     #   adapter.r['POST:/posts/import'] = ->
