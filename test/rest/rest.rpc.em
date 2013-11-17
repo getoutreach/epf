@@ -83,7 +83,7 @@ describe "rest", ->
       session.merge @Post.create(id: "1", title: 'test', submitted: false)
 
       session.load('post', 1).then (post) ->
-        session.remoteCall(post, 'submit', {token: 'asd', _method: 'PUT'}).then ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, 'PUT').then ->
           expect(adapter.h).to.eql(['PUT:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
