@@ -16,7 +16,7 @@ describe "rest", ->
         submitted: Ep.attr('boolean')
       @App.Post = @Post
 
-      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:post', @Post
 
     it 'works with loaded model as context', ->
       adapter.r['POST:/posts/1/submit'] = ->

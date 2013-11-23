@@ -29,8 +29,8 @@ describe "rest", ->
       adapter = @adapter
       session = @session
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:user', @User
 
 
     it 'child can be null', ->
@@ -131,8 +131,8 @@ describe "rest", ->
 
       @container.register 'serializer:post', PostSerializer
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:user', @User
 
 
     it 'creates child', ->

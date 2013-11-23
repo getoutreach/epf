@@ -14,13 +14,13 @@ describe 'Ep.EmbeddedManager', ->
     class @Post extends Ep.Model
       title: Ep.attr('string')
     @App.Post = @Post
-    @container.register 'model:post', @Post, instantiate: false
+    @container.register 'model:post', @Post
 
     class @Comment extends Ep.Model
       message: Ep.attr('string')
       post: Ep.belongsTo(@Post)
     @App.Comment = @Comment
-    @container.register 'model:comment', @Comment, instantiate: false
+    @container.register 'model:comment', @Comment
 
     @Post.reopen
       comments: Ep.hasMany(@Comment) 

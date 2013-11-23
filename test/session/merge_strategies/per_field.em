@@ -28,7 +28,7 @@ describe 'Ep.PerField', ->
     class Session extends Ep.Session
       mergeStrategy: Ep.PerField
 
-    @container.register 'model:post', @Post, instantiate: false
+    @container.register 'model:post', @Post
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Session, singleton: false
 

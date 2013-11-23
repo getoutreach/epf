@@ -17,7 +17,7 @@ describe "Ep.Session", ->
       comments: Ep.hasMany(@Comment)
 
 
-    @container.register 'model:post', @Post, instantiate: false
+    @container.register 'model:post', @Post
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
     @container.register 'session:child', Ep.ChildSession, singleton: false

@@ -16,7 +16,7 @@ describe "rest", ->
         submitted: Ep.attr('boolean')
       @App.Post = @Post
 
-      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:post', @Post
 
     it 'all flushes resolve', ->
       adapter.r['PUT:/posts/1'] = (url, type, hash) ->

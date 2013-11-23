@@ -19,7 +19,7 @@ describe 'Ep.RestSerializer', ->
       @Post = Ep.Model.extend
         title: Ep.attr('string')
         longTitle: Ep.attr('string')
-      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:post', @Post
 
 
     describe 'deserializePayload', ->
@@ -163,8 +163,8 @@ describe 'Ep.RestSerializer', ->
       @Post.reopen
         comments: Ep.hasMany(@Comment)
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:comment', @Comment, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:comment', @Comment
 
 
     it 'deserializes null hasMany', ->
@@ -202,8 +202,8 @@ describe 'Ep.RestSerializer', ->
 
       @container.register 'serializer:post', PostSerializer
       
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:comment', @Comment, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:comment', @Comment
 
 
     it 'deserializes null belongsTo', ->
@@ -235,8 +235,8 @@ describe 'Ep.RestSerializer', ->
 
       @container.register 'serializer:post', PostSerializer
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:user', @User
 
 
     it 'deserializes null belongsTo', ->

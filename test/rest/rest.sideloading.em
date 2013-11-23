@@ -24,8 +24,8 @@ describe "rest", ->
       @Post.reopen
         comments: Ep.hasMany(@Comment)
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:comment', @Comment, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:comment', @Comment
 
 
     it 'sideloads', ->

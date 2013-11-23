@@ -17,8 +17,8 @@ describe 'Ep.LazyModel', ->
     App.Post.reopen
       comments: Ep.hasMany(App.Comment)
 
-    @container.register 'model:post', App.Post, instantiate: false
-    @container.register 'model:comment', App.Comment, instantiate: false
+    @container.register 'model:post', App.Post
+    @container.register 'model:comment', App.Comment
     @container.register 'adapter:main', Ep.LocalAdapter
     @container.register 'session:base', Ep.Session, singleton: false
 

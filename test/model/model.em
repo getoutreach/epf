@@ -7,7 +7,7 @@ describe 'Ep.Model', ->
     class App.User extends Ep.Model
       name: Ep.attr('string')
     @container = new Ember.Container()
-    @container.register 'model:user', App.User, instantiate: false
+    @container.register 'model:user', App.User
 
     class SessionStub
       dirtyModels: ~> []

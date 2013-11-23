@@ -38,9 +38,9 @@ describe "rest", ->
         user: Ep.belongsTo(@User)
 
 
-      @container.register 'model:group', @Group, instantiate: false
-      @container.register 'model:member', @Member, instantiate: false
-      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:group', @Group
+      @container.register 'model:member', @Member
+      @container.register 'model:user', @User
 
       GroupSerializer = Ep.RestSerializer.extend
         properties:
@@ -147,8 +147,8 @@ describe "rest", ->
       @Post.reopen
         comments: Ep.hasMany(@Comment)
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:comment', @Comment, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:comment', @Comment
 
 
     it 'creates a new comment within a child session', ->
@@ -194,9 +194,9 @@ describe "rest", ->
       @App.User = @User
 
 
-      @container.register 'model:user', @User, instantiate: false
-      @container.register 'model:profile', @Profile, instantiate: false
-      @container.register 'model:tag', @Tag, instantiate: false
+      @container.register 'model:user', @User
+      @container.register 'model:profile', @Profile
+      @container.register 'model:tag', @Tag
 
       UserSerializer = Ep.RestSerializer.extend
         properties:
@@ -215,6 +215,7 @@ describe "rest", ->
     it 'deletes root', ->
       adapter.r['DELETE:/users/1'] = {}
 
+      @User.create id: '1'
       user = session.merge @User.create
         id: '1'
         name: 'abby'
@@ -247,9 +248,9 @@ describe "rest", ->
       @Baz.reopen
         foos: Ep.hasMany @Foo
 
-      @container.register 'model:foo', @Foo, instantiate: false
-      @container.register 'model:bar', @Bar, instantiate: false
-      @container.register 'model:baz', @Baz, instantiate: false
+      @container.register 'model:foo', @Foo
+      @container.register 'model:bar', @Bar
+      @container.register 'model:baz', @Baz
 
     it 'sets ids properly', ->
       adapter.r['POST:/bars'] = -> bar: {client_id: bar.clientId, id: "1"}

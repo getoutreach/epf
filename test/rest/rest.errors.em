@@ -15,7 +15,7 @@ describe "rest", ->
         title: Ep.attr('string')
       @App.Post = @Post
 
-      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:post', @Post
 
 
     it 'handles validation errors on update', ->

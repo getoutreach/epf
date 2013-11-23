@@ -23,8 +23,8 @@ describe "relationships", ->
       @Post.reopen
         comments: Ep.hasMany(@Comment)
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:comment', @Comment, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:comment', @Comment
 
 
     it 'belongsTo updates inverse', ->
@@ -116,8 +116,8 @@ describe "relationships", ->
       @Post.reopen
         user: Ep.belongsTo(@User)
 
-      @container.register 'model:post', @Post, instantiate: false
-      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:post', @Post
+      @container.register 'model:user', @User
 
 
     it 'updates inverse', ->
@@ -162,9 +162,9 @@ describe "relationships", ->
       @Member.reopen
         user: Ep.belongsTo(@User)
 
-      @container.register 'model:group', @Group, instantiate: false
-      @container.register 'model:member', @Member, instantiate: false
-      @container.register 'model:user', @User, instantiate: false
+      @container.register 'model:group', @Group
+      @container.register 'model:member', @Member
+      @container.register 'model:user', @User
 
 
     it 'updates inverse on delete', ->
