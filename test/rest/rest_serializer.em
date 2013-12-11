@@ -244,3 +244,23 @@ describe 'Ep.RestSerializer', ->
       models = @serializer.deserializePayload(data)
       post = models[0]
       expect(post.user).to.be.null
+      
+      
+  describe 'meta data', ->
+    it 'adds meta data to existing object', ->
+      obj = {title: 'wat'}
+      data = {meta: {recursive: 'meta'}}
+      obj = @serializer.setMeta(data, obj)
+      expect(obj.meta).to.exist
+      expect(obj.meta.recursive).to.exist
+      expect(obj.meta.recursive).to.eq('meta')
+      
+    it 'adds creates an object with meta if object undefined', ->
+      data = {meta: {recursive: 'meta'}}
+      obj = @serializer.setMeta(data, obj)
+      expect(obj.meta).to.exist
+      expect(obj.meta.recursive).to.exist
+      expect(obj.meta.recursive).to.eq('meta')
+      
+    
+  
