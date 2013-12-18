@@ -117,7 +117,20 @@
                         errors[name] = json['errors'][key];
                     }
                 }, this);
+                if (json['errors'].hasOwnProperty('base')) {
+                    errors['base'] = json['errors']['base'];
+                }
                 return errors;
+            },
+            setMeta: function (data, obj) {
+                if (data && data.meta) {
+                    if (obj) {
+                        obj.meta = data.meta;
+                    } else {
+                        obj = { meta: data.meta };
+                    }
+                }
+                return obj;
             }
         });
     });
@@ -1666,7 +1679,7 @@
         require('/lib/rest/operation_graph.js', module);
         require('/lib/rest/rest_errors.js', module);
         require('/lib/serializer/json_serializer/embedded_helpers_mixin.js', module);
-        var get = Ember.get, set = Ember.set;
+        var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
         Ep.RestAdapter = Ep.Adapter.extend(Ep.EmbeddedHelpersMixin, {
             init: function () {
                 this._super.apply(this, arguments);
@@ -1729,7 +1742,7 @@
                     throw xhr;
                 });
             },
-            remoteCall: function (context, name, params) {
+            remoteCall: function (context, name, params, opts) {
                 var url, adapter = this;
                 if (typeof context === 'string') {
                     context = this.typeFor(context);
@@ -1742,8 +1755,8 @@
                     url = this.buildURL(this.rootForType(get(context, 'type')), id);
                 }
                 url = url + '/' + name;
+                method = opts && opts.type || 'POST';
                 var data = params;
-                var method = 'POST';
                 return this.ajax(url, method, { data: data }).then(function (json) {
                     return adapter.didReceiveDataForRpc(json, context);
                 }, function (xhr) {
@@ -1760,7 +1773,8 @@
                         result = model;
                     }
                 });
-                return result;
+                var serializer = get(this, 'serializer');
+                return serializer.setMeta(data, result);
             },
             didReceiveDataForLoad: function (data, type, id) {
                 var result = null;
@@ -1769,7 +1783,8 @@
                         result = model;
                     }
                 });
-                return result;
+                var serializer = get(this, 'serializer');
+                return serializer.setMeta(data, result);
             },
             didReceiveDataForFind: function (data, type) {
                 var result = [];
@@ -1778,10 +1793,15 @@
                         result.pushObject(model);
                     }
                 });
-                return Ep.ModelArray.create({ content: result });
+                var serializer = get(this, 'serializer');
+                return serializer.setMeta(data, Ep.ModelArray.create({ content: result }));
             },
             didReceiveDataForRpc: function (data, context) {
-                return this.didReceiveData(data, context);
+                if (typeof context === 'function') {
+                    return this.didReceiveDataForFind(data, context);
+                } else {
+                    return this.didReceiveData(data, context);
+                }
             },
             processData: function (data, callback, binding) {
                 var models = get(this, 'serializer').deserializePayload(data);
@@ -2044,10 +2064,7 @@
                     url.push(suffix);
                 }
                 return url.join('/');
-            },
-            serializer: Ember.computed(function () {
-                return container.lookup('serializer:main');
-            })
+            }
         });
     });
     require.define('/lib/rest/rest_errors.js', function (module, exports, __dirname, __filename) {
@@ -2263,8 +2280,14 @@
                     }
                     if (!serverModel) {
                         serverModel = model;
-                    } else if (!get(serverModel, 'clientRev')) {
-                        set(serverModel, 'clientRev', get(model, 'clientRev'));
+                    } else {
+                        if (get(serverModel, 'meta') && Ember.keys(serverModel).length == 1) {
+                            model.meta = serverModel.meta;
+                            serverModel = model;
+                        }
+                        if (!get(serverModel, 'clientRev')) {
+                            set(serverModel, 'clientRev', get(model, 'clientRev'));
+                        }
                     }
                     return serverModel;
                 }, function (serverModel) {
@@ -2631,15 +2654,7 @@
             query: function (type, query) {
                 var session = this;
                 return this.parent.query(type, query).then(function (models) {
-                    var merged = Ep.ModelArray.create({
-                            session: session,
-                            content: []
-                        });
-                    set(merged, 'meta', get(models, 'meta'));
-                    models.forEach(function (model) {
-                        merged.pushObject(session.merge(model));
-                    });
-                    return merged;
+                    return session.mergeModels(models);
                 });
             },
             refresh: function (model) {
@@ -2680,12 +2695,20 @@
                 var clientId = adapter.getClientId(type, id);
                 return this.models.getForClientId(clientId);
             },
-            remoteCall: function (context, name) {
+            remoteCall: function (context, name, params, method) {
                 var session = this;
                 return this.parent.remoteCall.apply(this.parent, arguments).then(function (model) {
-                    return session.merge(model);
+                    if (Ember.isArray(model)) {
+                        return session.mergeModels(models);
+                    } else {
+                        return session.merge(model);
+                    }
                 }, function (model) {
-                    throw session.merge(model);
+                    if (Ember.isArray(model)) {
+                        throw session.mergeModels(models);
+                    } else {
+                        throw session.merge(model);
+                    }
                 });
             }
         });
@@ -2713,10 +2736,25 @@
                 } else {
                     merged = this._mergeSuccess(model, strategy);
                 }
+                if (model.meta) {
+                    merged.meta = model.meta;
+                }
                 for (var i = 0; i < detachedChildren.length; i++) {
                     var child = detachedChildren[i];
                     this.merge(child, strategy, visited);
                 }
+                return merged;
+            },
+            mergeModels: function (models) {
+                var merged = Ep.ModelArray.create({
+                        session: this,
+                        content: []
+                    });
+                merged.meta = models.meta;
+                var session = this;
+                models.forEach(function (model) {
+                    merged.pushObject(session.merge(model));
+                });
                 return merged;
             },
             _mergeSuccess: function (model, strategy) {
@@ -2975,15 +3013,7 @@
                 type = this.modelFor(type);
                 var session = this;
                 var prom = this.adapter.query(type, query).then(function (models) {
-                        var merged = Ep.ModelArray.create({
-                                session: session,
-                                content: []
-                            });
-                        set(merged, 'meta', get(models, 'meta'));
-                        models.forEach(function (model) {
-                            merged.pushObject(session.merge(model));
-                        });
-                        return merged;
+                        return session.mergeModels(models);
                     });
                 return Ep.PromiseArray.create({ promise: prom });
             },
@@ -3032,12 +3062,20 @@
             reifyClientId: function (model) {
                 this.adapter.reifyClientId(model);
             },
-            remoteCall: function (context, name) {
+            remoteCall: function (context, name, params, method) {
                 var session = this;
                 return this.adapter.remoteCall.apply(this.adapter, arguments).then(function (model) {
-                    return session.merge(model);
+                    if (Ember.isArray(model)) {
+                        return session.mergeModels(model);
+                    } else {
+                        return session.merge(model);
+                    }
                 }, function (model) {
-                    throw session.merge(model);
+                    if (Ember.isArray(model)) {
+                        throw session.mergeModels(model);
+                    } else {
+                        throw session.merge(model);
+                    }
                 });
             },
             modelWillBecomeDirty: function (model) {

@@ -42,13 +42,13 @@ describe "rest", ->
 
 
 
-    # it.only 'works with model name as context', ->
-    #   adapter.r['POST:/posts/import'] = ->
-    #     posts: [{id: 1, title: 'submitted', submitted: "true"}]
+    it 'can accept model type as context', ->
+      adapter.r['POST:/posts/import'] = ->
+        posts: [{id: 1, title: 'submitted', submitted: "true"}]
 
-    #   session.remoteCall('post', 'import').then ->
-    #     expect(adapter.h).to.eql(['POST:/posts/import'])
-    #     # TODO merging data in
+      session.remoteCall('post', 'import').then (posts) ->
+        expect(adapter.h).to.eql(['POST:/posts/import'])
+        expect(posts.firstObject.id).to.eq("1")
 
 
     it 'can accept parameters', ->
@@ -83,7 +83,7 @@ describe "rest", ->
       session.merge @Post.create(id: "1", title: 'test', submitted: false)
 
       session.load('post', 1).then (post) ->
-        session.remoteCall(post, 'submit', {token: 'asd'}, 'PUT').then ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, {type: 'PUT'}).then ->
           expect(adapter.h).to.eql(['PUT:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
