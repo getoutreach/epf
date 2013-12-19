@@ -12,6 +12,7 @@ exports.setupRest = ->
         key = type + ":" + url
         adapter.h.push(key)
         json = adapter.r[key]
+        hash.data = JSON.parse(hash.data) if hash && typeof hash.data == 'string'
         throw "No data for #{key}" unless json
         json = json(url, type, hash) if typeof json == 'function'
         adapter.runLater ( -> resolve(json) ), 0

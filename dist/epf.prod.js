@@ -935,6 +935,7 @@
             clientRev: 0,
             session: null,
             errors: null,
+            isModel: true,
             isEqual: function (model) {
                 var clientId = get(this, 'clientId');
                 var otherClientId = get(model, 'clientId');
@@ -1756,7 +1757,14 @@
                 }
                 url = url + '/' + name;
                 method = opts && opts.type || 'POST';
-                var data = params;
+                var data = JSON.stringify(params, function (key, value) {
+                        if (Ep.ModelMixin.detect(value)) {
+                            var type = get(value, 'type');
+                            var serializer = adapter.serializerFor(type);
+                            return serializer.serialize(value);
+                        }
+                        return value;
+                    });
                 return this.ajax(url, method, { data: data }).then(function (json) {
                     return adapter.didReceiveDataForRpc(json, context);
                 }, function (xhr) {
@@ -2020,7 +2028,9 @@
                     hash.context = adapter;
                     if (hash.data && type !== 'GET') {
                         hash.contentType = 'application/json; charset=utf-8';
-                        hash.data = JSON.stringify(hash.data);
+                        if (typeof hash.data !== 'string') {
+                            hash.data = adapter.stringify(hash.data);
+                        }
                     }
                     if (adapter.headers !== undefined) {
                         var headers = adapter.headers;
@@ -2402,7 +2412,7 @@
                 return session;
             },
             serializerFor: function (type) {
-                return this.container.lookup('serializer:' + type) || this.container.lookup('serializer:main');
+                return this.container.lookup('serializer:' + type.typeKey) || this.container.lookup('serializer:main');
             },
             load: mustImplement('load'),
             query: mustImplement('find'),
