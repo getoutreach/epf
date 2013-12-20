@@ -1744,13 +1744,18 @@
                 });
             },
             remoteCall: function (context, name, params, opts) {
+                var adapter = this;
+                function normalizeContext(context) {
+                    if (typeof context === 'string') {
+                        return adapter.typeFor(context);
+                    }
+                    return context;
+                }
                 var url, adapter = this;
                 if (!opts) {
                     opts = {};
                 }
-                if (typeof context === 'string') {
-                    context = this.typeFor(context);
-                }
+                context = normalizeContext(context);
                 if (typeof context === 'function') {
                     url = this.buildURL(this.rootForType(context));
                 } else {
@@ -1772,7 +1777,7 @@
                     if (opts.deserialize === false) {
                         return json;
                     }
-                    var deserializationContext = opts.deserializationContext !== undefined ? opts.deserializationContext : context;
+                    var deserializationContext = opts.deserializationContext !== undefined ? normalizeContext(opts.deserializationContext) : context;
                     return adapter.didReceiveDataForRpc(json, deserializationContext);
                 }, function (xhr) {
                     throw adapter.didError(xhr, context);
