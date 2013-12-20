@@ -1745,6 +1745,9 @@
             },
             remoteCall: function (context, name, params, opts) {
                 var url, adapter = this;
+                if (!opts) {
+                    opts = {};
+                }
                 if (typeof context === 'string') {
                     context = this.typeFor(context);
                 }
@@ -1756,9 +1759,9 @@
                     url = this.buildURL(this.rootForType(get(context, 'type')), id);
                 }
                 url = url + '/' + name;
-                method = opts && opts.type || 'POST';
+                method = opts.type || 'POST';
                 var data = JSON.stringify(params, function (key, value) {
-                        if (Ep.ModelMixin.detect(value)) {
+                        if (value && get(value, 'isModel')) {
                             var type = get(value, 'type');
                             var serializer = adapter.serializerFor(type);
                             return serializer.serialize(value);
@@ -1766,7 +1769,11 @@
                         return value;
                     });
                 return this.ajax(url, method, { data: data }).then(function (json) {
-                    return adapter.didReceiveDataForRpc(json, context);
+                    if (opts.deserialize === false) {
+                        return json;
+                    }
+                    var deserializationContext = opts.deserializationContext !== undefined ? opts.deserializationContext : context;
+                    return adapter.didReceiveDataForRpc(json, deserializationContext);
                 }, function (xhr) {
                     throw adapter.didError(xhr, context);
                 });
@@ -1805,11 +1812,12 @@
                 return serializer.setMeta(data, Ep.ModelArray.create({ content: result }));
             },
             didReceiveDataForRpc: function (data, context) {
-                if (typeof context === 'function') {
+                if (!context) {
+                    return this.processData(data);
+                } else if (typeof context === 'function') {
                     return this.didReceiveDataForFind(data, context);
-                } else {
-                    return this.didReceiveData(data, context);
                 }
+                return this.didReceiveData(data, context);
             },
             processData: function (data, callback, binding) {
                 var models = get(this, 'serializer').deserializePayload(data);
@@ -1818,9 +1826,11 @@
                 }, this);
                 models.forEach(function (model) {
                     this.didLoadModel(model);
-                    callback.call(binding || this, model);
+                    if (callback)
+                        callback.call(binding || this, model);
                 }, this);
                 this.materializeRelationships(models);
+                return models;
             },
             willLoadModel: function (model) {
                 model.eachRelatedModel(function (relative) {
@@ -3072,20 +3082,22 @@
             reifyClientId: function (model) {
                 this.adapter.reifyClientId(model);
             },
-            remoteCall: function (context, name, params, method) {
+            remoteCall: function (context, name, params, opts) {
                 var session = this;
-                return this.adapter.remoteCall.apply(this.adapter, arguments).then(function (model) {
+                function merge(model) {
                     if (Ember.isArray(model)) {
-                        return session.mergeModels(model);
-                    } else {
+                        if (get(model, 'firstObject.isModel')) {
+                            return session.mergeModels(model);
+                        }
+                    } else if (model && get(model, 'isModel')) {
                         return session.merge(model);
                     }
+                    return model;
+                }
+                return this.adapter.remoteCall.apply(this.adapter, arguments).then(function (model) {
+                    return merge(model);
                 }, function (model) {
-                    if (Ember.isArray(model)) {
-                        throw session.mergeModels(model);
-                    } else {
-                        throw session.merge(model);
-                    }
+                    throw merge(model);
                 });
             },
             modelWillBecomeDirty: function (model) {

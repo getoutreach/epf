@@ -115,3 +115,30 @@ describe "rest", ->
           expect(adapter.h).to.eql(['PUT:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
+
+    it 'results in raw json when deserialize=false', ->
+      adapter.r['POST:/posts/1/submit'] = ->
+        posts: {id: 1, title: 'submitted', submitted: "true"}
+
+      session.merge @Post.create(id: "1", title: 'test', submitted: false)
+
+      session.load('post', 1).then (post) ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, {deserialize: false}).then (json) ->
+          expect(adapter.h).to.eql(['POST:/posts/1/submit'])
+          expect(post.title).to.eq('test')
+          expect(post.submitted).to.be.false
+          expect(json.posts.title).to.eq('submitted')
+          expect(json.isModel).to.be.undefined
+
+    it 'returns all models when deserializationContext is null', ->
+      adapter.r['POST:/posts/1/submit'] = ->
+        posts: {id: 1, title: 'submitted', submitted: "true"}
+
+      session.merge @Post.create(id: "1", title: 'test', submitted: false)
+
+      session.load('post', 1).then (post) ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, {deserializationContext: null}).then (models) ->
+          expect(adapter.h).to.eql(['POST:/posts/1/submit'])
+          expect(post.title).to.eq('submitted')
+          expect(post.submitted).to.be.true
+          expect(models.firstObject).to.eq(post)
