@@ -2044,7 +2044,7 @@
                     if (hash.data && type !== 'GET') {
                         hash.contentType = 'application/json; charset=utf-8';
                         if (typeof hash.data !== 'string') {
-                            hash.data = adapter.stringify(hash.data);
+                            hash.data = JSON.stringify(hash.data);
                         }
                     }
                     if (adapter.headers !== undefined) {

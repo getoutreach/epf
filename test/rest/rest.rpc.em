@@ -143,7 +143,7 @@ describe "rest", ->
           expect(post.submitted).to.be.true
           expect(models.firstObject).to.eq(post)
 
-    it 'returns all models of a type deserializationContext is a type key', ->
+    it 'returns all models of a type if deserializationContext is a type key', ->
       adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
@@ -157,7 +157,7 @@ describe "rest", ->
           expect(models.firstObject).to.eq(post)
 
 
-    it 'returns all models of a type deserializationContext is a type', ->
+    it 'returns all models of a type if deserializationContext is a type', ->
       adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
