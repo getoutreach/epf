@@ -35,11 +35,15 @@ describe "rest", ->
 
     it 'child can be null', ->
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: null}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'new title', user_id: null}
 
       session.load(@Post, 1).then (post) ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq("mvcc ftw")
         expect(post.user).to.be.null
+        post.title = 'new title'
+        session.flush().then ->
+          expect(post.title).to.eq('new title')
 
 
     it 'loads lazily', ->
