@@ -2722,18 +2722,20 @@
             },
             remoteCall: function (context, name, params, method) {
                 var session = this;
-                return this.parent.remoteCall.apply(this.parent, arguments).then(function (model) {
+                function merge(model) {
                     if (Ember.isArray(model)) {
-                        return session.mergeModels(models);
-                    } else {
+                        if (get(model, 'firstObject.isModel')) {
+                            return session.mergeModels(model);
+                        }
+                    } else if (model && get(model, 'isModel')) {
                         return session.merge(model);
                     }
+                    return model;
+                }
+                return this.parent.remoteCall.apply(this.parent, arguments).then(function (model) {
+                    return merge(model);
                 }, function (model) {
-                    if (Ember.isArray(model)) {
-                        throw session.mergeModels(models);
-                    } else {
-                        throw session.merge(model);
-                    }
+                    throw merge(model);
                 });
             }
         });
