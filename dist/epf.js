@@ -352,7 +352,7 @@
                     serialized[key] = value;
                 } else {
                     child = get(model, relationship.key);
-                    id = get(child, 'id');
+                    id = child && get(child, 'id');
                     if (relationship.options && relationship.options.polymorphic && !Ember.isNone(id)) {
                         throw 'Polymorphism is not quite ready';
                     } else {
