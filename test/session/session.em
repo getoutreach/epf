@@ -104,4 +104,20 @@ describe "Ep.Session", ->
       expect(session.models.toArray()).to.eql([@post])
 
 
+  describe 'markClean', ->
+
+    it 'makes models no longer dirty', ->
+      post = session.merge @Post.create(id: "1", title: 'test')
+      post.title = 'dirty bastard'
+      expect(post.isDirty).to.be.true
+      session.markClean(post)
+      expect(post.isDirty).to.be.false
+
+    it 'works with already clean models', ->
+      post = session.merge @Post.create(id: "1", title: 'test')
+      expect(post.isDirty).to.be.false
+      session.markClean(post)
+      expect(post.isDirty).to.be.false
+
+
 
