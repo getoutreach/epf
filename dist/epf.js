@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.22',
+                version: 'v0.10.24',
                 browser: true,
                 env: {},
                 argv: [],
@@ -3074,7 +3074,7 @@
                     if (shadow && (!original || original.get('rev') < shadow.get('rev'))) {
                         this.originals.add(shadow);
                     }
-                    this.shadows.remove(model);
+                    this.markClean(model);
                 }, this);
                 newModels.clear();
                 return promise;
@@ -3169,6 +3169,9 @@
                 var shadows = get(this, 'shadows');
                 var models = get(this, 'models');
                 return shadows.getModel(model) || models.getModel(model);
+            },
+            markClean: function (model) {
+                this.shadows.remove(model);
             }
         });
     });
