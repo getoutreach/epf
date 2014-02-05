@@ -47,6 +47,13 @@ describe 'Ep.Model', ->
       user.session = SessionStub.create()
       expect(user.isDirty).to.be.false
 
+  describe 'copy', ->
+    it 'copies objects in attributes', ->
+      u1 = App.User.create()
+      u1.user = ["firstname", "lastname"]
+      u2 = u1.copy()
+      u1.user = ["john", "doe"]
+      expect(u1.user).not.to.be.eq(u2.user)
 
   it 'can use .find', ->
     class SessionStub
