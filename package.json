@@ -13,7 +13,7 @@
     "persistence",
     "sync"
   ],
-  "author": "Gordon L. Hempton",
+  "author": "Gordon L. Hempton <ghempton@gmail.com> (http://codebrief.com)",
   "license": "MIT",
   "devDependencies": {
     "mkdirp": "*",
@@ -24,5 +24,8 @@
     "mocha-as-promised": "*",
     "commonjs-everywhere": "*",
     "escodegen": "*"
+  },
+  "dependencies": {
+    "jsondiffpatch": "0.0.11"
   }
 }

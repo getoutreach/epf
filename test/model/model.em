@@ -6,6 +6,7 @@ describe 'Ep.Model', ->
     App = Ember.Namespace.create()
     class App.User extends Ep.Model
       name: Ep.attr('string')
+      raw: Ep.attr()
     @container = new Ember.Container()
     @container.register 'model:user', App.User
 
@@ -59,3 +60,21 @@ describe 'Ep.Model', ->
 
     App.User.find(1).then (user) ->
       expect(user.id).to.eq("1")
+
+  describe '.diff', ->
+
+    it 'detects differences in complex object attributes', ->
+      left = App.User.create
+        raw: {test: 'a'}
+      right = App.User.create
+        raw: {test: 'b'}
+
+      expect(left.diff(right)).to.eql([ { type: 'attr', name: 'raw' } ])
+
+    it 'detects no difference in complex object attributes', ->
+      left = App.User.create
+        raw: {test: 'a'}
+      right = App.User.create
+        raw: {test: 'a'}
+
+      expect(left.diff(right)).to.eql([])

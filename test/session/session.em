@@ -119,5 +119,13 @@ describe "Ep.Session", ->
       session.markClean(post)
       expect(post.isDirty).to.be.false
 
+  describe '.touch', ->
+
+    it 'makes the model dirty', ->
+      post = session.merge @Post.create(id: "1", title: 'test')
+      expect(post.isDirty).to.be.false
+      session.touch(post)
+      expect(post.isDirty).to.be.true
+
 
 
