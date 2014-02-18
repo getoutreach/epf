@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.24',
+                version: 'v0.10.25',
                 browser: true,
                 env: {},
                 argv: [],
@@ -190,9 +190,12 @@
                 return this.deserializeValue(hash[key], attribute.type);
             },
             deserializeValue: function (value, attributeType) {
-                var transform = this.transformFor(attributeType);
+                if (attributeType) {
+                    var transform = this.transformFor(attributeType);
 
-                return transform.deserialize(value);
+                    return transform.deserialize(value);
+                }
+                return value;
             },
             deserializeRelationships: function (model, hash) {
                 model.eachRelationship(function (name, relationship) {
@@ -330,9 +333,12 @@
                 serialized[key] = this.serializeValue(get(model, name), attribute.type);
             },
             serializeValue: function (value, attributeType) {
-                var transform = this.transformFor(attributeType);
+                if (attributeType) {
+                    var transform = this.transformFor(attributeType);
 
-                return transform.serialize(value);
+                    return transform.serialize(value);
+                }
+                return value;
             },
             addRelationships: function (serialized, model) {
                 model.eachRelationship(function (name, relationship) {
@@ -489,6 +495,814 @@
         require('/lib/model/relationships/has_many.js', module);
         require('/lib/model/relationships/ext.js', module);
         require('/lib/model/errors.js', module);
+        require('/lib/model/diff.js', module);
+    });
+    require.define('/lib/model/diff.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        var jsondiffpatch = require('/node_modules/jsondiffpatch/src/jsondiffpatch.js', module);
+        Ep.Model.reopen({
+            diff: function (model) {
+                var diffs = [];
+                this.eachAttribute(function (name, meta) {
+                    var left = get(this, name);
+                    var right = get(model, name);
+                    if (left && right && typeof left === 'object' && typeof right === 'object') {
+                        var delta = jsondiffpatch.diff(left, right);
+                        if (delta) {
+                            diffs.push({
+                                type: 'attr',
+                                name: name
+                            });
+                        }
+                        return;
+                    }
+                    if (left instanceof Date && right instanceof Date) {
+                        left = left.getTime();
+                        right = right.getTime();
+                    }
+                    if (left !== right) {
+                        diffs.push({
+                            type: 'attr',
+                            name: name
+                        });
+                    }
+                }, this);
+                this.eachRelationship(function (name, relationship) {
+                    var left = get(this, name);
+                    var right = get(model, name);
+                    if (relationship.kind === 'belongsTo') {
+                        if (left && right) {
+                            if (!left.isEqual(right)) {
+                                diffs.push({
+                                    type: 'belongsTo',
+                                    name: name,
+                                    relationship: relationship,
+                                    oldValue: right
+                                });
+                            }
+                        } else if (left || right) {
+                            diffs.push({
+                                type: 'belongsTo',
+                                name: name,
+                                relationship: relationship,
+                                oldValue: right
+                            });
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var dirty = false;
+                        var cache = Ep.ModelSet.create();
+                        left.forEach(function (model) {
+                            cache.add(model);
+                        });
+                        right.forEach(function (model) {
+                            if (dirty)
+                                return;
+                            if (!cache.contains(model)) {
+                                dirty = true;
+                            } else {
+                                cache.remove(model);
+                            }
+                        });
+                        if (dirty || get(cache, 'length') > 0) {
+                            diffs.push({
+                                type: 'hasMany',
+                                name: name,
+                                relationship: relationship
+                            });
+                        }
+                    }
+                }, this);
+                return diffs;
+            }
+        });
+    });
+    require.define('/node_modules/jsondiffpatch/src/jsondiffpatch.js', function (module, exports, __dirname, __filename) {
+        (function () {
+            'use strict';
+            var jdp = {};
+            if (typeof jsondiffpatch != 'undefined') {
+                jdp = jsondiffpatch;
+            }
+            var jsondiffpatch = jdp;
+            jdp.version = '0.0.11';
+            jdp.config = {
+                textDiffMinLength: 60,
+                detectArrayMove: true,
+                includeValueOnArrayMove: false
+            };
+            var arrayIndexOf = typeof Array.prototype.indexOf === 'function' ? function (array, item) {
+                    return array.indexOf(item);
+                } : function (array, item) {
+                    var length = array.length;
+                    for (var i = 0; i < length; i++) {
+                        if (array[i] === item) {
+                            return i;
+                        }
+                    }
+                    return -1;
+                };
+            var sequenceDiffer = {
+                    diff: function (array1, array2, objectHash, objectInnerDiff) {
+                        var commonHead = 0, commonTail = 0, index, index1;
+                        var len1 = array1.length;
+                        var len2 = array2.length;
+                        var diff;
+                        var hashCache1 = [];
+                        var hashCache2 = [];
+                        var areTheSame = typeof objectHash == 'function' ? function (value1, value2, index1, index2) {
+                                if (value1 === value2)
+                                    return true;
+                                if (typeof value1 != 'object' || typeof value2 != 'object')
+                                    return false;
+                                var hash1, hash2;
+                                if (typeof index1 == 'number') {
+                                    hash1 = hashCache1[index1];
+                                    if (typeof hash1 == 'undefined') {
+                                        hashCache1[index1] = hash1 = objectHash(value1);
+                                    }
+                                } else {
+                                    hash1 = objectHash(value1);
+                                }
+                                if (typeof index2 == 'number') {
+                                    hash2 = hashCache2[index2];
+                                    if (typeof hash2 == 'undefined') {
+                                        hashCache2[index2] = hash2 = objectHash(value2);
+                                    }
+                                } else {
+                                    hash2 = objectHash(value2);
+                                }
+                                return hash1 === hash2;
+                            } : function (value1, value2) {
+                                return value1 === value2;
+                            };
+                        var areTheSameByIndex = function (index1, index2) {
+                            return areTheSame(array1[index1], array2[index2], index1, index2);
+                        };
+                        var tryObjectInnerDiff = function (index1, index2) {
+                            if (!objectInnerDiff) {
+                                return;
+                            }
+                            if (typeof array1[index1] != 'object' || typeof array2[index2] != 'object') {
+                                return;
+                            }
+                            var result = objectInnerDiff(array1[index1], array2[index2]);
+                            if (typeof result == 'undefined') {
+                                return;
+                            }
+                            if (!diff) {
+                                diff = { _t: 'a' };
+                            }
+                            diff[index2] = result;
+                        };
+                        while (commonHead < len1 && commonHead < len2 && areTheSameByIndex(commonHead, commonHead)) {
+                            tryObjectInnerDiff(commonHead, commonHead);
+                            commonHead++;
+                        }
+                        while (commonTail + commonHead < len1 && commonTail + commonHead < len2 && areTheSameByIndex(len1 - 1 - commonTail, len2 - 1 - commonTail)) {
+                            tryObjectInnerDiff(len1 - 1 - commonTail, len2 - 1 - commonTail);
+                            commonTail++;
+                        }
+                        if (commonHead + commonTail === len1) {
+                            if (len1 === len2) {
+                                return diff;
+                            }
+                            diff = diff || { _t: 'a' };
+                            for (index = commonHead; index < len2 - commonTail; index++) {
+                                diff[index] = [array2[index]];
+                            }
+                            return diff;
+                        } else if (commonHead + commonTail === len2) {
+                            diff = diff || { _t: 'a' };
+                            for (index = commonHead; index < len1 - commonTail; index++) {
+                                diff['_' + index] = [
+                                    array1[index],
+                                    0,
+                                    0
+                                ];
+                            }
+                            return diff;
+                        }
+                        var lcs = this.lcs(array1.slice(commonHead, len1 - commonTail), array2.slice(commonHead, len2 - commonTail), {
+                                areTheSameByIndex: function (index1, index2) {
+                                    return areTheSameByIndex(index1 + commonHead, index2 + commonHead);
+                                }
+                            });
+                        diff = diff || { _t: 'a' };
+                        var removedItems = [];
+                        for (index = commonHead; index < len1 - commonTail; index++) {
+                            if (arrayIndexOf(lcs.indices1, index - commonHead) < 0) {
+                                diff['_' + index] = [
+                                    array1[index],
+                                    0,
+                                    0
+                                ];
+                                removedItems.push(index);
+                            }
+                        }
+                        var removedItemsLength = removedItems.length;
+                        for (index = commonHead; index < len2 - commonTail; index++) {
+                            var indexOnArray2 = arrayIndexOf(lcs.indices2, index - commonHead);
+                            if (indexOnArray2 < 0) {
+                                var isMove = false;
+                                if (jdp.config.detectArrayMove) {
+                                    if (removedItemsLength > 0) {
+                                        for (index1 = 0; index1 < removedItemsLength; index1++) {
+                                            if (areTheSameByIndex(removedItems[index1], index)) {
+                                                diff['_' + removedItems[index1]].splice(1, 2, index, 3);
+                                                if (!jdp.config.includeValueOnArrayMove) {
+                                                    diff['_' + removedItems[index1]][0] = '';
+                                                }
+                                                tryObjectInnerDiff(removedItems[index1], index);
+                                                removedItems.splice(index1, 1);
+                                                isMove = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!isMove) {
+                                    diff[index] = [array2[index]];
+                                }
+                            } else {
+                                tryObjectInnerDiff(lcs.indices1[indexOnArray2] + commonHead, lcs.indices2[indexOnArray2] + commonHead);
+                            }
+                        }
+                        return diff;
+                    },
+                    getArrayIndexBefore: function (d, indexAfter) {
+                        var index, indexBefore = indexAfter;
+                        for (var prop in d) {
+                            if (d.hasOwnProperty(prop)) {
+                                if (isArray(d[prop])) {
+                                    if (prop.slice(0, 1) === '_') {
+                                        index = parseInt(prop.slice(1), 10);
+                                    } else {
+                                        index = parseInt(prop, 10);
+                                    }
+                                    if (d[prop].length === 1) {
+                                        if (index < indexAfter) {
+                                            indexBefore--;
+                                        } else {
+                                            if (index === indexAfter) {
+                                                return -1;
+                                            }
+                                        }
+                                    } else if (d[prop].length === 3) {
+                                        if (d[prop][2] === 0) {
+                                            if (index <= indexAfter) {
+                                                indexBefore++;
+                                            }
+                                        } else {
+                                            if (d[prop][2] === 3) {
+                                                if (index <= indexAfter) {
+                                                    indexBefore++;
+                                                }
+                                                if (d[prop][1] > indexAfter) {
+                                                    indexBefore--;
+                                                } else {
+                                                    if (d[prop][1] === indexAfter) {
+                                                        return index;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        return indexBefore;
+                    },
+                    patch: function (array, d, objectInnerPatch, path) {
+                        var index, index1;
+                        var numerically = function (a, b) {
+                            return a - b;
+                        };
+                        var numericallyBy = function (name) {
+                            return function (a, b) {
+                                return a[name] - b[name];
+                            };
+                        };
+                        var toRemove = [];
+                        var toInsert = [];
+                        var toModify = [];
+                        for (index in d) {
+                            if (index !== '_t') {
+                                if (index[0] == '_') {
+                                    if (d[index][2] === 0 || d[index][2] === 3) {
+                                        toRemove.push(parseInt(index.slice(1), 10));
+                                    } else {
+                                        throw new Error('only removal or move can be applied at original array indices, invalid diff type: ' + d[index][2]);
+                                    }
+                                } else {
+                                    if (d[index].length === 1) {
+                                        toInsert.push({
+                                            index: parseInt(index, 10),
+                                            value: d[index][0]
+                                        });
+                                    } else {
+                                        toModify.push({
+                                            index: parseInt(index, 10),
+                                            diff: d[index]
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        toRemove = toRemove.sort(numerically);
+                        for (index = toRemove.length - 1; index >= 0; index--) {
+                            index1 = toRemove[index];
+                            var indexDiff = d['_' + index1];
+                            var removedValue = array.splice(index1, 1)[0];
+                            if (indexDiff[2] === 3) {
+                                toInsert.push({
+                                    index: indexDiff[1],
+                                    value: removedValue
+                                });
+                            }
+                        }
+                        toInsert = toInsert.sort(numericallyBy('index'));
+                        var toInsertLength = toInsert.length;
+                        for (index = 0; index < toInsertLength; index++) {
+                            var insertion = toInsert[index];
+                            array.splice(insertion.index, 0, insertion.value);
+                        }
+                        var toModifyLength = toModify.length;
+                        if (toModifyLength > 0) {
+                            if (typeof objectInnerPatch != 'function') {
+                                throw new Error('to patch items in the array an objectInnerPatch function must be provided');
+                            }
+                            for (index = 0; index < toModifyLength; index++) {
+                                var modification = toModify[index];
+                                objectInnerPatch(array, modification.index.toString(), modification.diff, path);
+                            }
+                        }
+                        return array;
+                    },
+                    lcs: function (array1, array2, options) {
+                        options.areTheSameByIndex = options.areTheSameByIndex || function (index1, index2) {
+                            return array1[index1] === array2[index2];
+                        };
+                        var matrix = this.lengthMatrix(array1, array2, options);
+                        var result = this.backtrack(matrix, array1, array2, array1.length, array2.length);
+                        if (typeof array1 == 'string' && typeof array2 == 'string') {
+                            result.sequence = result.sequence.join('');
+                        }
+                        return result;
+                    },
+                    lengthMatrix: function (array1, array2, options) {
+                        var len1 = array1.length;
+                        var len2 = array2.length;
+                        var x, y;
+                        var matrix = [len1 + 1];
+                        for (x = 0; x < len1 + 1; x++) {
+                            matrix[x] = [len2 + 1];
+                            for (y = 0; y < len2 + 1; y++) {
+                                matrix[x][y] = 0;
+                            }
+                        }
+                        matrix.options = options;
+                        for (x = 1; x < len1 + 1; x++) {
+                            for (y = 1; y < len2 + 1; y++) {
+                                if (options.areTheSameByIndex(x - 1, y - 1)) {
+                                    matrix[x][y] = matrix[x - 1][y - 1] + 1;
+                                } else {
+                                    matrix[x][y] = Math.max(matrix[x - 1][y], matrix[x][y - 1]);
+                                }
+                            }
+                        }
+                        return matrix;
+                    },
+                    backtrack: function (lenghtMatrix, array1, array2, index1, index2) {
+                        if (index1 === 0 || index2 === 0) {
+                            return {
+                                sequence: [],
+                                indices1: [],
+                                indices2: []
+                            };
+                        }
+                        if (lenghtMatrix.options.areTheSameByIndex(index1 - 1, index2 - 1)) {
+                            var subsequence = this.backtrack(lenghtMatrix, array1, array2, index1 - 1, index2 - 1);
+                            subsequence.sequence.push(array1[index1 - 1]);
+                            subsequence.indices1.push(index1 - 1);
+                            subsequence.indices2.push(index2 - 1);
+                            return subsequence;
+                        }
+                        if (lenghtMatrix[index1][index2 - 1] > lenghtMatrix[index1 - 1][index2]) {
+                            return this.backtrack(lenghtMatrix, array1, array2, index1, index2 - 1);
+                        } else {
+                            return this.backtrack(lenghtMatrix, array1, array2, index1 - 1, index2);
+                        }
+                    }
+                };
+            jdp.sequenceDiffer = sequenceDiffer;
+            jdp.dateReviver = function (key, value) {
+                var a;
+                if (typeof value === 'string') {
+                    a = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)(Z|([+\-])(\d{2}):(\d{2}))$/.exec(value);
+                    if (a) {
+                        return new Date(Date.UTC(+a[1], +a[2] - 1, +a[3], +a[4], +a[5], +a[6]));
+                    }
+                }
+                return value;
+            };
+            var diff_match_patch_autoconfig = function () {
+                var dmp;
+                if (jdp.config.diff_match_patch) {
+                    dmp = new jdp.config.diff_match_patch.diff_match_patch();
+                }
+                if (typeof diff_match_patch != 'undefined') {
+                    if (typeof diff_match_patch == 'function') {
+                        dmp = new diff_match_patch();
+                    } else if (typeof diff_match_patch == 'object' && typeof diff_match_patch.diff_match_patch == 'function') {
+                        dmp = new diff_match_patch.diff_match_patch();
+                    }
+                }
+                if (dmp) {
+                    jdp.config.textDiff = function (txt1, txt2) {
+                        return dmp.patch_toText(dmp.patch_make(txt1, txt2));
+                    };
+                    jdp.config.textPatch = function (txt1, patch) {
+                        var results = dmp.patch_apply(dmp.patch_fromText(patch), txt1);
+                        for (var i = 0; i < results[1].length; i++) {
+                            if (!results[1][i]) {
+                                throw new Error('text patch failed');
+                            }
+                        }
+                        return results[0];
+                    };
+                    return true;
+                }
+            };
+            var isArray = jdp.isArray = typeof Array.isArray == 'function' ? Array.isArray : function (a) {
+                    return typeof a == 'object' && a instanceof Array;
+                };
+            var isDate = jdp.isDate = function (d) {
+                    return d instanceof Date || Object.prototype.toString.call(d) === '[object Date]';
+                };
+            var arrayDiff = function (o, n) {
+                return sequenceDiffer.diff(o, n, jdp.config.objectHash, jdp.diff);
+            };
+            var objectDiff = function (o, n) {
+                var odiff, pdiff, prop, addPropDiff;
+                addPropDiff = function (name) {
+                    pdiff = diff(o[name], n[name]);
+                    if (typeof pdiff != 'undefined') {
+                        if (typeof odiff == 'undefined') {
+                            odiff = {};
+                        }
+                        odiff[name] = pdiff;
+                    }
+                };
+                for (prop in n) {
+                    if (n.hasOwnProperty(prop)) {
+                        addPropDiff(prop);
+                    }
+                }
+                for (prop in o) {
+                    if (o.hasOwnProperty(prop)) {
+                        if (typeof n[prop] == 'undefined') {
+                            addPropDiff(prop);
+                        }
+                    }
+                }
+                return odiff;
+            };
+            var diff = jdp.diff = function (o, n) {
+                    var ntype, otype, nnull, onull, d;
+                    if (o === n) {
+                        return;
+                    }
+                    if (o !== o && n !== n) {
+                        return;
+                    }
+                    ntype = typeof n;
+                    otype = typeof o;
+                    nnull = n === null;
+                    onull = o === null;
+                    if (otype == 'object' && isDate(o)) {
+                        otype = 'date';
+                    }
+                    if (ntype == 'object' && isDate(n)) {
+                        ntype = 'date';
+                        if (otype == 'date') {
+                            if (o.getTime() === n.getTime()) {
+                                return;
+                            }
+                        }
+                    }
+                    if (nnull || onull || ntype == 'undefined' || ntype != otype || ntype == 'number' || otype == 'number' || ntype == 'boolean' || otype == 'boolean' || ntype == 'string' || otype == 'string' || ntype == 'date' || otype == 'date' || ntype === 'object' && isArray(n) != isArray(o)) {
+                        d = [];
+                        if (typeof o != 'undefined') {
+                            if (typeof n != 'undefined') {
+                                var longText = ntype == 'string' && otype == 'string' && Math.min(o.length, n.length) > jdp.config.textDiffMinLength;
+                                if (longText && !jdp.config.textDiff) {
+                                    diff_match_patch_autoconfig();
+                                }
+                                if (longText && jdp.config.textDiff) {
+                                    d.push(jdp.config.textDiff(o, n), 0, 2);
+                                } else {
+                                    d.push(o);
+                                    d.push(n);
+                                }
+                            } else {
+                                d.push(o);
+                                d.push(0, 0);
+                            }
+                        } else {
+                            d.push(n);
+                        }
+                        return d;
+                    } else {
+                        if (isArray(n)) {
+                            return arrayDiff(o, n);
+                        } else {
+                            return objectDiff(o, n);
+                        }
+                    }
+                };
+            var objectGet = function (obj, key) {
+                if (isArray(obj)) {
+                    return obj[parseInt(key, 10)];
+                }
+                return obj[key];
+            };
+            jdp.getByKey = objectGet;
+            var objectSet = function (obj, key, value) {
+                if (isArray(obj) && obj._key) {
+                    var getKey = obj._key;
+                    if (typeof obj._key != 'function') {
+                        getKey = function (item) {
+                            return item[obj._key];
+                        };
+                    }
+                    for (var i = 0; i < obj.length; i++) {
+                        if (getKey(obj[i]) === key) {
+                            if (typeof value == 'undefined') {
+                                obj.splice(i, 1);
+                                i--;
+                            } else {
+                                obj[i] = value;
+                            }
+                            return;
+                        }
+                    }
+                    if (typeof value != 'undefined') {
+                        obj.push(value);
+                    }
+                    return;
+                }
+                if (typeof value == 'undefined') {
+                    if (isArray(obj)) {
+                        obj.splice(key, 1);
+                    } else {
+                        delete obj[key];
+                    }
+                } else {
+                    obj[key] = value;
+                }
+            };
+            var textDiffReverse = function (td) {
+                if (!jdp.config.textDiffReverse) {
+                    jdp.config.textDiffReverse = function (d) {
+                        var i, l, lines, line, lineTmp, header = null, headerRegex = /^@@ +\-(\d+),(\d+) +\+(\d+),(\d+) +@@$/, lineHeader, lineAdd, lineRemove;
+                        var diffSwap = function () {
+                            if (lineAdd !== null) {
+                                lines[lineAdd] = '-' + lines[lineAdd].slice(1);
+                            }
+                            if (lineRemove !== null) {
+                                lines[lineRemove] = '+' + lines[lineRemove].slice(1);
+                                if (lineAdd !== null) {
+                                    lineTmp = lines[lineAdd];
+                                    lines[lineAdd] = lines[lineRemove];
+                                    lines[lineRemove] = lineTmp;
+                                }
+                            }
+                            lines[lineHeader] = '@@ -' + header[3] + ',' + header[4] + ' +' + header[1] + ',' + header[2] + ' @@';
+                            header = null;
+                            lineHeader = null;
+                            lineAdd = null;
+                            lineRemove = null;
+                        };
+                        lines = d.split('\n');
+                        for (i = 0, l = lines.length; i < l; i++) {
+                            line = lines[i];
+                            var lineStart = line.slice(0, 1);
+                            if (lineStart === '@') {
+                                if (header !== null) {
+                                }
+                                header = headerRegex.exec(line);
+                                lineHeader = i;
+                                lineAdd = null;
+                                lineRemove = null;
+                                lines[lineHeader] = '@@ -' + header[3] + ',' + header[4] + ' +' + header[1] + ',' + header[2] + ' @@';
+                            } else if (lineStart == '+') {
+                                lineAdd = i;
+                                lines[i] = '-' + lines[i].slice(1);
+                            } else if (lineStart == '-') {
+                                lineRemove = i;
+                                lines[i] = '+' + lines[i].slice(1);
+                            }
+                        }
+                        if (header !== null) {
+                        }
+                        return lines.join('\n');
+                    };
+                }
+                return jdp.config.textDiffReverse(td);
+            };
+            var reverse = jdp.reverse = function (d) {
+                    var prop, rd;
+                    if (typeof d == 'undefined') {
+                        return;
+                    } else if (d === null) {
+                        return null;
+                    } else if (typeof d == 'object' && !isDate(d)) {
+                        if (isArray(d)) {
+                            if (d.length < 3) {
+                                if (d.length === 1) {
+                                    return [
+                                        d[0],
+                                        0,
+                                        0
+                                    ];
+                                } else {
+                                    return [
+                                        d[1],
+                                        d[0]
+                                    ];
+                                }
+                            } else {
+                                if (d[2] === 0) {
+                                    return [d[0]];
+                                } else {
+                                    if (d[2] === 2) {
+                                        return [
+                                            textDiffReverse(d[0]),
+                                            0,
+                                            2
+                                        ];
+                                    } else {
+                                        throw new Error('invalid diff type');
+                                    }
+                                }
+                            }
+                        } else {
+                            rd = {};
+                            if (d._t === 'a') {
+                                for (prop in d) {
+                                    if (d.hasOwnProperty(prop) && prop !== '_t') {
+                                        var index, reverseProp = prop;
+                                        if (prop.slice(0, 1) === '_') {
+                                            index = parseInt(prop.slice(1), 10);
+                                        } else {
+                                            index = parseInt(prop, 10);
+                                        }
+                                        if (isArray(d[prop])) {
+                                            if (d[prop].length === 1) {
+                                                reverseProp = '_' + index;
+                                            } else {
+                                                if (d[prop].length === 2) {
+                                                    reverseProp = sequenceDiffer.getArrayIndexBefore(d, index);
+                                                } else {
+                                                    if (d[prop][2] === 0) {
+                                                        reverseProp = index.toString();
+                                                    } else {
+                                                        if (d[prop][2] === 3) {
+                                                            reverseProp = '_' + d[prop][1];
+                                                            rd[reverseProp] = [
+                                                                d[prop][0],
+                                                                index,
+                                                                3
+                                                            ];
+                                                            continue;
+                                                        } else {
+                                                            reverseProp = sequenceDiffer.getArrayIndexBefore(d, index);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            reverseProp = sequenceDiffer.getArrayIndexBefore(d, index);
+                                        }
+                                        rd[reverseProp] = reverse(d[prop]);
+                                    }
+                                }
+                                rd._t = 'a';
+                            } else {
+                                for (prop in d) {
+                                    if (d.hasOwnProperty(prop)) {
+                                        rd[prop] = reverse(d[prop]);
+                                    }
+                                }
+                            }
+                            return rd;
+                        }
+                    } else if (typeof d === 'string' && d.slice(0, 2) === '@@') {
+                        return textDiffReverse(d);
+                    }
+                    return d;
+                };
+            var patch = jdp.patch = function (o, pname, d, path) {
+                    var p, nvalue, subpath = '', target;
+                    if (typeof pname != 'string') {
+                        path = d;
+                        d = pname;
+                        pname = null;
+                    } else {
+                        if (typeof o != 'object') {
+                            pname = null;
+                        }
+                    }
+                    if (path) {
+                        subpath += path;
+                    }
+                    subpath += '/';
+                    if (pname !== null) {
+                        subpath += pname;
+                    }
+                    if (typeof d == 'object') {
+                        if (isArray(d)) {
+                            if (d.length < 3) {
+                                nvalue = d[d.length - 1];
+                                if (pname !== null) {
+                                    objectSet(o, pname, nvalue);
+                                }
+                                return nvalue;
+                            } else {
+                                if (d[2] === 0) {
+                                    if (pname !== null) {
+                                        objectSet(o, pname);
+                                    } else {
+                                        return;
+                                    }
+                                } else {
+                                    if (d[2] === 2) {
+                                        if (!jdp.config.textPatch) {
+                                            diff_match_patch_autoconfig();
+                                        }
+                                        if (!jdp.config.textPatch) {
+                                            throw new Error('textPatch function not found');
+                                        }
+                                        try {
+                                            nvalue = jdp.config.textPatch(objectGet(o, pname), d[0]);
+                                        } catch (text_patch_err) {
+                                            throw new Error('cannot apply patch at "' + subpath + '": ' + text_patch_err);
+                                        }
+                                        if (pname !== null) {
+                                            objectSet(o, pname, nvalue);
+                                        }
+                                        return nvalue;
+                                    } else {
+                                        if (d[2] === 3) {
+                                            throw new Error('Not implemented diff type: ' + d[2]);
+                                        } else {
+                                            throw new Error('invalid diff type: ' + d[2]);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            if (d._t == 'a') {
+                                target = pname === null ? o : objectGet(o, pname);
+                                if (typeof target != 'object' || !isArray(target)) {
+                                    throw new Error('cannot apply patch at "' + subpath + '": array expected');
+                                } else {
+                                    sequenceDiffer.patch(target, d, jsondiffpatch.patch, subpath);
+                                }
+                            } else {
+                                target = pname === null ? o : objectGet(o, pname);
+                                if (typeof target != 'object' || isArray(target)) {
+                                    throw new Error('cannot apply patch at "' + subpath + '": object expected');
+                                } else {
+                                    for (p in d) {
+                                        if (d.hasOwnProperty(p)) {
+                                            patch(target, p, d[p], subpath);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return o;
+                };
+            var unpatch = jdp.unpatch = function (o, pname, d, path) {
+                    if (typeof pname != 'string') {
+                        return patch(o, reverse(pname), d);
+                    }
+                    return patch(o, pname, reverse(d), path);
+                };
+            if (typeof require === 'function' && typeof exports === 'object' && typeof module === 'object') {
+                module.exports = jdp;
+            } else if (typeof define === 'function' && define.amd) {
+                define(jdp);
+            } else {
+                if (typeof window !== 'undefined') {
+                    window.jsondiffpatch = jdp;
+                } else {
+                    self.jsondiffpatch = jdp;
+                }
+            }
+        }());
     });
     require.define('/lib/model/errors.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
@@ -991,69 +1805,6 @@
                     return false;
                 return get(session, 'dirtyModels').contains(this);
             }).volatile(),
-            diff: function (model) {
-                var diffs = [];
-                this.eachAttribute(function (name, meta) {
-                    var left = get(this, name);
-                    var right = get(model, name);
-                    if (left instanceof Date && right instanceof Date) {
-                        left = left.getTime();
-                        right = right.getTime();
-                    }
-                    if (left !== right) {
-                        diffs.push({
-                            type: 'attr',
-                            name: name
-                        });
-                    }
-                }, this);
-                this.eachRelationship(function (name, relationship) {
-                    var left = get(this, name);
-                    var right = get(model, name);
-                    if (relationship.kind === 'belongsTo') {
-                        if (left && right) {
-                            if (!left.isEqual(right)) {
-                                diffs.push({
-                                    type: 'belongsTo',
-                                    name: name,
-                                    relationship: relationship,
-                                    oldValue: right
-                                });
-                            }
-                        } else if (left || right) {
-                            diffs.push({
-                                type: 'belongsTo',
-                                name: name,
-                                relationship: relationship,
-                                oldValue: right
-                            });
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var dirty = false;
-                        var cache = Ep.ModelSet.create();
-                        left.forEach(function (model) {
-                            cache.add(model);
-                        });
-                        right.forEach(function (model) {
-                            if (dirty)
-                                return;
-                            if (!cache.contains(model)) {
-                                dirty = true;
-                            } else {
-                                cache.remove(model);
-                            }
-                        });
-                        if (dirty || get(cache, 'length') > 0) {
-                            diffs.push({
-                                type: 'hasMany',
-                                name: name,
-                                relationship: relationship
-                            });
-                        }
-                    }
-                }, this);
-                return diffs;
-            },
             copy: function () {
                 var dest = this.constructor.create();
                 dest.beginPropertyChanges();
@@ -3108,14 +3859,10 @@
                 });
             },
             modelWillBecomeDirty: function (model) {
-                if (this._dirtyCheckingSuspended || get(model, 'isNew')) {
+                if (this._dirtyCheckingSuspended) {
                     return;
                 }
-                var shadow = this.shadows.getModel(model);
-                if (!shadow) {
-                    shadow = model.copy();
-                    this.shadows.addObject(shadow);
-                }
+                this.touch(model);
             },
             destroy: function () {
                 this._super();
@@ -3172,6 +3919,16 @@
             },
             markClean: function (model) {
                 this.shadows.remove(model);
+            },
+            touch: function (model) {
+                if (get(model, 'isNew')) {
+                    return;
+                }
+                var shadow = this.shadows.getModel(model);
+                if (!shadow) {
+                    shadow = model.copy();
+                    this.shadows.addObject(shadow);
+                }
             }
         });
     });
