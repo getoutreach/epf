@@ -148,6 +148,38 @@ describe 'Ep.RestSerializer', ->
         expect(data).to.eql({client_id: "2", id: 1, POST_TITLE: 'wat', long_title: 'wat omgawd'})
 
 
+  context 'model with raw and object properties', ->
+
+    beforeEach ->
+      @Post = Ep.Model.extend
+        title: Ep.attr()
+        object: Ep.attr()
+      @container.register 'model:post', @Post
+
+
+    describe 'deserializePayload', ->
+
+      it 'deserializes', ->
+        data = {posts: {id: 1, title: 'wat', object: {prop: 'sup'}}}
+        models = @serializer.deserializePayload(data)
+        post = models[0]
+        expect(post).to.be.an.instanceof(@Post)
+        expect(post.title).to.eq('wat')
+        expect(post.object.prop).to.eq('sup')
+        expect(post.id).to.eq("1")
+
+    describe 'serialization', ->
+
+      it 'serializes', ->
+        post = @Post.create
+          id: 1
+          clientId: "2"
+          title: "wat"
+          object: {prop: 'sup'}
+        data = @serializer.serialize(post, includeId: true)
+        expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: {prop: 'sup'})
+
+
   context 'one->many', ->
 
     beforeEach ->
