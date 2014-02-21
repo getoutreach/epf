@@ -78,3 +78,29 @@ describe 'Ep.Model', ->
         raw: {test: 'a'}
 
       expect(left.diff(right)).to.eql([])
+
+
+  describe '.copy', ->
+
+    it 'deep copies complex object attributes', ->
+
+      user = App.User.create
+        raw: {test: {value: 'a'}}
+
+      copy = user.copy()
+
+      expect(user).to.not.eq(copy)
+      expect(user.raw).to.not.eq(copy.raw)
+      expect(user.raw.test).to.not.eq(copy.raw.test)
+      expect(user.raw).to.eql(copy.raw)
+
+    it 'deep copies array attributes', ->
+
+      user = App.User.create
+        raw: ['a', 'b', 'c']
+
+      copy = user.copy()
+
+      expect(user).to.not.eq(copy)
+      expect(user.raw).to.not.eq(copy.raw)
+      expect(user.raw).to.eql(copy.raw)

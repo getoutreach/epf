@@ -1832,7 +1832,7 @@
                 this.eachAttribute(function (name, meta) {
                     var left = get(this, name);
                     var right = get(dest, name);
-                    set(dest, name, left);
+                    set(dest, name, Ember.copy(left, true));
                 }, this);
                 dest.endPropertyChanges();
             },
