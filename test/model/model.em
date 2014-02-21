@@ -1,6 +1,7 @@
 describe 'Ep.Model', ->
 
   App = null
+  session = null
 
   beforeEach ->
     App = Ember.Namespace.create()
@@ -9,11 +10,11 @@ describe 'Ep.Model', ->
       raw: Ep.attr()
     @container = new Ember.Container()
     @container.register 'model:user', App.User
-
-    class SessionStub
-      dirtyModels: ~> []
-
-    @container.register 'session:main', SessionStub
+    @container.register 'session:main', Ep.Session
+    @container.register 'adapter:main', Ep.LocalAdapter
+    @container.typeInjection 'session', 'adapter', 'adapter:main'
+    session = @container.lookup('session:main')
+    @container.register
 
     Ep.__container__ = @container
 
@@ -21,42 +22,52 @@ describe 'Ep.Model', ->
     delete Ep.__container__
 
 
-  describe 'isDirty', ->
-
-    before ->
-      @container.lookup('session:main').dirtyModels = []
-      
+  describe '.isDirty', ->      
 
     it 'returns false when detached', ->
       expect(App.User.create().isDirty).to.be.false
 
     it 'returns true when dirty', ->
       user = null
-      class SessionStub
+      session.reopen
         dirtyModels: ~> Ep.ModelSet.fromArray([user])
 
       user = App.User.create()
-      user.session = SessionStub.create()
+      user.session = session
       expect(user.isDirty).to.be.true
 
     it 'returns false when untouched', ->
       user = null
-      class SessionStub
+      session.reopen
         dirtyModels: ~> Ep.ModelSet.create()
 
       user = App.User.create()
-      user.session = SessionStub.create()
+      user.session = session
       expect(user.isDirty).to.be.false
+
+    it 'is observable', ->
+      user = session.merge App.User.create
+        id: '1'
+        name: 'Wes'
+
+      expect(user.isDirty).to.be.false
+      observerHit = false
+
+      Ember.addObserver user, 'isDirty', ->
+        expect(user.isDirty).to.be.true
+        observerHit = true
+
+      user.name = 'Brogrammer'
+      expect(user.isDirty).to.be.true
+      expect(observerHit).to.be.true
 
 
   it 'can use .find', ->
-    class SessionStub
+    session.reopen
       find: (type, id) ->
         expect(type).to.eq(App.User)
         expect(id).to.eq(1)
         Ember.RSVP.resolve(type.create(id: id.toString()))
-
-    @container.register 'session:main', SessionStub
 
     App.User.find(1).then (user) ->
       expect(user.id).to.eq("1")

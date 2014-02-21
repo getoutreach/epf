@@ -104,7 +104,7 @@ describe "Ep.Session", ->
       expect(session.models.toArray()).to.eql([@post])
 
 
-  describe 'markClean', ->
+  describe '.markClean', ->
 
     it 'makes models no longer dirty', ->
       post = session.merge @Post.create(id: "1", title: 'test')
@@ -127,5 +127,20 @@ describe "Ep.Session", ->
       session.touch(post)
       expect(post.isDirty).to.be.true
 
+
+  describe '.isDirty', ->
+
+    it 'is true when models are dirty', ->
+      post = session.merge @Post.create(id: "1", title: 'test')
+      expect(session.isDirty).to.be.false
+      session.touch(post)
+      expect(session.isDirty).to.be.true
+
+    it 'becomes false after successful flush', ->
+      post = session.merge @Post.create(id: "1", title: 'test')
+      session.touch(post)
+      expect(session.isDirty).to.be.true
+      session.flush().then ->
+        expect(session.isDirty).to.be.false
 
 

@@ -1334,9 +1334,6 @@
                         Ember.addObserver(proto, key, null, 'belongsToDidChange');
                         Ember.addBeforeObserver(proto, key, null, 'belongsToWillChange');
                     }
-                    if (meta.isAttribute) {
-                        Ember.addBeforeObserver(proto, key, null, 'attributeWillChange');
-                    }
                     meta.parentType = proto.constructor;
                 }
             },
@@ -1804,7 +1801,7 @@
                 if (!session)
                     return false;
                 return get(session, 'dirtyModels').contains(this);
-            }).volatile(),
+            }).property('session.dirtyModels.[]'),
             copy: function () {
                 var dest = this.constructor.create();
                 dest.beginPropertyChanges();
@@ -2194,13 +2191,7 @@
                 get(this.constructor, 'attributes').forEach(function (name, meta) {
                     callback.call(binding, name, meta);
                 }, binding);
-            },
-            attributeWillChange: Ember.beforeObserver(function (record, key) {
-                var session = get(this, 'session');
-                if (!session)
-                    return;
-                session.modelWillBecomeDirty(this);
-            })
+            }
         });
         Ep.attr = function (type, options) {
             options = options || {};
@@ -2212,6 +2203,10 @@
             return Ember.computed(function (key, value, oldValue) {
                 if (arguments.length > 1) {
 
+                }
+                var session = get(this, 'session');
+                if (session && value !== oldValue) {
+                    session.modelWillBecomeDirty(this, key, value, oldValue);
                 }
                 return value;
             }).meta(meta);
@@ -3173,8 +3168,8 @@
                 return configs[typeKey] || {};
             },
             newSession: function () {
-                var session = this.container.lookup('session:base');
-                set(session, 'adapter', this);
+                var Session = this.container.lookupFactory('session:base');
+                session = Session.create({ adapter: this });
                 return session;
             },
             serializerFor: function (type) {
@@ -3884,7 +3879,7 @@
                     models.add(model);
                 });
                 return models;
-            }).volatile(),
+            }).property('shadows.[]', 'newModels.[]'),
             suspendDirtyChecking: function (callback, binding) {
                 var self = this;
                 if (this._dirtyCheckingSuspended) {
@@ -3926,10 +3921,12 @@
                 }
                 var shadow = this.shadows.getModel(model);
                 if (!shadow) {
-                    shadow = model.copy();
-                    this.shadows.addObject(shadow);
+                    this.shadows.addObject(model.copy());
                 }
-            }
+            },
+            isDirty: Ember.computed(function () {
+                return get(this, 'dirtyModels.length') > 0;
+            }).property('dirtyModels.length')
         });
     });
     require.define('/lib/session/merge_strategies/index.js', function (module, exports, __dirname, __filename) {
