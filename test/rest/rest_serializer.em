@@ -170,7 +170,7 @@ describe 'Ep.RestSerializer', ->
 
     describe 'serialization', ->
 
-      it 'serializes', ->
+      it 'serializes object', ->
         post = @Post.create
           id: 1
           clientId: "2"
@@ -179,6 +179,32 @@ describe 'Ep.RestSerializer', ->
         data = @serializer.serialize(post, includeId: true)
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: {prop: 'sup'})
 
+      it 'serializes array', ->
+        post = @Post.create
+          id: 1
+          clientId: "2"
+          title: "wat"
+          object: ['asd']
+        data = @serializer.serialize(post, includeId: true)
+        expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: ['asd'])
+
+      it 'serializes empty array', ->
+        post = @Post.create
+          id: 1
+          clientId: "2"
+          title: "wat"
+          object: []
+        data = @serializer.serialize(post, includeId: true)
+        expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: [])
+
+      it 'serializes complex object', ->
+        post = @Post.create
+          id: 1
+          clientId: "2"
+          title: "wat"
+          object: {tags: ['ruby', 'java']}
+        data = @serializer.serialize(post, includeId: true)
+        expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: {tags: ['ruby', 'java']})
 
   context 'one->many', ->
 
