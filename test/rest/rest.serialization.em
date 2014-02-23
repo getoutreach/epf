@@ -1,17 +1,11 @@
+TestContainer = require('../test_container');
 
-describe 'Ep.RestSerializer', ->
+describe 'rest serialization', ->
 
   beforeEach ->
-    @Serializer = Ep.RestSerializer.extend()
-    @container = new Ember.Container()
-    @container.register('serializer:main', @Serializer)
-
-    @container.register('transform:boolean', Ep.BooleanTransform)
-    @container.register('transform:date', Ep.DateTransform)
-    @container.register('transform:number', Ep.NumberTransform)
-    @container.register('transform:string', Ep.StringTransform)
-    
-    @serializer = @container.lookup('serializer:main')
+    @container = new TestContainer()
+    @adapter = @container.lookup('adapter:main')
+    @serializer = @adapter.serializerFor('payload')
 
 
   context 'simple model', ->
@@ -22,11 +16,11 @@ describe 'Ep.RestSerializer', ->
       @container.register 'model:post', @Post
 
 
-    describe 'deserializePayload', ->
+    describe 'deserialize', ->
 
       it 'reads plural hash key', ->
         data = {posts: {id: 1, title: 'wat', long_title: 'wat omgawd'}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post).to.be.an.instanceof(@Post)
         expect(post.title).to.eq('wat')
@@ -36,7 +30,7 @@ describe 'Ep.RestSerializer', ->
 
       it 'reads singular hash key', ->
         data = {post: {id: 1, title: 'wat', long_title: 'wat omgawd'}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post).to.be.an.instanceof(@Post)
         expect(post.title).to.eq('wat')
@@ -46,7 +40,7 @@ describe 'Ep.RestSerializer', ->
 
       it 'reads array value', ->
         data = {post: [{id: 1, title: 'wat', long_title: 'wat omgawd'}] }
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post).to.be.an.instanceof(@Post)
         expect(post.title).to.eq('wat')
@@ -55,12 +49,13 @@ describe 'Ep.RestSerializer', ->
 
 
       it 'obeys custom keys', ->
-        @serializer.reopen
+        class PostSerializer extends Ep.RestSerializer
           properties:
             title:
               key: 'POST_TITLE'
+        @container.register 'serializer:post', PostSerializer
         data = {post: {id: 1, POST_TITLE: 'wat', long_title: 'wat omgawd'}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post).to.be.an.instanceof(@Post)
         expect(post.title).to.eq('wat')
@@ -68,16 +63,16 @@ describe 'Ep.RestSerializer', ->
         expect(post.id).to.eq("1")
 
 
-      it 'reads null client_id as null', ->
+      it 'reifies client_id', ->
         data = {posts: {client_id: null, id: 1, title: 'wat', long_title: 'wat omgawd'}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
-        expect(post.clientId).to.be.null
+        expect(post.clientId).to.not.be.null
 
 
       it 'reads revs', ->
         data = {posts: {rev: 123, client_rev: 321, client_id: 1, id: 1, title: 'wat', long_title: 'wat omgawd'}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post.rev).to.eq(123)
         expect(post.clientRev).to.eq(321)
@@ -88,7 +83,7 @@ describe 'Ep.RestSerializer', ->
             blog_post: 'post'
 
         data = {blog_post: {id: 1, title: 'wat', long_title: 'wat omgawd'}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post).to.be.an.instanceof(@Post)
         expect(post.title).to.eq('wat')
@@ -97,6 +92,9 @@ describe 'Ep.RestSerializer', ->
 
 
     describe 'serialization', ->
+
+      beforeEach ->
+        @serializer = @adapter.serializerFor('post')
 
 
       it 'serializes', ->
@@ -107,7 +105,7 @@ describe 'Ep.RestSerializer', ->
           longTitle: 'wat omgawd'
           rev: 123
           clientRev: 321
-        data = @serializer.serialize(post, includeId: true)
+        data = @serializer.serialize(post)
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd', rev: 123, client_rev: 321)
 
 
@@ -116,7 +114,7 @@ describe 'Ep.RestSerializer', ->
           id: 1,
           clientId: "2"
           type: @Post
-        data = @serializer.serialize(lazyPost, includeId: true)
+        data = @serializer.serialize(lazyPost)
         expect(data).to.eql client_id: "2", id: 1
 
 
@@ -130,7 +128,7 @@ describe 'Ep.RestSerializer', ->
           id: 1,
           type: @Post
         lazyPost.resolve(post)
-        data = @serializer.serialize(lazyPost, includeId: true)
+        data = @serializer.serialize(lazyPost)
         expect(data).to.eql client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd'
 
 
@@ -144,7 +142,7 @@ describe 'Ep.RestSerializer', ->
         post.clientId = "2"
         post.title = 'wat'
         post.longTitle = 'wat omgawd'
-        data = @serializer.serialize(post, includeId: true)
+        data = @serializer.serialize(post)
         expect(data).to.eql({client_id: "2", id: 1, POST_TITLE: 'wat', long_title: 'wat omgawd'})
 
 
@@ -157,11 +155,11 @@ describe 'Ep.RestSerializer', ->
       @container.register 'model:post', @Post
 
 
-    describe 'deserializePayload', ->
+    describe 'deserialize', ->
 
       it 'deserializes', ->
         data = {posts: {id: 1, title: 'wat', object: {prop: 'sup'}}}
-        models = @serializer.deserializePayload(data)
+        models = @serializer.deserialize(data)
         post = models[0]
         expect(post).to.be.an.instanceof(@Post)
         expect(post.title).to.eq('wat')
@@ -170,13 +168,16 @@ describe 'Ep.RestSerializer', ->
 
     describe 'serialization', ->
 
+      beforeEach ->
+        @serializer = @adapter.serializerFor('post')
+
       it 'serializes object', ->
         post = @Post.create
           id: 1
           clientId: "2"
           title: "wat"
           object: {prop: 'sup'}
-        data = @serializer.serialize(post, includeId: true)
+        data = @serializer.serialize(post)
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: {prop: 'sup'})
 
       it 'serializes array', ->
@@ -185,7 +186,7 @@ describe 'Ep.RestSerializer', ->
           clientId: "2"
           title: "wat"
           object: ['asd']
-        data = @serializer.serialize(post, includeId: true)
+        data = @serializer.serialize(post)
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: ['asd'])
 
       it 'serializes empty array', ->
@@ -194,7 +195,7 @@ describe 'Ep.RestSerializer', ->
           clientId: "2"
           title: "wat"
           object: []
-        data = @serializer.serialize(post, includeId: true)
+        data = @serializer.serialize(post)
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: [])
 
       it 'serializes complex object', ->
@@ -203,7 +204,7 @@ describe 'Ep.RestSerializer', ->
           clientId: "2"
           title: "wat"
           object: {tags: ['ruby', 'java']}
-        data = @serializer.serialize(post, includeId: true)
+        data = @serializer.serialize(post)
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', object: {tags: ['ruby', 'java']})
 
   context 'one->many', ->
@@ -227,14 +228,14 @@ describe 'Ep.RestSerializer', ->
 
     it 'deserializes null hasMany', ->
       data = {post: [{id: 1, title: 'wat', comment_ids: null}] }
-      models = @serializer.deserializePayload(data)
+      models = @serializer.deserialize(data)
       post = models[0]
       expect(post.comments.length).to.eq(0)
 
 
     it 'deserializes null belongsTo', ->
       data = {comments: [{id: 1, title: 'wat', post_id: null}] }
-      models = @serializer.deserializePayload(data)
+      models = @serializer.deserialize(data)
       comment = models[0]
       expect(comment.post).to.be.null
 
@@ -266,7 +267,7 @@ describe 'Ep.RestSerializer', ->
 
     it 'deserializes null belongsTo', ->
       data = {comments: [{id: 1, title: 'wat', post: null}] }
-      models = @serializer.deserializePayload(data)
+      models = @serializer.deserialize(data)
       comment = models[0]
       expect(comment.post).to.be.null
 
@@ -299,26 +300,9 @@ describe 'Ep.RestSerializer', ->
 
     it 'deserializes null belongsTo', ->
       data = {posts: [{id: 1, title: 'wat', user: null}] }
-      models = @serializer.deserializePayload(data)
+      models = @serializer.deserialize(data)
       post = models[0]
       expect(post.user).to.be.null
-      
-      
-  describe 'meta data', ->
-    it 'adds meta data to existing object', ->
-      obj = {title: 'wat'}
-      data = {meta: {recursive: 'meta'}}
-      obj = @serializer.setMeta(data, obj)
-      expect(obj.meta).to.exist
-      expect(obj.meta.recursive).to.exist
-      expect(obj.meta.recursive).to.eq('meta')
-      
-    it 'adds creates an object with meta if object undefined', ->
-      data = {meta: {recursive: 'meta'}}
-      obj = @serializer.setMeta(data, obj)
-      expect(obj.meta).to.exist
-      expect(obj.meta.recursive).to.exist
-      expect(obj.meta.recursive).to.eq('meta')
       
     
   

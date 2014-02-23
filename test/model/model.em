@@ -1,3 +1,5 @@
+TestContainer = require('../test_container');
+
 describe 'Ep.Model', ->
 
   App = null
@@ -8,13 +10,9 @@ describe 'Ep.Model', ->
     class App.User extends Ep.Model
       name: Ep.attr('string')
       raw: Ep.attr()
-    @container = new Ember.Container()
+    @container = new TestContainer()
     @container.register 'model:user', App.User
-    @container.register 'session:main', Ep.Session
-    @container.register 'adapter:main', Ep.LocalAdapter
-    @container.typeInjection 'session', 'adapter', 'adapter:main'
     session = @container.lookup('session:main')
-    @container.register
 
     Ep.__container__ = @container
 

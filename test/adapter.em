@@ -1,9 +1,12 @@
+TestContainer = require('./test_container');
+
 describe 'Ep.Adapter', ->
 
   beforeEach ->
+    @container = new TestContainer()
     class @Post extends Ep.Model
       title: Ep.attr('string')
-    @adapter = Ep.Adapter.create()
+    @adapter = @container.lookup('adapter:main')
 
   describe 'reifyClientId', ->
 

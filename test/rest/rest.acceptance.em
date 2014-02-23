@@ -191,7 +191,7 @@ describe "rest", ->
       class @Tag extends Ep.Model
         name: Ep.attr('string')
         profile: Ep.belongsTo('profile')
-      @App.User = @User
+      @App.Tag = @Tag
 
 
       @container.register 'model:user', @User

@@ -1,3 +1,5 @@
+TestContainer = require('../test_container');
+
 exports.setupRest = ->
   class TestRestAdapter extends Ep.RestAdapter
     h: null
@@ -21,25 +23,12 @@ exports.setupRest = ->
       Ember.run.later callback, 0
 
   @App = Ember.Namespace.create()
-  @container = new Ember.Container()
+  @container = new TestContainer();
 
   # TestAdapter already is a subclass
   @RestAdapter = TestRestAdapter.extend()
 
-  @container.register 'session:base', Ep.Session, singleton: false
-  @container.register 'session:child', Ep.ChildSession, singleton: false
-  @container.register 'serializer:main', Ep.RestSerializer
-
-  @container.register('transform:boolean', Ep.BooleanTransform)
-  @container.register('transform:date', Ep.DateTransform)
-  @container.register('transform:number', Ep.NumberTransform)
-  @container.register('transform:string', Ep.StringTransform)
-
-  # TODO: adapter mappings are currently reified so in tests that
-  # customize these we need to re-instantiate
-  @container.register 'adapter:main', @RestAdapter, singleton: false
-
-  @container.typeInjection 'adapter', 'serializer', 'serializer:main'
+  @container.register 'adapter:main', @RestAdapter
 
   @adapter = @container.lookup('adapter:main')
   # Can't use container since the adapter is non-singleton

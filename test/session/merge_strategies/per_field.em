@@ -1,3 +1,5 @@
+TestContainer = require('../../test_container')
+
 describe 'Ep.PerField', ->
 
   session = null
@@ -5,7 +7,7 @@ describe 'Ep.PerField', ->
 
   beforeEach ->
     App = Ember.Namespace.create()
-    @container = new Ember.Container()
+    @container = new TestContainer()
 
     class App.Comment extends Ep.Model
 
@@ -29,8 +31,6 @@ describe 'Ep.PerField', ->
       mergeStrategy: Ep.PerField
 
     @container.register 'model:post', @Post
-    @container.register 'adapter:main', Ep.LocalAdapter
-    @container.register 'session:base', Session, singleton: false
 
     adapter = @container.lookup('adapter:main')
     session = adapter.newSession()

@@ -1,8 +1,11 @@
+
+TestContainer = require('../test_container')
+
 describe "Ep.Session", ->
 
   beforeEach ->
     @App = Ember.Namespace.create()
-    @container = new Ember.Container()
+    @container = new TestContainer();
 
     class @Post extends Ep.Model
       title: Ep.attr('string')
@@ -18,12 +21,6 @@ describe "Ep.Session", ->
 
 
     @container.register 'model:post', @Post
-    @container.register 'adapter:main', Ep.LocalAdapter
-    @container.register 'session:base', Ep.Session, singleton: false
-    @container.register 'session:child', Ep.ChildSession, singleton: false
-    @container.register 'serializer:main', Ep.RestSerializer
-
-    @container.typeInjection 'adapter', 'serializer', 'serializer:main'
 
     @adapter = @container.lookup('adapter:main')
 
