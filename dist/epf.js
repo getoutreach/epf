@@ -560,14 +560,15 @@
         module.exports = Ember.Mixin.create({
             serializerFor: function (typeKey) {
                 Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
-                var serializer = this.container.lookup('serializer:' + typeKey);
+                var lookupKey = Ember.String.dasherize(typeKey);
+                var serializer = this.container.lookup('serializer:' + lookupKey);
                 if (!serializer) {
                     var modelExists = !!this.container.lookupFactory('model:' + typeKey);
                     if (!modelExists)
                         return;
                     var Serializer = this.container.lookupFactory('serializer:model');
-                    this.container.register('serializer:' + typeKey, Serializer);
-                    serializer = this.container.lookup('serializer:' + typeKey);
+                    this.container.register('serializer:' + lookupKey, Serializer);
+                    serializer = this.container.lookup('serializer:' + lookupKey);
                 }
                 serializer.typeKey = typeKey;
                 return serializer;
@@ -4108,10 +4109,10 @@
             Application.initializer({
                 name: 'epf.serializers',
                 initialize: function (container, application) {
-                    application.register('serializer:belongsTo', Ep.BelongsToSerializer);
+                    application.register('serializer:belongs-to', Ep.BelongsToSerializer);
                     application.register('serializer:boolean', Ep.BooleanSerializer);
                     application.register('serializer:date', Ep.DateSerializer);
-                    application.register('serializer:hasMany', Ep.HasManySerializer);
+                    application.register('serializer:has-many', Ep.HasManySerializer);
                     application.register('serializer:id', Ep.IdSerializer);
                     application.register('serializer:number', Ep.NumberSerializer);
                     application.register('serializer:model', Ep.ModelSerializer);

@@ -18,10 +18,10 @@ function TestContainer() {
   this.typeInjection('route', 'session', 'session:main');
   this.typeInjection('dataAdapter', 'session', 'session:main');
 
-  this.register('serializer:belongsTo', Ep.BelongsToSerializer);
+  this.register('serializer:belongs-to', Ep.BelongsToSerializer);
   this.register('serializer:boolean', Ep.BooleanSerializer);
   this.register('serializer:date', Ep.DateSerializer);
-  this.register('serializer:hasMany', Ep.HasManySerializer);
+  this.register('serializer:has-many', Ep.HasManySerializer);
   this.register('serializer:id', Ep.IdSerializer);
   this.register('serializer:number', Ep.NumberSerializer);
   this.register('serializer:model', Ep.ModelSerializer);
