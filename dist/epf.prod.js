@@ -243,16 +243,8 @@
                 return payload;
             },
             willLoadModel: function (model) {
-                model.eachRelatedModel(function (relative) {
-                    if (get(relative, 'clientId')) {
-                        this.reifyClientId(model);
-                    }
-                }, this);
             },
             didLoadModel: function (model) {
-                model.eachRelatedModel(function (relative) {
-                    this.reifyClientId(relative);
-                }, this);
                 this._embeddedManager.updateParents(model);
             },
             didError: function (xhr, targetModel) {
@@ -1103,10 +1095,12 @@
                     return this.deserializeEmbedded(serialized, opts);
                 }
                 var idSerializer = this.serializerFor('id');
-                return Ep.LazyModel.create({
-                    id: idSerializer.deserialize(serialized),
-                    type: this.typeFor(opts.typeKey)
-                });
+                var res = Ep.LazyModel.create({
+                        id: idSerializer.deserialize(serialized),
+                        type: this.typeFor(opts.typeKey)
+                    });
+                this.idManager.reifyClientId(res);
+                return res;
             },
             deserializeEmbedded: function (serialized, opts) {
                 var serializer = this.serializerFor(opts.typeKey);
@@ -1142,10 +1136,12 @@
                 }
                 var idSerializer = this.serializerFor('id'), type = this.typeFor(opts.typeKey);
                 return serialized.map(function (id) {
-                    return Ep.LazyModel.create({
-                        id: idSerializer.deserialize(id),
-                        type: type
-                    });
+                    var res = Ep.LazyModel.create({
+                            id: idSerializer.deserialize(id),
+                            type: type
+                        });
+                    this.idManager.reifyClientId(res);
+                    return res;
                 }, this);
             },
             deserializeEmbedded: function (serialized, opts) {
