@@ -56,63 +56,445 @@
         require('/lib/initializers.js', module);
         require('/lib/model/index.js', module);
         require('/lib/session/index.js', module);
-        require('/lib/serializer/index.js', module);
-        require('/lib/transforms/index.js', module);
+        require('/lib/serializers/index.js', module);
         require('/lib/local/index.js', module);
         require('/lib/rest/index.js', module);
     });
     require.define('/lib/rest/index.js', function (module, exports, __dirname, __filename) {
         require('/lib/rest/rest_adapter.js', module);
-        require('/lib/rest/rest_serializer.js', module);
     });
-    require.define('/lib/rest/rest_serializer.js', function (module, exports, __dirname, __filename) {
-        require('/lib/serializer/index.js', module);
-        var get = Ember.get;
-        Ep.RestSerializer = Ep.JsonSerializer.extend({
-            metaKey: 'meta',
-            deserializePayload: function (hash, context) {
-                var result = [], metaKey = get(this, 'metaKey');
-                for (var prop in hash) {
-                    if (!hash.hasOwnProperty(prop) || prop === metaKey) {
-                        continue;
+    require.define('/lib/rest/rest_adapter.js', function (module, exports, __dirname, __filename) {
+        require('/lib/adapter.js', module);
+        require('/lib/rest/embedded_manager.js', module);
+        require('/lib/rest/operation_graph.js', module);
+        require('/lib/rest/rest_errors.js', module);
+        require('/lib/rest/model_serializer.js', module);
+        var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
+        var EmbeddedHelpersMixin = require('/lib/rest/embedded_helpers_mixin.js', module);
+        Ep.RestAdapter = Ep.Adapter.extend(EmbeddedHelpersMixin, {
+            init: function () {
+                this._super.apply(this, arguments);
+                this._embeddedManager = Ep.EmbeddedManager.create({
+                    adapter: this,
+                    container: this.container
+                });
+                this._pendingOps = {};
+                this.container = this.setupContainer(this.container);
+            },
+            setupContainer: function (parent) {
+                var container = parent.child();
+                container.register('serializer:model', Ep.RestSerializer);
+                return container;
+            },
+            load: function (type, id) {
+                var root = this.rootForType(type), adapter = this;
+                return this.ajax(this.buildURL(root, id), 'GET').then(function (json) {
+                    return adapter.didReceiveDataForLoad(json, type, id);
+                }, function (xhr) {
+                    var model = Ep.LoadError.create({
+                            id: id,
+                            type: type
+                        });
+                    throw adapter.didError(xhr, model);
+                });
+            },
+            refresh: function (model) {
+                var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this;
+                return this.ajax(this.buildURL(root, id), 'GET').then(function (json) {
+                    return adapter.didReceiveData(json, model);
+                }, function (xhr) {
+                    throw adapter.didError(xhr, model);
+                });
+            },
+            update: function (model) {
+                var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this, serializer = this.serializerForType(type);
+                var data = {};
+                data[root] = serializer.serialize(model);
+                return this.ajax(this.buildURL(root, id), 'PUT', { data: data }).then(function (json) {
+                    return adapter.didReceiveData(json, model);
+                }, function (xhr) {
+                    throw adapter.didError(xhr, model);
+                });
+            },
+            create: function (model) {
+                var type = get(model, 'type'), root = this.rootForType(type), adapter = this, serializer = this.serializerForType(type);
+                var data = {};
+                data[root] = serializer.serialize(model, { includeId: true });
+                return this.ajax(this.buildURL(root), 'POST', { data: data }).then(function (json) {
+                    return adapter.didReceiveData(json, model);
+                }, function (xhr) {
+                    throw adapter.didError(xhr, model);
+                });
+            },
+            deleteModel: function (model) {
+                var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this;
+                return this.ajax(this.buildURL(root, id), 'DELETE').then(function (json) {
+                    return adapter.didReceiveData(json, model);
+                }, function (xhr) {
+                    throw adapter.didError(xhr, model);
+                });
+            },
+            query: function (type, query) {
+                var root = this.rootForType(type), adapter = this;
+                return this.ajax(this.buildURL(root), 'GET', { data: query }).then(function (json) {
+                    return adapter.didReceiveDataForFind(json, type);
+                }, function (xhr) {
+                    throw xhr;
+                });
+            },
+            remoteCall: function (context, name, params, opts) {
+                var adapter = this;
+                function normalizeContext(context) {
+                    if (typeof context === 'string') {
+                        return adapter.typeFor(context);
                     }
-                    var type = this.typeFor(prop);
-                    Ember.assert('Your server returned a hash with the key ' + prop + ' but has no corresponding type.', !!type);
-                    var value = hash[prop];
-                    if (value instanceof Array) {
-                        for (var i = 0; i < value.length; i++) {
-                            result.push(this.deserialize(type, value[i]));
+                    return context;
+                }
+                var url, adapter = this;
+                if (!opts) {
+                    opts = {};
+                }
+                context = normalizeContext(context);
+                if (typeof context === 'function') {
+                    url = this.buildURL(this.rootForType(context));
+                } else {
+                    var id = get(context, 'id');
+                    Ember.assert('Cannot perform a remote call with a context that doesn\'t have an id', id);
+                    url = this.buildURL(this.rootForType(get(context, 'type')), id);
+                }
+                url = url + '/' + name;
+                method = opts.type || 'POST';
+                var data = JSON.stringify(params, function (key, value) {
+                        if (value && get(value, 'isModel')) {
+                            var type = get(value, 'type');
+                            var serializer = adapter.serializerForType(type);
+                            return serializer.serialize(value);
                         }
-                    } else {
-                        result.push(this.deserialize(type, value));
+                        return value;
+                    });
+                return this.ajax(url, method, { data: data }).then(function (json) {
+                    if (opts.deserialize === false) {
+                        return json;
                     }
+                    var deserializationContext = opts.deserializationContext !== undefined ? normalizeContext(opts.deserializationContext) : context;
+                    return adapter.didReceiveDataForRpc(json, deserializationContext);
+                }, function (xhr) {
+                    throw adapter.didError(xhr, context);
+                });
+            },
+            typeFor: function (typeName) {
+                return this.container.lookupFactory('model:' + typeName);
+            },
+            didReceiveData: function (data, targetModel) {
+                var result = null;
+                var payload = this.processData(data, function (model) {
+                        if (targetModel && model.isEqual(targetModel)) {
+                            result = model;
+                        }
+                    });
+                if (result) {
+                    set(result, 'meta', payload.meta);
                 }
                 return result;
             },
-            keyForBelongsTo: function (name, type) {
-                var key = this._super(name, type);
-                if (this.embeddedType(type, name)) {
-                    return key;
+            didReceiveDataForLoad: function (data, type, id) {
+                var result = null;
+                var payload = this.processData(data, function (model) {
+                        if (model.hasType(type) && get(model, 'id') === id) {
+                            result = model;
+                        }
+                    });
+                if (result) {
+                    set(result, 'meta', payload.meta);
                 }
-                return key + '_id';
+                return result;
             },
-            keyForHasMany: function (name, type) {
-                var key = this._super(name, type);
-                if (this.embeddedType(type, name)) {
-                    return key;
+            didReceiveDataForFind: function (data, type) {
+                var result = [];
+                var payload = this.processData(data, function (model) {
+                        if (model.hasType(type)) {
+                            result.pushObject(model);
+                        }
+                    });
+                result = Ep.ModelArray.create({ content: result });
+                set(result, 'meta', payload.meta);
+                return result;
+            },
+            didReceiveDataForRpc: function (data, context) {
+                if (!context) {
+                    return this.processData(data);
+                } else if (typeof context === 'function') {
+                    return this.didReceiveDataForFind(data, context);
                 }
-                return this.singularize(key) + '_ids';
+                return this.didReceiveData(data, context);
             },
-            keyForPolymorphicId: function (key) {
-                return key;
+            processData: function (data, callback, binding) {
+                var serializer = this.serializerFor('payload'), payload = serializer.deserialize(data);
+                payload.forEach(function (model) {
+                    this.willLoadModel(model);
+                }, this);
+                payload.forEach(function (model) {
+                    this.didLoadModel(model);
+                    if (callback)
+                        callback.call(binding || this, model);
+                }, this);
+                this.materializeRelationships(payload);
+                return payload;
             },
-            keyForPolymorphicType: function (key) {
-                return key.replace(/_id$/, '_type');
+            willLoadModel: function (model) {
+                model.eachRelatedModel(function (relative) {
+                    if (get(relative, 'clientId')) {
+                        this.reifyClientId(model);
+                    }
+                }, this);
+            },
+            didLoadModel: function (model) {
+                model.eachRelatedModel(function (relative) {
+                    this.reifyClientId(relative);
+                }, this);
+                this._embeddedManager.updateParents(model);
+            },
+            didError: function (xhr, model) {
+                var errors;
+                if (xhr.status === 422) {
+                    var json = JSON.parse(xhr.responseText), serializer = this.serializerForModel(model), validationErrors = this.extractValidationErrors(get(model, 'type'), json);
+                    errors = Ep.RestErrors.create({ content: validationErrors });
+                } else {
+                    errors = Ep.RestErrors.create();
+                }
+                set(errors, 'status', xhr.status);
+                set(errors, 'xhr', xhr);
+                set(model, 'errors', errors);
+                throw model;
+            },
+            flush: function (session) {
+                var models = get(session, 'dirtyModels').copy(true);
+                var shadows = Ep.ModelSet.fromArray(models.map(function (model) {
+                        return session.shadows.getModel(model);
+                    }));
+                this.dirtyEmbedded(models, shadows, session);
+                this.removeEmbeddedOrphans(models, shadows, session);
+                this.materializeRelationships(models);
+                var op = Ep.OperationGraph.create({
+                        models: models,
+                        shadows: shadows,
+                        adapter: this
+                    });
+                return this._performFlush(op);
+            },
+            _performFlush: function (op) {
+                var models = get(op, 'models'), pending = Ember.Set.create();
+                models.forEach(function (model) {
+                    var op = this._pendingOps[model.clientId];
+                    if (op)
+                        pending.add(op);
+                }, this);
+                var adapter = this;
+                if (get(pending, 'length') > 0) {
+                    return Ember.RSVP.all(pending.toArray()).then(function () {
+                        return adapter._performFlush(op);
+                    });
+                }
+                var promise = op.perform();
+                models.forEach(function (model) {
+                    this._pendingOps[model.clientId] = promise;
+                }, this);
+                return promise.then(function (res) {
+                    models.forEach(function (model) {
+                        delete adapter._pendingOps[model.clientId];
+                    });
+                    return res;
+                }, function (err) {
+                    models.forEach(function (model) {
+                        delete adapter._pendingOps[model.clientId];
+                    });
+                    throw err;
+                });
+            },
+            rebuildRelationships: function (children, parent) {
+                parent.suspendRelationshipObservers(function () {
+                    for (var i = 0; i < children.length; i++) {
+                        var child = children[i];
+                        child.eachRelationship(function (name, relationship) {
+                            if (relationship.kind === 'belongsTo') {
+                                var value = get(child, name);
+                                var inverse = child.constructor.inverseFor(name);
+                                if (inverse) {
+                                    if (this.embeddedType(inverse.type, inverse.name)) {
+                                        return;
+                                    }
+                                    if (inverse.kind === 'hasMany') {
+                                        var parentCollection = get(parent, inverse.name);
+                                        if (child.get('isDeleted')) {
+                                            parentCollection.removeObject(child);
+                                        } else if (value && value.isEqual(parent)) {
+                                            parentCollection.addObject(child);
+                                        }
+                                    }
+                                }
+                            }
+                        }, this);
+                    }
+                }, this);
+            },
+            isRelationshipOwner: function (relationship) {
+                var config = this.configFor(relationship.parentType);
+                var owner = config[relationship.key] && config[relationship.key].owner;
+                return relationship.kind === 'belongsTo' && owner !== false || relationship.kind === 'hasMany' && owner === true;
+            },
+            isDirtyFromRelationships: function (model, cached, relDiff) {
+                var serializer = this.serializerForModel(model);
+                for (var i = 0; i < relDiff.length; i++) {
+                    var diff = relDiff[i];
+                    if (this.isRelationshipOwner(diff.relationship) || serializer.embeddedType(model.constructor, diff.name) === 'always') {
+                        return true;
+                    }
+                }
+                return false;
+            },
+            shouldSave: function (model) {
+                return !this.isEmbedded(model);
+            },
+            isEmbedded: function (model) {
+                return this._embeddedManager.isEmbedded(model);
+            },
+            removeEmbeddedOrphans: function (models, shadows, session) {
+                var orphans = [];
+                models.forEach(function (model) {
+                    if (!this.isEmbedded(model))
+                        return;
+                    var root = this.findEmbeddedRoot(model, models);
+                    if (!root || root.isEqual(model)) {
+                        orphans.push(model);
+                    }
+                }, this);
+                models.removeObjects(orphans);
+                shadows.removeObjects(orphans);
+            },
+            dirtyEmbedded: function (models, shadows, session) {
+                models.forEach(function (model) {
+                    this.eachEmbeddedRelative(model, function (embeddedModel) {
+                        this._embeddedManager.updateParents(embeddedModel);
+                        if (models.contains(embeddedModel)) {
+                            return;
+                        }
+                        embeddedModel = session.getModel(embeddedModel);
+                        var copy = embeddedModel.copy();
+                        models.add(copy);
+                        shadows.add(copy);
+                    }, this);
+                }, this);
+            },
+            findEmbeddedRoot: function (model, models) {
+                var parent = model;
+                while (parent) {
+                    model = parent;
+                    parent = this._embeddedManager.findParent(model);
+                }
+                return models.getModel(model);
+            },
+            eachEmbeddedRelative: function (model, callback, binding, visited) {
+                if (!get(model, 'isLoaded'))
+                    return;
+                if (!visited)
+                    visited = new Ember.Set();
+                if (visited.contains(model))
+                    return;
+                visited.add(model);
+                callback.call(binding, model);
+                this.serializerForModel(model).eachEmbeddedRecord(model, function (embeddedRecord, embeddedType) {
+                    this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
+                }, this);
+                var parent = this._embeddedManager.findParent(model);
+                if (parent) {
+                    this.eachEmbeddedRelative(parent, callback, binding, visited);
+                }
+            },
+            materializeRelationships: function (models) {
+                if (!(models instanceof Ep.ModelSet)) {
+                    models = Ep.ModelSet.fromArray(models);
+                }
+                models.forEach(function (model) {
+                    model.eachRelationship(function (name, relationship) {
+                        if (relationship.kind === 'belongsTo') {
+                            var child = get(model, name);
+                            if (child) {
+                                child = models.getModel(child) || child;
+                                set(model, name, child);
+                            }
+                        } else if (relationship.kind === 'hasMany') {
+                            var children = get(model, name);
+                            var lazyChildren = Ep.ModelSet.create();
+                            lazyChildren.addObjects(children);
+                            children.clear();
+                            lazyChildren.forEach(function (child) {
+                                child = models.getModel(child) || child;
+                                children.addObject(child);
+                            });
+                        }
+                    }, this);
+                }, this);
+            },
+            ajax: function (url, type, hash) {
+                var adapter = this;
+                return new Ember.RSVP.Promise(function (resolve, reject) {
+                    hash = hash || {};
+                    hash.url = url;
+                    hash.type = type;
+                    hash.dataType = 'json';
+                    hash.context = adapter;
+                    if (hash.data && type !== 'GET') {
+                        hash.contentType = 'application/json; charset=utf-8';
+                        if (typeof hash.data !== 'string') {
+                            hash.data = JSON.stringify(hash.data);
+                        }
+                    }
+                    if (adapter.headers !== undefined) {
+                        var headers = adapter.headers;
+                        hash.beforeSend = function (xhr) {
+                            forEach.call(Ember.keys(headers), function (key) {
+                                xhr.setRequestHeader(key, headers[key]);
+                            });
+                        };
+                    }
+                    hash.success = function (json) {
+                        Ember.run(null, resolve, json);
+                    };
+                    hash.error = function (jqXHR, textStatus, errorThrown) {
+                        if (jqXHR) {
+                            jqXHR.then = null;
+                        }
+                        Ember.run(null, reject, jqXHR);
+                    };
+                    Ember.$.ajax(hash);
+                });
+            },
+            url: '',
+            rootForType: function (type) {
+                var typeKey = get(type, 'typeKey'), serializer = this.serializerFor(typeKey);
+                return serializer.rootForType(type);
+            },
+            pluralize: function (string) {
+                return Ember.String.pluralize(string);
+            },
+            buildURL: function (record, suffix) {
+                var url = [this.url];
+                Ember.assert('Namespace URL (' + this.namespace + ') must not start with slash', !this.namespace || this.namespace.toString().charAt(0) !== '/');
+                Ember.assert('Record URL (' + record + ') must not start with slash', !record || record.toString().charAt(0) !== '/');
+                Ember.assert('URL suffix (' + suffix + ') must not start with slash', !suffix || suffix.toString().charAt(0) !== '/');
+                if (!Ember.isNone(this.namespace)) {
+                    url.push(this.namespace);
+                }
+                url.push(this.pluralize(record));
+                if (suffix !== undefined) {
+                    url.push(suffix);
+                }
+                return url.join('/');
             },
             extractValidationErrors: function (type, json) {
-                var errors = {};
+                var errors = {}, serializer = this.serializerForType(type);
                 get(type, 'attributes').forEach(function (name) {
-                    var key = this.keyFor(name, type);
+                    var key = serializer.keyFor(name, type);
                     if (json['errors'].hasOwnProperty(key)) {
                         errors[name] = json['errors'][key];
                     }
@@ -121,283 +503,652 @@
                     errors['base'] = json['errors']['base'];
                 }
                 return errors;
-            },
-            setMeta: function (data, obj) {
-                if (data && data.meta) {
-                    if (obj) {
-                        obj.meta = data.meta;
-                    } else {
-                        obj = { meta: data.meta };
-                    }
-                }
-                return obj;
             }
         });
     });
-    require.define('/lib/serializer/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/serializer/serializer.js', module);
-        require('/lib/serializer/json_serializer/index.js', module);
-    });
-    require.define('/lib/serializer/json_serializer/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/serializer/json_serializer/embedded_helpers_mixin.js', module);
-        require('/lib/serializer/json_serializer/json_serializer.js', module);
-        require('/lib/serializer/json_serializer/serialize.js', module);
-        require('/lib/serializer/json_serializer/deserialize.js', module);
-    });
-    require.define('/lib/serializer/json_serializer/deserialize.js', function (module, exports, __dirname, __filename) {
+    require.define('/lib/rest/embedded_helpers_mixin.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
-        function extractPropertyHook(name) {
-            return function (type, hash) {
-                return this.extractProperty(type, hash, name);
-            };
-        }
-        Ep.JsonSerializer.reopen({
-            deserialize: function (type, hash) {
-                var model = this.createModel(type);
-                set(model, 'id', this.extractId(type, hash));
-                set(model, 'clientId', this.extractClientId(type, hash));
-                set(model, 'rev', this.extractRevision(type, hash));
-                set(model, 'clientRev', this.extractClientRevision(type, hash));
-                this.deserializeAttributes(model, hash);
-                this.deserializeRelationships(model, hash);
-                return model;
-            },
-            createModel: function (type) {
-                return type.create();
-            },
-            extractProperty: function (type, hash, name) {
-                var key = this.keyFor(name, type);
-                return hash[key];
-            },
-            extractId: function (type, hash) {
-                var key = this.keyFor('id', type);
-                if (hash.hasOwnProperty(key)) {
-                    return hash[key] + '';
-                } else {
-                    return null;
+        var SerializerForMixin = require('/lib/serializers/serializer_for_mixin.js', module);
+        module.exports = Ember.Mixin.create(SerializerForMixin, {
+            embeddedType: function (type, name) {
+                var serializer = this.serializerForType(type);
+                if (this === serializer) {
+                    var config = this.configFor(name);
+                    return config.embedded;
                 }
+                return serializer.embeddedType(type, name);
             },
-            extractClientId: extractPropertyHook('clientId'),
-            extractRevision: extractPropertyHook('rev'),
-            extractClientRevision: extractPropertyHook('clientRev'),
-            deserializeAttributes: function (model, hash) {
-                model.eachAttribute(function (name, attribute) {
-                    set(model, name, this.extractAttribute(model, hash, name, attribute));
-                }, this);
+            eachEmbeddedRecord: function (record, callback, binding) {
+                this.eachEmbeddedBelongsToRecord(record, callback, binding);
+                this.eachEmbeddedHasManyRecord(record, callback, binding);
             },
-            extractAttribute: function (model, hash, name, attribute) {
-                var key = this.keyFor(name, get(model, 'type'));
-                return this.deserializeValue(hash[key], attribute.type);
+            eachEmbeddedBelongsToRecord: function (record, callback, binding) {
+                this.eachEmbeddedBelongsTo(record.constructor, function (name, relationship, embeddedType) {
+                    var embeddedRecord = get(record, name);
+                    if (embeddedRecord) {
+                        callback.call(binding, embeddedRecord, embeddedType);
+                    }
+                });
             },
-            deserializeValue: function (value, attributeType) {
-                if (attributeType) {
-                    var transform = this.transformFor(attributeType);
-                    Ember.assert('You tried to use a attribute type (' + attributeType + ') that has not been registered', transform);
-                    return transform.deserialize(value);
-                }
-                return value;
+            eachEmbeddedHasManyRecord: function (record, callback, binding) {
+                this.eachEmbeddedHasMany(record.constructor, function (name, relationship, embeddedType) {
+                    var array = get(record, name);
+                    for (var i = 0, l = get(array, 'length'); i < l; i++) {
+                        callback.call(binding, array.objectAt(i), embeddedType);
+                    }
+                });
             },
-            deserializeRelationships: function (model, hash) {
-                model.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'hasMany') {
-                        this.deserializeHasMany(name, model, hash, relationship);
-                    } else if (relationship.kind === 'belongsTo') {
-                        this.deserializeBelongsTo(name, model, hash, relationship);
+            eachEmbeddedHasMany: function (type, callback, binding) {
+                this.eachEmbeddedRelationship(type, 'hasMany', callback, binding);
+            },
+            eachEmbeddedBelongsTo: function (type, callback, binding) {
+                this.eachEmbeddedRelationship(type, 'belongsTo', callback, binding);
+            },
+            eachEmbeddedRelationship: function (type, kind, callback, binding) {
+                type.eachRelationship(function (name, relationship) {
+                    var embeddedType = this.embeddedType(type, name);
+                    if (embeddedType) {
+                        if (relationship.kind === kind) {
+                            callback.call(binding, name, relationship, embeddedType);
+                        }
                     }
                 }, this);
-            },
-            deserializeHasMany: function (name, model, data, relationship) {
-                var type = get(model, 'type'), key = this.keyForHasMany(name, type), embeddedType = this.embeddedType(type, name), value = this.extractHasMany(type, data, key);
-                if (embeddedType) {
-                    this.deserializeEmbeddedHasMany(name, model, value, relationship);
-                } else {
-                    this.deserializeLazyHasMany(name, model, value, relationship);
-                }
-            },
-            deserializeEmbeddedHasMany: function (name, model, values, relationship) {
-                if (!values) {
-                    return;
-                }
-                get(model, name).pushObjects(values.map(function (data) {
-                    var type = this.extractEmbeddedType(relationship, data);
-                    return this.deserialize(type, data);
-                }, this));
-            },
-            deserializeLazyHasMany: function (name, model, values, relationship) {
-                if (!values) {
-                    return;
-                }
-                get(model, name).pushObjects(values.map(function (value) {
-                    return Ep.LazyModel.create({
-                        id: value && value.toString(),
-                        type: relationship.type
-                    });
-                }, this));
-            },
-            deserializeBelongsTo: function (name, model, hash, relationship) {
-                var type = get(model, 'type'), key = this.keyForBelongsTo(name, type), embeddedType = this.embeddedType(type, name), value;
-                if (embeddedType) {
-                    if (relationship.options && relationship.options.polymorphic) {
-                        value = this.extractBelongsToPolymorphic(type, hash, key);
-                    } else {
-                        value = this.extractBelongsTo(type, hash, key);
-                    }
-                    this.deserializeEmbeddedBelongsTo(name, model, value, relationship);
-                } else {
-                    value = this.extractBelongsTo(type, hash, key);
-                    this.deserializeLazyBelongsTo(name, model, value, relationship);
-                }
-            },
-            deserializeEmbeddedBelongsTo: function (name, model, value, relationship) {
-                if (!value) {
-                    return;
-                }
-                var type = this.extractEmbeddedType(relationship, value);
-                var child = this.deserialize(type, value);
-                set(model, name, child);
-            },
-            deserializeLazyBelongsTo: function (name, model, value, relationship) {
-                if (!value) {
-                    return;
-                }
-                set(model, name, Ep.LazyModel.create({
-                    id: value && value.toString(),
-                    type: relationship.type
-                }));
-            },
-            extractEmbeddedType: function (relationship, data) {
-                var foundType = relationship.type;
-                if (relationship.options && relationship.options.polymorphic) {
-                    var key = this.keyForRelationship(relationship), keyForEmbeddedType = this.keyForEmbeddedType(key);
-                    foundType = this.typeFromAlias(data[keyForEmbeddedType]);
-                    delete data[keyForEmbeddedType];
-                }
-                return foundType;
-            },
-            extractHasMany: Ember.aliasMethod('extractProperty'),
-            extractBelongsTo: Ember.aliasMethod('extractProperty')
+            }
         });
     });
-    require.define('/lib/serializer/json_serializer/serialize.js', function (module, exports, __dirname, __filename) {
+    require.define('/lib/serializers/serializer_for_mixin.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
-        function addPropertyHook(name) {
-            return function (serialized, model) {
-                return this.addProperty(serialized, name, model);
+        module.exports = Ember.Mixin.create({
+            serializerFor: function (typeKey) {
+                Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
+                var serializer = this.container.lookup('serializer:' + typeKey);
+                if (!serializer) {
+                    var modelExists = !!this.container.lookupFactory('model:' + typeKey);
+                    if (!modelExists)
+                        return;
+                    var Serializer = this.container.lookupFactory('serializer:model');
+                    this.container.register('serializer:' + typeKey, Serializer);
+                    serializer = this.container.lookup('serializer:' + typeKey);
+                }
+                serializer.typeKey = typeKey;
+                return serializer;
+            },
+            serializerForType: function (type) {
+                return this.serializerFor(get(type, 'typeKey'));
+            },
+            serializerForModel: function (model) {
+                var type = get(model, 'type');
+                return this.serializerForType(type);
+            }
+        });
+    });
+    require.define('/lib/rest/model_serializer.js', function (module, exports, __dirname, __filename) {
+        Ep.RestSerializer = Ep.ModelSerializer.extend({
+            keyForType: function (name, type, opts) {
+                var key = this._super(name, type);
+                if (!opts || !opts.embedded) {
+                    if (type === 'belongs_to') {
+                        return key + '_id';
+                    } else if (type === 'has_many') {
+                        return Ember.String.singularize(key) + '_ids';
+                    }
+                }
+                return key;
+            }
+        });
+    });
+    require.define('/lib/rest/rest_errors.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.RestErrors = Ep.Errors.extend({
+            status: null,
+            xhr: null,
+            copy: function () {
+                return Ep.RestErrors.create({
+                    content: Ember.copy(this.content),
+                    status: this.status,
+                    xhr: this.xhr
+                });
+            }
+        });
+    });
+    require.define('/lib/rest/operation_graph.js', function (module, exports, __dirname, __filename) {
+        require('/lib/rest/operation.js', module);
+        var get = Ember.get, set = Ember.set;
+        Ep.OperationGraph = Ember.Object.extend({
+            models: null,
+            shadows: null,
+            rootOps: null,
+            adapter: null,
+            init: function () {
+                var graph = this;
+                this.ops = Ember.MapWithDefault.create({
+                    defaultValue: function (model) {
+                        return Ep.Operation.create({
+                            model: model,
+                            graph: graph,
+                            adapter: get(graph, 'adapter')
+                        });
+                    }
+                });
+                this.rootOps = Ember.Set.create();
+                this.build();
+            },
+            perform: function () {
+                return this.createPromise();
+            },
+            build: function () {
+                var adapter = get(this, 'adapter');
+                var models = get(this, 'models');
+                var shadows = get(this, 'shadows');
+                var rootOps = get(this, 'rootOps');
+                var ops = get(this, 'ops');
+                models.forEach(function (model) {
+                    if (!get(model, 'isLoaded')) {
+                        return;
+                    }
+                    var shadow = shadows.getModel(model);
+                    Ember.assert('Shadow does not exist for non-new model', shadow || get(model, 'isNew'));
+                    var op = ops.get(model);
+                    set(op, 'shadow', shadow);
+                    var isEmbedded = adapter.isEmbedded(model);
+                    if (get(op, 'isDirty') && isEmbedded) {
+                        var rootModel = adapter.findEmbeddedRoot(model, models);
+                        var rootOp = this.getOp(rootModel);
+                        set(rootOp, 'force', true);
+                        var parentModel = adapter._embeddedManager.findParent(model);
+                        var parentOp = this.getOp(parentModel);
+                        parentOp.addChild(op);
+                    }
+                    var rels = get(op, 'dirtyRelationships');
+                    for (var i = 0; i < rels.length; i++) {
+                        var d = rels[i];
+                        var name = d.name;
+                        var parentModel = model.get(name) || shadows.getModel(d.oldValue);
+                        var serializer = adapter.serializerForModel(model);
+                        var isEmbeddedRel = serializer.embeddedType(get(model, 'type'), name);
+                        if (parentModel && !isEmbeddedRel) {
+                            var parentOp = this.getOp(parentModel);
+                            parentOp.addChild(op);
+                        }
+                    }
+                }, this);
+                ops.forEach(function (model, op) {
+                    if (get(op, 'isDirty') && get(op, 'isRoot')) {
+                        rootOps.add(op);
+                    }
+                }, this);
+            },
+            getOp: function (model) {
+                var models = get(this, 'models');
+                var materializedModel = models.getModel(model);
+                if (materializedModel)
+                    model = materializedModel;
+                return this.ops.get(model);
+            },
+            createPromise: function () {
+                var rootOps = get(this, 'rootOps'), adapter = get(this, 'adapter'), cumulative = [];
+                function createNestedPromise(op) {
+                    var promise = op.perform();
+                    promise = promise.then(function (model) {
+                        cumulative.push(model);
+                        return model;
+                    }, function (model) {
+                        cumulative.push(model);
+                        throw model;
+                    });
+                    if (op.children.length > 0) {
+                        promise = promise.then(function (model) {
+                            var childPromises = op.children.map(createNestedPromise);
+                            return Ember.RSVP.all(childPromises).then(function (models) {
+                                adapter.rebuildRelationships(models, model);
+                                return model;
+                            });
+                        });
+                    }
+                    return promise;
+                }
+                return Ember.RSVP.all(rootOps.map(createNestedPromise)).then(function () {
+                    return cumulative;
+                }, function (err) {
+                    throw cumulative;
+                });
+            },
+            toStringExtension: function () {
+                var result = '';
+                var rootOps = get(this, 'rootOps');
+                rootOps.forEach(function (op) {
+                    result += '\n' + op.toString(1);
+                });
+                return result + '\n';
+            }
+        });
+    });
+    require.define('/lib/rest/operation.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.Operation = Ember.Object.extend({
+            model: null,
+            shadow: null,
+            adapter: null,
+            _promise: null,
+            force: false,
+            init: function () {
+                this.children = Ember.Set.create();
+                this.parents = Ember.Set.create();
+            },
+            dirtyRelationships: Ember.computed(function () {
+                var adapter = get(this, 'adapter'), model = get(this, 'model'), rels = [], shadow = get(this, 'shadow');
+                if (get(model, 'isNew')) {
+                    model.eachRelationship(function (name, relationship) {
+                        if (adapter.isRelationshipOwner(relationship)) {
+                            rels.push({
+                                name: name,
+                                type: relationship.kind,
+                                relationship: relationship,
+                                oldValue: null
+                            });
+                        }
+                    }, this);
+                } else {
+                    var diff = model.diff(shadow);
+                    for (var i = 0; i < diff.length; i++) {
+                        var d = diff[i];
+                        if (d.relationship && adapter.isRelationshipOwner(d.relationship)) {
+                            rels.push(d);
+                        }
+                    }
+                }
+                return rels;
+            }),
+            isDirty: Ember.computed(function () {
+                return !!get(this, 'dirtyType');
+            }),
+            isDirtyFromUpdates: Ember.computed(function () {
+                var model = get(this, 'model'), shadow = get(this, 'shadow'), adapter = get(this, 'adapter');
+                var diff = model.diff(shadow);
+                var dirty = false;
+                var relDiff = [];
+                for (var i = 0; i < diff.length; i++) {
+                    var d = diff[i];
+                    if (d.type == 'attr') {
+                        dirty = true;
+                    } else {
+                        relDiff.push(d);
+                    }
+                }
+                return dirty || adapter.isDirtyFromRelationships(model, shadow, relDiff);
+            }),
+            dirtyType: Ember.computed(function () {
+                var model = get(this, 'model');
+                if (get(model, 'isNew')) {
+                    return 'created';
+                } else if (get(model, 'isDeleted')) {
+                    return 'deleted';
+                } else if (get(this, 'isDirtyFromUpdates') || get(this, 'force')) {
+                    return 'updated';
+                }
+            }),
+            perform: function () {
+                if (this._promise)
+                    return this._promise;
+                var adapter = get(this, 'adapter'), dirtyType = get(this, 'dirtyType'), model = get(this, 'model'), shadow = get(this, 'shadow'), promise;
+                if (!dirtyType || !adapter.shouldSave(model)) {
+                    if (adapter.isEmbedded(model)) {
+                        promise = this._promiseFromEmbeddedParent();
+                    } else {
+                        promise = Ember.RSVP.resolve();
+                    }
+                } else if (dirtyType === 'created') {
+                    promise = adapter.create(model);
+                } else if (dirtyType === 'updated') {
+                    promise = adapter.update(model);
+                } else if (dirtyType === 'deleted') {
+                    promise = adapter.deleteModel(model);
+                }
+                promise = promise.then(function (serverModel) {
+                    if (!get(model, 'id')) {
+                        set(model, 'id', get(serverModel, 'id'));
+                    }
+                    if (!serverModel) {
+                        serverModel = model;
+                    } else {
+                        if (get(serverModel, 'meta') && Ember.keys(serverModel).length == 1) {
+                            model.meta = serverModel.meta;
+                            serverModel = model;
+                        }
+                        if (!get(serverModel, 'clientRev')) {
+                            set(serverModel, 'clientRev', get(model, 'clientRev'));
+                        }
+                    }
+                    return serverModel;
+                }, function (serverModel) {
+                    if (shadow) {
+                        shadow.set('errors', serverModel.get('errors'));
+                        throw shadow;
+                    }
+                    throw serverModel;
+                });
+                return this._promise = promise;
+            },
+            _embeddedParent: Ember.computed(function () {
+                var model = get(this, 'model'), parentModel = get(this, 'adapter')._embeddedManager.findParent(model), graph = get(this, 'graph');
+                Ember.assert('Embedded parent does not exist!', parentModel);
+                return graph.getOp(parentModel);
+            }),
+            _promiseFromEmbeddedParent: function () {
+                var model = this.model, adapter = get(this, 'adapter'), serializer = adapter.serializerForModel(model);
+                function findInParent(parentModel) {
+                    var res = null;
+                    serializer.eachEmbeddedRecord(parentModel, function (child, embeddedType) {
+                        if (res)
+                            return;
+                        if (child.isEqual(model))
+                            res = child;
+                    });
+                    return res;
+                }
+                return get(this, '_embeddedParent').perform().then(function (parent) {
+                    return findInParent(parent);
+                }, function (parent) {
+                    throw findInParent(parent);
+                });
+            },
+            toStringExtension: function () {
+                return '( ' + get(this, 'dirtyType') + ' ' + get(this, 'model') + ' )';
+            },
+            addChild: function (child) {
+                this.children.add(child);
+                child.parents.add(this);
+            },
+            isRoot: Ember.computed(function () {
+                return this.parents.every(function (parent) {
+                    return !get(parent, 'isDirty') && get(parent, 'isRoot');
+                });
+            }).volatile()
+        });
+    });
+    require.define('/lib/rest/embedded_manager.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        var EmbdeddedHelpersMixin = require('/lib/rest/embedded_helpers_mixin.js', module);
+        Ep.EmbeddedManager = Ember.Object.extend(EmbdeddedHelpersMixin, {
+            adapter: null,
+            init: function () {
+                this._super.apply(this, arguments);
+                this._parentMap = {};
+                this._cachedIsEmbedded = Ember.Map.create();
+            },
+            updateParents: function (model) {
+                var type = get(model, 'type'), adapter = get(this, 'adapter'), typeKey = get(type, 'typeKey'), serializer = adapter.serializerFor(typeKey);
+                this.eachEmbeddedRecord(model, function (embedded, kind) {
+                    this._parentMap[get(embedded, 'clientId')] = model;
+                }, this);
+            },
+            findParent: function (model) {
+                var parent = this._parentMap[get(model, 'clientId')];
+                return parent;
+            },
+            isEmbedded: function (model) {
+                var type = get(model, 'type'), result = this._cachedIsEmbedded.get(type);
+                if (result !== undefined)
+                    return result;
+                var adapter = get(this, 'adapter'), result = false;
+                type.eachRelationship(function (name, relationship) {
+                    var serializer = adapter.serializerFor(relationship.typeKey), inverse = type.inverseFor(relationship.key);
+                    if (!inverse)
+                        return;
+                    var config = serializer.configFor(inverse.name);
+                    result = result || config.embedded === 'always';
+                }, this);
+                this._cachedIsEmbedded.set(type, result);
+                return result;
+            }
+        });
+    });
+    require.define('/lib/adapter.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set, merge = Ember.merge;
+        function mustImplement(name) {
+            return function () {
+                throw new Ember.Error('Your adapter ' + this.toString() + ' does not implement the required method ' + name);
             };
         }
-        Ep.JsonSerializer.reopen({
-            serialize: function (model, options) {
-                var serialized = {}, id, rev, clientRev;
-                if (id = get(model, 'id')) {
-                    this.addId(serialized, model);
-                }
-                this.addClientId(serialized, model);
-                if (rev = get(model, 'rev')) {
-                    this.addRevision(serialized, model);
-                }
-                if (clientRev = get(model, 'clientRev')) {
-                    this.addClientRevision(serialized, model);
-                }
-                if (options && options.includeType) {
-                    this.addType(serialized, model);
-                }
-                this.addAttributes(serialized, model);
-                this.addRelationships(serialized, model);
-                return serialized;
+        var SerializerForMixin = require('/lib/serializers/serializer_for_mixin.js', module);
+        Ep.Adapter = Ember.Object.extend(SerializerForMixin, {
+            mergedProperties: ['configs'],
+            init: function () {
+                this._super.apply(this, arguments);
+                this.configs = {};
+                this.idMaps = Ember.MapWithDefault.create({
+                    defaultValue: function (type) {
+                        return Ember.Map.create();
+                    }
+                });
+                this.container = this.setupContainer(this.container);
             },
-            addProperty: function (serialized, name, model) {
-                var key = this.keyFor(name);
-                serialized[key] = get(model, name);
+            setupContainer: function (container) {
+                return container;
             },
-            addId: function (serialized, model) {
-                var key = this.keyFor('id');
-                serialized[key] = this.serializeId(get(model, 'id'));
+            configFor: function (type) {
+                var configs = get(this, 'configs'), typeKey = get(type, 'typeKey');
+                return configs[typeKey] || {};
             },
-            serializeId: function (id) {
+            newSession: function () {
+                var Session = this.container.lookupFactory('session:base');
+                session = Session.create({ adapter: this });
+                return session;
+            },
+            load: mustImplement('load'),
+            query: mustImplement('find'),
+            refresh: mustImplement('refresh'),
+            flush: mustImplement('flush'),
+            remoteCall: mustImplement('remoteCall'),
+            isDirtyFromRelationships: function (model, cached, relDiff) {
+                return relDiff.length > 0;
+            },
+            shouldSave: function (model) {
+                return true;
+            },
+            reifyClientId: function (model) {
+                this.idManager.reifyClientId(model);
+            }
+        });
+    });
+    require.define('/lib/local/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/local/local_adapter.js', module);
+    });
+    require.define('/lib/local/local_adapter.js', function (module, exports, __dirname, __filename) {
+        require('/lib/adapter.js', module);
+        var get = Ember.get, set = Ember.set;
+        Ep.LocalAdapter = Ep.Adapter.extend({
+            serializer: Ep.Serializer.create(),
+            load: function (type, id) {
+                return Ember.RSVP.resolve(null);
+            },
+            refresh: function (model) {
+                return Ember.RSVP.resolve(model.copy());
+            },
+            flush: function (session) {
+                var models = get(session, 'dirtyModels');
+                return Ember.RSVP.resolve(models.copy(true));
+            }
+        });
+    });
+    require.define('/lib/serializers/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/serializers/base.js', module);
+        require('/lib/serializers/boolean.js', module);
+        require('/lib/serializers/date.js', module);
+        require('/lib/serializers/number.js', module);
+        require('/lib/serializers/revision.js', module);
+        require('/lib/serializers/string.js', module);
+        require('/lib/serializers/model.js', module);
+        require('/lib/serializers/id.js', module);
+        require('/lib/serializers/has_many.js', module);
+        require('/lib/serializers/belongs_to.js', module);
+        require('/lib/serializers/payload.js', module);
+    });
+    require.define('/lib/serializers/payload.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.PayloadSerializer = Ep.Serializer.extend({
+            mergedProperties: ['aliases'],
+            aliases: {},
+            metaKey: 'meta',
+            singularize: function (name) {
+                return Ember.String.singularize(name);
+            },
+            typeKeyFor: function (name) {
+                var singular = this.singularize(name), aliases = get(this, 'aliases'), alias = aliases[name];
+                return alias || singular;
+            },
+            rootForTypeKey: function (typeKey) {
+                return typeKey;
+            },
+            serialize: function (model) {
+                var root = this.rootForTypeKey(model.typeKey), res = {}, serializer = this.serializerFor(model.typeKey);
+                res[root] = serializer.serialize;
+            },
+            deserialize: function (hash, opts) {
+                var result = Ep.ModelSet.create(), metaKey = get(this, 'metaKey');
+                for (var prop in hash) {
+                    if (!hash.hasOwnProperty(prop)) {
+                        continue;
+                    }
+                    if (prop === metaKey) {
+                        result.meta = hash[prop];
+                        continue;
+                    }
+                    var typeKey = this.typeKeyFor(prop), serializer = this.serializerFor(typeKey);
+                    var value = hash[prop];
+                    if (value instanceof Array) {
+                        for (var i = 0; i < value.length; i++) {
+                            result.push(serializer.deserialize(value[i]));
+                        }
+                    } else {
+                        result.push(serializer.deserialize(value));
+                    }
+                }
+                return result;
+            },
+            materializeRelationships: function (models) {
+                models.forEach(function (model) {
+                    model.eachRelationship(function (name, relationship) {
+                        if (relationship.kind === 'belongsTo') {
+                            var child = get(model, name);
+                            if (child) {
+                                child = models.getModel(child) || child;
+                                set(model, name, child);
+                            }
+                        } else if (relationship.kind === 'hasMany') {
+                            var children = get(model, name);
+                            var lazyChildren = Ep.ModelSet.create();
+                            lazyChildren.addObjects(children);
+                            children.clear();
+                            lazyChildren.forEach(function (child) {
+                                child = models.getModel(child) || child;
+                                children.addObject(child);
+                            });
+                        }
+                    }, this);
+                }, this);
+            }
+        });
+    });
+    require.define('/lib/serializers/belongs_to.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.BelongsToSerializer = Ep.Serializer.extend({
+            typeFor: function (typeName) {
+                return this.container.lookupFactory('model:' + typeName);
+            },
+            deserialize: function (serialized, opts) {
+                if (!serialized) {
+                    return null;
+                }
+                if (opts.embedded) {
+                    return this.deserializeEmbedded(serialized, opts);
+                }
+                var idSerializer = this.serializerFor('id');
+                return Ep.LazyModel.create({
+                    id: idSerializer.deserialize(serialized),
+                    type: this.typeFor(opts.typeKey)
+                });
+            },
+            deserializeEmbedded: function (serialized, opts) {
+                var serializer = this.serializerFor(opts.typeKey);
+                return serializer.deserialize(serialized);
+            },
+            serialize: function (model, opts) {
+                if (!model) {
+                    return null;
+                }
+                if (opts.embedded) {
+                    return this.serializeEmbedded(model, opts);
+                }
+                var idSerializer = this.serializerFor('id');
+                return idSerializer.serialize(get(model, 'id'));
+            },
+            serializeEmbedded: function (model, opts) {
+                var serializer = this.serializerFor(opts.typeKey);
+                return serializer.serialize(model);
+            }
+        });
+    });
+    require.define('/lib/serializers/has_many.js', function (module, exports, __dirname, __filename) {
+        var empty = Ember.isEmpty;
+        Ep.HasManySerializer = Ep.Serializer.extend({
+            typeFor: function (typeName) {
+                return this.container.lookupFactory('model:' + typeName);
+            },
+            deserialize: function (serialized, opts) {
+                if (!serialized)
+                    return [];
+                if (opts.embedded) {
+                    return this.deserializeEmbedded(serialized, opts);
+                }
+                var idSerializer = this.serializerFor('id'), type = this.typeFor(opts.typeKey);
+                return serialized.map(function (id) {
+                    return Ep.LazyModel.create({
+                        id: idSerializer.deserialize(id),
+                        type: type
+                    });
+                }, this);
+            },
+            deserializeEmbedded: function (serialized, opts) {
+                var serializer = this.serializerFor(opts.typeKey);
+                return serialized.map(function (hash) {
+                    return serializer.deserialize(hash);
+                });
+            },
+            serialize: function (models, opts) {
+                if (opts.embedded) {
+                    return this.serializeEmbedded(models, opts);
+                }
+                return undefined;
+            },
+            serializeEmbedded: function (models, opts) {
+                var serializer = this.serializerFor(opts.typeKey);
+                return models.map(function (model) {
+                    return serializer.serialize(model);
+                });
+            }
+        });
+    });
+    require.define('/lib/serializers/id.js', function (module, exports, __dirname, __filename) {
+        var none = Ember.isNone, empty = Ember.isEmpty;
+        Ep.IdSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                return serialized + '';
+            },
+            serialize: function (id) {
                 if (isNaN(id)) {
                     return id;
                 }
                 return +id;
-            },
-            addClientId: addPropertyHook('clientId'),
-            addRevision: addPropertyHook('rev'),
-            addClientRevision: addPropertyHook('clientRev'),
-            addType: addPropertyHook('type'),
-            addAttributes: function (serialized, model) {
-                model.eachAttribute(function (name, attribute) {
-                    this.addAttribute(serialized, name, model, attribute);
-                }, this);
-            },
-            addAttribute: function (serialized, name, model, attribute) {
-                var key = this.keyFor(name);
-                serialized[key] = this.serializeValue(get(model, name), attribute.type);
-            },
-            serializeValue: function (value, attributeType) {
-                if (attributeType) {
-                    var transform = this.transformFor(attributeType);
-                    Ember.assert('You tried to use an attribute type (' + attributeType + ') that has not been registered', transform);
-                    return transform.serialize(value);
-                }
-                return value;
-            },
-            addRelationships: function (serialized, model) {
-                model.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        this.addBelongsTo(serialized, model, name, relationship);
-                    } else if (relationship.kind === 'hasMany') {
-                        this.addHasMany(serialized, model, name, relationship);
-                    }
-                }, this);
-            },
-            addBelongsTo: function (serialized, model, name, relationship) {
-                var type = get(model, 'type'), key = this.keyForBelongsTo(name, type), value = null, includeType = relationship.options && relationship.options.polymorphic, embeddedChild, child, id;
-                if (this.embeddedType(type, name)) {
-                    if (embeddedChild = get(model, name)) {
-                        value = this.serialize(embeddedChild, { includeType: includeType });
-                    }
-                    serialized[key] = value;
-                } else {
-                    child = get(model, relationship.key);
-                    id = child && get(child, 'id');
-                    if (relationship.options && relationship.options.polymorphic && !Ember.isNone(id)) {
-                        throw 'Polymorphism is not quite ready';
-                    } else {
-                        serialized[key] = id === undefined ? null : this.serializeId(id);
-                    }
-                }
-            },
-            addBelongsToPolymorphic: function (hash, key, id, type) {
-                var keyForId = this.keyForPolymorphicId(key), keyForType = this.keyForPolymorphicType(key);
-                hash[keyForId] = id;
-                hash[keyForType] = this.rootForType(type);
-            },
-            rootForType: function (type) {
-                return get(type, 'typeKey');
-            },
-            addHasMany: function (serialized, model, name, relationship) {
-                var type = get(model, 'type'), key = this.keyForHasMany(name, type), serializedHasMany = [], includeType = relationship.options && relationship.options.polymorphic, manyArray, embeddedType;
-                embeddedType = this.embeddedType(type, name);
-                if (embeddedType !== 'always') {
-                    return;
-                }
-                manyArray = get(model, name);
-                manyArray.forEach(function (model) {
-                    serializedHasMany.push(this.serialize(model, { includeType: includeType }));
-                }, this);
-                serialized[key] = serializedHasMany;
             }
         });
     });
-    require.define('/lib/serializer/json_serializer/json_serializer.js', function (module, exports, __dirname, __filename) {
-        require('/lib/serializer/serializer.js', module);
+    require.define('/lib/serializers/model.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
-        Ep.JsonSerializer = Ep.Serializer.extend(Ep.EmbeddedHelpersMixin, {
-            mergedProperties: [
-                'properties',
-                'aliases'
-            ],
+        var EmbeddedHelpersMixin = require('/lib/rest/embedded_helpers_mixin.js', module);
+        Ep.ModelSerializer = Ep.Serializer.extend(EmbeddedHelpersMixin, {
+            mergedProperties: ['properties'],
             properties: {},
-            aliases: {},
             _keyCache: null,
             _nameCache: null,
             init: function () {
@@ -425,65 +1176,937 @@
             configFor: function (name) {
                 return this.properties[name] || {};
             },
-            keyFor: function (name, type) {
+            keyFor: function (name, type, opts) {
                 var key;
                 if (key = this._keyCache[name]) {
                     return key;
                 }
                 var config = this.configFor(name);
-                key = config.key || Ember.String.underscore(name);
+                key = config.key || this.keyForType(name, type, opts);
                 this._keyCache[name] = key;
                 return key;
             },
-            keyForBelongsTo: Ember.aliasMethod('keyFor'),
-            keyForHasMany: Ember.aliasMethod('keyFor'),
-            keyForRelationship: function (relationship) {
-                var type = relationship.parentType, name = relationship.key;
-                switch (description.kind) {
-                case 'belongsTo':
-                    return this.keyForBelongsTo(name, type);
-                case 'hasMany':
-                    return this.keyForHasMany(name, type);
+            keyForType: function (name, type, opts) {
+                return Ember.String.underscore(name);
+            },
+            rootForType: function (type) {
+                return get(type, 'typeKey');
+            },
+            serialize: function (model) {
+                var serialized = {};
+                this.addMeta(serialized, model);
+                this.addAttributes(serialized, model);
+                this.addRelationships(serialized, model);
+                return serialized;
+            },
+            addMeta: function (serialized, model) {
+                this.addProperty(serialized, model, 'id', 'id');
+                this.addProperty(serialized, model, 'clientId', 'string');
+                this.addProperty(serialized, model, 'rev', 'revision');
+                this.addProperty(serialized, model, 'clientRev', 'revision');
+            },
+            addAttributes: function (serialized, model) {
+                model.eachAttribute(function (name, attribute) {
+                    this.addProperty(serialized, model, name, attribute.type);
+                }, this);
+            },
+            addRelationships: function (serialized, model) {
+                model.eachRelationship(function (name, relationship) {
+                    var config = this.configFor(name), opts = {
+                            typeKey: relationship.typeKey,
+                            embedded: config.embedded
+                        };
+                    if (relationship.kind === 'belongsTo') {
+                        this.addProperty(serialized, model, name, 'belongs_to', opts);
+                    } else if (relationship.kind === 'hasMany') {
+                        this.addProperty(serialized, model, name, 'has_many', opts);
+                    }
+                }, this);
+            },
+            addProperty: function (serialized, model, name, type, opts) {
+                var key = this.keyFor(name, type, opts), value = get(model, name), serializer;
+                if (type) {
+                    serializer = this.serializerFor(type);
+                }
+                if (serializer) {
+                    value = serializer.serialize(value, opts);
+                }
+                if (value !== undefined) {
+                    serialized[key] = value;
                 }
             },
-            keyForEmbeddedType: function () {
-                return 'type';
+            deserialize: function (hash) {
+                var model = this.createModel();
+                this.extractMeta(model, hash);
+                this.extractAttributes(model, hash);
+                this.extractRelationships(model, hash);
+                return model;
             },
-            transformFor: function (attributeType) {
-                return this.container.lookup('transform:' + attributeType);
+            extractMeta: function (model, hash) {
+                this.extractProperty(model, hash, 'id', 'id');
+                this.extractProperty(model, hash, 'clientId', 'string');
+                this.extractProperty(model, hash, 'rev', 'revision');
+                this.extractProperty(model, hash, 'clientRev', 'revision');
+                this.idManager.reifyClientId(model);
             },
-            pluralize: function (name) {
-                return Ember.String.pluralize(name);
+            extractAttributes: function (model, hash) {
+                model.eachAttribute(function (name, attribute) {
+                    this.extractProperty(model, hash, name, attribute.type);
+                }, this);
             },
-            singularize: function (name) {
-                return Ember.String.singularize(name);
+            extractRelationships: function (model, hash) {
+                model.eachRelationship(function (name, relationship) {
+                    var config = this.configFor(name), opts = {
+                            typeKey: relationship.typeKey,
+                            embedded: config.embedded
+                        };
+                    if (relationship.kind === 'hasMany') {
+                        this.extractProperty(model, hash, name, 'has_many', opts);
+                    } else if (relationship.kind === 'belongsTo') {
+                        this.extractProperty(model, hash, name, 'belongs_to', opts);
+                    }
+                }, this);
             },
-            typeFor: function (name) {
-                var type;
-                if (type = this.container.lookupFactory('model:' + name)) {
-                    return type;
+            extractProperty: function (model, hash, name, type, opts) {
+                var key = this.keyFor(name, type, opts), value = hash[key], serializer;
+                if (type) {
+                    serializer = this.serializerFor(type);
                 }
-                var singular = this.singularize(name);
-                if (type = this.container.lookupFactory('model:' + singular)) {
-                    return type;
+                if (serializer) {
+                    value = serializer.deserialize(value, opts);
                 }
-                var aliases = get(this, 'aliases');
-                var alias = aliases[name];
-                return alias && this.container.lookupFactory('model:' + alias);
+                if (value !== undefined) {
+                    set(model, name, value);
+                }
+            },
+            createModel: function () {
+                return this.typeFor(this.typeKey).create();
+            },
+            typeFor: function (typeKey) {
+                return this.container.lookupFactory('model:' + typeKey);
             }
         });
     });
-    require.define('/lib/serializer/serializer.js', function (module, exports, __dirname, __filename) {
+    require.define('/lib/serializers/string.js', function (module, exports, __dirname, __filename) {
+        var none = Ember.isNone, empty = Ember.isEmpty;
+        Ep.StringSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                return none(serialized) ? null : String(serialized);
+            },
+            serialize: function (deserialized) {
+                return none(deserialized) ? null : String(deserialized);
+            }
+        });
+    });
+    require.define('/lib/serializers/revision.js', function (module, exports, __dirname, __filename) {
+        var empty = Ember.isEmpty;
+        Ep.RevisionSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                return serialized ? serialized : undefined;
+            },
+            serialize: function (deserialized) {
+                return deserialized ? deserialized : undefined;
+            }
+        });
+    });
+    require.define('/lib/serializers/number.js', function (module, exports, __dirname, __filename) {
+        var empty = Ember.isEmpty;
+        Ep.NumberSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                return empty(serialized) ? null : Number(serialized);
+            },
+            serialize: function (deserialized) {
+                return empty(deserialized) ? null : Number(deserialized);
+            }
+        });
+    });
+    require.define('/lib/serializers/date.js', function (module, exports, __dirname, __filename) {
+        require('/lib/ext/date.js', module);
+        Ep.DateSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                var type = typeof serialized;
+                if (type === 'string') {
+                    return new Date(Ember.Date.parse(serialized));
+                } else if (type === 'number') {
+                    return new Date(serialized);
+                } else if (serialized === null || serialized === undefined) {
+                    return serialized;
+                } else {
+                    return null;
+                }
+            },
+            serialize: function (date) {
+                if (date instanceof Date) {
+                    var days = [
+                            'Sun',
+                            'Mon',
+                            'Tue',
+                            'Wed',
+                            'Thu',
+                            'Fri',
+                            'Sat'
+                        ];
+                    var months = [
+                            'Jan',
+                            'Feb',
+                            'Mar',
+                            'Apr',
+                            'May',
+                            'Jun',
+                            'Jul',
+                            'Aug',
+                            'Sep',
+                            'Oct',
+                            'Nov',
+                            'Dec'
+                        ];
+                    var pad = function (num) {
+                        return num < 10 ? '0' + num : '' + num;
+                    };
+                    var utcYear = date.getUTCFullYear(), utcMonth = date.getUTCMonth(), utcDayOfMonth = date.getUTCDate(), utcDay = date.getUTCDay(), utcHours = date.getUTCHours(), utcMinutes = date.getUTCMinutes(), utcSeconds = date.getUTCSeconds();
+                    var dayOfWeek = days[utcDay];
+                    var dayOfMonth = pad(utcDayOfMonth);
+                    var month = months[utcMonth];
+                    return dayOfWeek + ', ' + dayOfMonth + ' ' + month + ' ' + utcYear + ' ' + pad(utcHours) + ':' + pad(utcMinutes) + ':' + pad(utcSeconds) + ' GMT';
+                } else {
+                    return null;
+                }
+            }
+        });
+    });
+    require.define('/lib/ext/date.js', function (module, exports, __dirname, __filename) {
+        Ember.Date = Ember.Date || {};
+        var origParse = Date.parse, numericKeys = [
+                1,
+                4,
+                5,
+                6,
+                7,
+                10,
+                11
+            ];
+        Ember.Date.parse = function (date) {
+            var timestamp, struct, minutesOffset = 0;
+            if (struct = /^(\d{4}|[+\-]\d{6})(?:-(\d{2})(?:-(\d{2}))?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{3}))?)?(?:(Z)|([+\-])(\d{2})(?::(\d{2}))?)?)?$/.exec(date)) {
+                for (var i = 0, k; k = numericKeys[i]; ++i) {
+                    struct[k] = +struct[k] || 0;
+                }
+                struct[2] = (+struct[2] || 1) - 1;
+                struct[3] = +struct[3] || 1;
+                if (struct[8] !== 'Z' && struct[9] !== undefined) {
+                    minutesOffset = struct[10] * 60 + struct[11];
+                    if (struct[9] === '+') {
+                        minutesOffset = 0 - minutesOffset;
+                    }
+                }
+                timestamp = Date.UTC(struct[1], struct[2], struct[3], struct[4], struct[5] + minutesOffset, struct[6], struct[7]);
+            } else {
+                timestamp = origParse ? origParse(date) : NaN;
+            }
+            return timestamp;
+        };
+        if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Date) {
+            Date.parse = Ember.Date.parse;
+        }
+    });
+    require.define('/lib/serializers/boolean.js', function (module, exports, __dirname, __filename) {
+        Ep.BooleanSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                var type = typeof serialized;
+                if (type === 'boolean') {
+                    return serialized;
+                } else if (type === 'string') {
+                    return serialized.match(/^true$|^t$|^1$/i) !== null;
+                } else if (type === 'number') {
+                    return serialized === 1;
+                } else {
+                    return false;
+                }
+            },
+            serialize: function (deserialized) {
+                return Boolean(deserialized);
+            }
+        });
+    });
+    require.define('/lib/serializers/base.js', function (module, exports, __dirname, __filename) {
+        var SerializerForMixin = require('/lib/serializers/serializer_for_mixin.js', module);
+        Ep.Serializer = Ember.Object.extend(SerializerForMixin, {
+            typeKey: null,
+            serialize: Ember.required(),
+            deserialize: Ember.required()
+        });
+    });
+    require.define('/lib/session/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/session/session.js', module);
+        require('/lib/session/merge.js', module);
+        require('/lib/session/child_session.js', module);
+    });
+    require.define('/lib/session/child_session.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.ChildSession = Ep.Session.extend({
+            fetch: function (model) {
+                var res = this._super(model);
+                if (!res) {
+                    res = get(this, 'parent').fetch(model);
+                    if (res) {
+                        res = this.adopt(res.copy());
+                        res.eachRelationship(function (name, relationship) {
+                            if (relationship.kind === 'belongsTo') {
+                                var child = get(res, name);
+                                if (child) {
+                                    set(child, 'session', this);
+                                }
+                            }
+                        }, this);
+                    }
+                }
+                return res;
+            },
+            load: function (type, id) {
+                type = this.modelFor(type);
+                id = id.toString();
+                var cached = this.getForId(type, id);
+                if (cached && get(cached, 'isLoaded')) {
+                    return Ep.resolveModel(cached);
+                }
+                var parentModel = get(this, 'parent').getForId(type, id);
+                if (parentModel && get(parentModel, 'isLoaded')) {
+                    return Ep.resolveModel(this.merge(parentModel));
+                }
+                var session = this;
+                return Ep.resolveModel(this.parent.load(type, id).then(function (model) {
+                    return session.merge(model);
+                }, function (model) {
+                    throw session.merge(model);
+                }), type, id, session);
+            },
+            query: function (type, query) {
+                var session = this;
+                return this.parent.query(type, query).then(function (models) {
+                    return session.mergeModels(models);
+                });
+            },
+            refresh: function (model) {
+                var session = this;
+                return this.parent.refresh(model).then(function (refreshedModel) {
+                    return session.merge(refreshedModel);
+                }, function (refreshedModel) {
+                    throw session.merge(refreshedModel);
+                });
+            },
+            flush: function () {
+                var session = this, dirtyModels = get(this, 'dirtyModels'), shadows = get(this, 'shadows'), parent = this.parent;
+                var dirty = get(this, 'dirtyModels');
+                dirty.forEach(function (model) {
+                    parent.update(model);
+                });
+                var promise = parent.flush().then(function (models) {
+                        var res = models.map(function (model) {
+                                return session.merge(model);
+                            });
+                        return res;
+                    }, function (models) {
+                        var res = models.map(function (model) {
+                                return session.merge(model);
+                            });
+                        throw res;
+                    });
+                dirtyModels.forEach(function (model) {
+                    this.shadows.add(model.copy());
+                }, this);
+                return promise;
+            },
+            reifyClientId: function (model) {
+                return this.parent.reifyClientId(model);
+            },
+            getForId: function (type, id) {
+                var clientId = this.idManager.getClientId(type, id);
+                return this.models.getForClientId(clientId);
+            },
+            remoteCall: function (context, name, params, method) {
+                var session = this;
+                function merge(model) {
+                    if (Ember.isArray(model)) {
+                        if (get(model, 'firstObject.isModel')) {
+                            return session.mergeModels(model);
+                        }
+                    } else if (model && get(model, 'isModel')) {
+                        return session.merge(model);
+                    }
+                    return model;
+                }
+                return this.parent.remoteCall.apply(this.parent, arguments).then(function (model) {
+                    return merge(model);
+                }, function (model) {
+                    throw merge(model);
+                });
+            }
+        });
+    });
+    require.define('/lib/session/merge.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.Session.reopen({
+            merge: function (model, strategy, visited) {
+                this.reifyClientId(model);
+                if (!visited)
+                    visited = new Ember.Set();
+                if (visited.contains(model)) {
+                    return this.getModel(model);
+                }
+                visited.add(model);
+                var detachedChildren = [];
+                model.eachChild(function (child) {
+                    if (get(child, 'isDetached')) {
+                        detachedChildren.push(child);
+                    }
+                }, this);
+                var merged;
+                if (get(model, 'hasErrors')) {
+                    merged = this._mergeError(model, strategy);
+                } else {
+                    merged = this._mergeSuccess(model, strategy);
+                }
+                if (model.meta) {
+                    merged.meta = model.meta;
+                }
+                for (var i = 0; i < detachedChildren.length; i++) {
+                    var child = detachedChildren[i];
+                    this.merge(child, strategy, visited);
+                }
+                return merged;
+            },
+            mergeModels: function (models) {
+                var merged = Ep.ModelArray.create({
+                        session: this,
+                        content: []
+                    });
+                merged.meta = models.meta;
+                var session = this;
+                models.forEach(function (model) {
+                    merged.pushObject(session.merge(model));
+                });
+                return merged;
+            },
+            _mergeSuccess: function (model, strategy) {
+                var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
+                if (existing && this._containsRev(existing, model)) {
+                    return existing;
+                }
+                var hasClientChanges = !existing || this._containsClientRev(model, existing);
+                if (hasClientChanges) {
+                    ancestor = shadows.getModel(model);
+                } else {
+                    ancestor = originals.getModel(model);
+                }
+                this.suspendDirtyChecking(function () {
+                    merged = this._mergeModel(existing, ancestor, model, strategy);
+                }, this);
+                if (hasClientChanges) {
+                    if (get(merged, 'isDeleted')) {
+                        this.remove(merged);
+                    } else {
+                        if (shadows.contains(model) && get(model, 'isLoaded')) {
+                            shadows.add(model);
+                        }
+                        originals.remove(model);
+                        if (!get(merged, 'isNew')) {
+                            newModels.remove(merged);
+                        }
+                    }
+                } else {
+                }
+                return merged;
+            },
+            _mergeError: function (model, strategy) {
+                var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
+                if (!existing) {
+                    Ember.assert('Errors returned for non-existant model: ' + model.toString(), model instanceof Ep.LoadError);
+                    return model;
+                }
+                ancestor = originals.getModel(model);
+                if (ancestor && !this._containsRev(existing, model)) {
+                    this.suspendDirtyChecking(function () {
+                        merged = this._mergeModel(existing, ancestor, model, strategy);
+                    }, this);
+                } else {
+                    merged = existing;
+                }
+                set(merged, 'errors', Ember.copy(get(model, 'errors')));
+                if (get(model, 'isLoaded')) {
+                    shadows.add(model);
+                    originals.remove(model);
+                }
+                return merged;
+            },
+            _mergeModel: function (dest, ancestor, model, strategy) {
+                if (!strategy)
+                    strategy = get(this, 'mergeStrategy').create({ session: this });
+                if (get(model, 'isPromise')) {
+                    return this._mergePromise(dest, ancestor, model, strategy);
+                }
+                var promise;
+                if (dest && get(dest, 'isPromise')) {
+                    promise = dest;
+                    dest = dest.content;
+                }
+                if (!dest) {
+                    if (get(model, 'isDetached')) {
+                        dest = model;
+                    } else {
+                        dest = model.copy();
+                    }
+                    this.adopt(dest);
+                    if (promise) {
+                        promise.resolve(dest);
+                    }
+                    return dest;
+                }
+                set(dest, 'id', get(model, 'id'));
+                set(dest, 'clientId', get(model, 'clientId'));
+                set(dest, 'rev', get(model, 'rev'));
+                set(dest, 'isDeleted', get(model, 'isDeleted'));
+                this.adopt(dest);
+                if (!ancestor) {
+                    ancestor = dest;
+                }
+                strategy.merge(dest, ancestor, model);
+                return dest;
+            },
+            _mergePromise: function (dest, ancestor, promise, strategy) {
+                var content = get(promise, 'content');
+                if (content) {
+                    return this._mergeModel(dest, ancestor, content, strategy);
+                }
+                if (!dest) {
+                    if (get(promise, 'isDetached')) {
+                        dest = promise;
+                    } else {
+                        dest = promise.lazyCopy();
+                    }
+                    this.adopt(dest);
+                }
+                return dest;
+            },
+            _containsRev: function (modelA, modelB) {
+                if (!get(modelA, 'rev'))
+                    return false;
+                if (!get(modelB, 'rev'))
+                    return false;
+                return get(modelA, 'rev') >= get(modelB, 'rev');
+            },
+            _containsClientRev: function (modelA, modelB) {
+                return get(modelA, 'clientRev') >= get(modelB, 'clientRev');
+            }
+        });
+    });
+    require.define('/lib/session/session.js', function (module, exports, __dirname, __filename) {
+        require('/lib/collections/model_array.js', module);
+        require('/lib/collections/model_set.js', module);
+        require('/lib/session/collection_manager.js', module);
+        require('/lib/session/belongs_to_manager.js', module);
         require('/lib/model/index.js', module);
-        var get = Ember.get, set = Ember.set, map = Ember.ArrayPolyfills.map, isNone = Ember.isNone;
+        require('/lib/session/merge_strategies/index.js', module);
+        var get = Ember.get, set = Ember.set;
+        Ep.PromiseArray = Ember.ArrayProxy.extend(Ember.PromiseProxyMixin);
+        Ep.Session = Ember.Object.extend({
+            mergeStrategy: Ep.PerField,
+            _dirtyCheckingSuspended: false,
+            init: function () {
+                this._super.apply(this, arguments);
+                this.models = Ep.ModelSet.create();
+                this.collectionManager = Ep.CollectionManager.create();
+                this.belongsToManager = Ep.BelongsToManager.create();
+                this.shadows = Ep.ModelSet.create();
+                this.originals = Ep.ModelSet.create();
+                this.newModels = Ep.ModelSet.create();
+            },
+            create: function (type, hash) {
+                type = this.modelFor(type);
+                var model = type.create(hash || {});
+                model = this.add(model);
+                return model;
+            },
+            adopt: function (model) {
+                Ember.assert('Models instances cannot be moved between sessions. Use `add` or `update` instead.', !get(model, 'session') || get(model, 'session') === this);
+                Ember.assert('An equivalent model already exists in the session!', !this.getModel(model) || this.getModel(model) === model);
+                set(model, 'session', this);
+                if (get(model, 'isNew')) {
+                    this.newModels.add(model);
+                }
+                if (!get(model, 'isProxy')) {
+                    this.models.add(model);
+                    model._registerRelationships();
+                }
+                return model;
+            },
+            add: function (model) {
+                this.reifyClientId(model);
+                var dest = this.fetch(model);
+                if (dest && get(dest, 'isLoaded'))
+                    return dest;
+                if (get(model, 'isProxy')) {
+                    var content = get(model, 'content');
+                    if (content) {
+                        return this.add(content);
+                    }
+                }
+                if (get(model, 'isNew') && get(model, 'isDetached')) {
+                    dest = model;
+                } else if (get(model, 'isNew')) {
+                    dest = model.copy();
+                } else {
+                    dest = model.lazyCopy();
+                }
+                return this.adopt(dest);
+            },
+            remove: function (model) {
+                get(this, 'models').remove(model);
+                get(this, 'shadows').remove(model);
+                get(this, 'originals').remove(model);
+            },
+            update: function (model) {
+                this.reifyClientId(model);
+                if (get(model, 'isProxy')) {
+                    var content = get(model, 'content');
+                    if (content) {
+                        return this.update(content);
+                    }
+                    throw new Ember.Error('Cannot update with an unloaded model: ' + model.toString());
+                }
+                var dest = this.fetch(model);
+                if (get(model, 'isNew') && !dest) {
+                    dest = get(model, 'type').create();
+                    set(dest, 'clientId', get(model, 'clientId'));
+                    this.adopt(dest);
+                }
+                if (get(model, 'isDetached') || !dest || !get(dest, 'isLoaded')) {
+                    return this.add(model);
+                }
+                if (get(model, 'isDeleted')) {
+                    if (!get(dest, 'isDeleted')) {
+                        this.deleteModel(dest);
+                    }
+                    return dest;
+                }
+                model.copyAttributes(dest);
+                model.copyMeta(dest);
+                model.eachRelationship(function (name, relationship) {
+                    if (relationship.kind === 'belongsTo') {
+                        var child = get(model, name);
+                        if (child) {
+                            set(dest, name, child);
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var children = get(model, name);
+                        var destChildren = get(dest, name);
+                        children.copyTo(destChildren);
+                    }
+                }, this);
+                return dest;
+            },
+            deleteModel: function (model) {
+                if (get(model, 'isNew')) {
+                    var newModels = get(this, 'newModels');
+                    newModels.remove(model);
+                } else {
+                    this.modelWillBecomeDirty(model);
+                }
+                set(model, 'isDeleted', true);
+                this.collectionManager.modelWasDeleted(model);
+                this.belongsToManager.modelWasDeleted(model);
+            },
+            load: function (type, id) {
+                type = this.modelFor(type);
+                id = id.toString();
+                var cached = this.getForId(type, id);
+                if (cached && get(cached, 'isLoaded')) {
+                    return Ep.resolveModel(cached);
+                }
+                var session = this;
+                return Ep.resolveModel(this.adapter.load(type, id).then(function (model) {
+                    return session.merge(model);
+                }, function (model) {
+                    throw session.merge(model);
+                }), type, id, session);
+            },
+            find: function (type, query) {
+                if (Ember.typeOf(query) === 'object') {
+                    return this.query(type, query);
+                }
+                return this.load(type, query);
+            },
+            fetch: function (model) {
+                return this.getModel(model);
+            },
+            query: function (type, query) {
+                type = this.modelFor(type);
+                var session = this;
+                var prom = this.adapter.query(type, query).then(function (models) {
+                        return session.mergeModels(models);
+                    });
+                return Ep.PromiseArray.create({ promise: prom });
+            },
+            refresh: function (model) {
+                var session = this;
+                return this.adapter.refresh(model).then(function (refreshedModel) {
+                    return session.merge(refreshedModel);
+                }, function (refreshedModel) {
+                    throw session.merge(refreshedModel);
+                });
+            },
+            flush: function () {
+                var session = this, dirtyModels = get(this, 'dirtyModels'), newModels = get(this, 'newModels'), shadows = get(this, 'shadows');
+                dirtyModels.forEach(function (model) {
+                    model.incrementProperty('clientRev');
+                }, this);
+                var promise = this.adapter.flush(this).then(function (models) {
+                        var res = models.map(function (model) {
+                                return session.merge(model);
+                            });
+                        return res;
+                    }, function (models) {
+                        var res = models.map(function (model) {
+                                return session.merge(model);
+                            });
+                        throw res;
+                    });
+                dirtyModels.forEach(function (model) {
+                    var original = this.originals.getModel(model);
+                    var shadow = this.shadows.getModel(model);
+                    if (shadow && (!original || original.get('rev') < shadow.get('rev'))) {
+                        this.originals.add(shadow);
+                    }
+                    this.markClean(model);
+                }, this);
+                newModels.clear();
+                return promise;
+            },
+            getModel: function (model) {
+                return this.models.getModel(model);
+            },
+            getForId: function (type, id) {
+                var clientId = this.idManager.getClientId(type, id);
+                return this.models.getForClientId(clientId);
+            },
+            reifyClientId: function (model) {
+                this.idManager.reifyClientId(model);
+            },
+            remoteCall: function (context, name, params, opts) {
+                var session = this;
+                function merge(model) {
+                    if (Ember.isArray(model)) {
+                        if (get(model, 'firstObject.isModel')) {
+                            return session.mergeModels(model);
+                        }
+                    } else if (model && get(model, 'isModel')) {
+                        return session.merge(model);
+                    }
+                    return model;
+                }
+                return this.adapter.remoteCall.apply(this.adapter, arguments).then(function (model) {
+                    return merge(model);
+                }, function (model) {
+                    throw merge(model);
+                });
+            },
+            modelWillBecomeDirty: function (model) {
+                if (this._dirtyCheckingSuspended) {
+                    return;
+                }
+                this.touch(model);
+            },
+            destroy: function () {
+                this._super();
+                this.models.forEach(function (model) {
+                    model.destroy();
+                });
+                this.models.destroy();
+                this.collectionManager.destroy();
+                this.belongsToManager.destroy();
+                this.shadows.destroy();
+                this.originals.destroy();
+                this.newModels.destroy();
+            },
+            dirtyModels: Ember.computed(function () {
+                var models = Ep.ModelSet.fromArray(this.shadows.map(function (model) {
+                        return this.models.getModel(model);
+                    }, this));
+                get(this, 'newModels').forEach(function (model) {
+                    models.add(model);
+                });
+                return models;
+            }).property('shadows.[]', 'newModels.[]'),
+            suspendDirtyChecking: function (callback, binding) {
+                var self = this;
+                if (this._dirtyCheckingSuspended) {
+                    return callback.call(binding || self);
+                }
+                try {
+                    this._dirtyCheckingSuspended = true;
+                    return callback.call(binding || self);
+                } finally {
+                    this._dirtyCheckingSuspended = false;
+                }
+            },
+            newSession: function () {
+                var child = this.container.lookup('session:child');
+                set(child, 'parent', this);
+                return child;
+            },
+            modelFor: function (key) {
+                if (typeof key !== 'string') {
+                    return key;
+                }
+                var factory = this.container.lookupFactory('model:' + key);
+                Ember.assert('No model was found for \'' + key + '\'', factory);
+                factory.session = this;
+                factory.typeKey = key;
+                return factory;
+            },
+            getShadow: function (model) {
+                var shadows = get(this, 'shadows');
+                var models = get(this, 'models');
+                return shadows.getModel(model) || models.getModel(model);
+            },
+            markClean: function (model) {
+                this.shadows.remove(model);
+            },
+            touch: function (model) {
+                if (!get(model, 'isNew')) {
+                    var shadow = this.shadows.getModel(model);
+                    if (!shadow) {
+                        this.shadows.addObject(model.copy());
+                    }
+                }
+            },
+            isDirty: Ember.computed(function () {
+                return get(this, 'dirtyModels.length') > 0;
+            }).property('dirtyModels.length')
+        });
+    });
+    require.define('/lib/session/merge_strategies/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/session/merge_strategies/merge_strategy.js', module);
+        require('/lib/session/merge_strategies/theirs.js', module);
+        require('/lib/session/merge_strategies/per_field.js', module);
+    });
+    require.define('/lib/session/merge_strategies/per_field.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set, isEqual = Ember.isEqual;
+        Ep.PerField = Ep.MergeStrategy.extend({
+            init: function () {
+                this.cache = Ep.ModelSet.create();
+            },
+            merge: function (ours, ancestor, theirs) {
+                if (this.cache.contains(ours))
+                    return ours;
+                this.cache.addObject(theirs);
+                ours.beginPropertyChanges();
+                this.mergeAttributes(ours, ancestor, theirs);
+                this.mergeRelationships(ours, ancestor, theirs);
+                ours.endPropertyChanges();
+                return ours;
+            },
+            mergeAttributes: function (ours, ancestor, theirs) {
+                ours.eachAttribute(function (name, meta) {
+                    var oursValue = get(ours, name);
+                    var theirsValue = get(theirs, name);
+                    var originalValue = get(ancestor, name);
+                    if (oursValue === theirsValue)
+                        return;
+                    if (oursValue === originalValue) {
+                        set(ours, name, theirsValue);
+                    }
+                });
+            },
+            mergeRelationships: function (ours, ancestor, theirs) {
+                var session = get(this, 'session');
+                ours.eachRelationship(function (name, relationship) {
+                    if (relationship.kind === 'belongsTo') {
+                        var oursValue = get(ours, name);
+                        var theirsValue = get(theirs, name);
+                        var originalValue = get(ancestor, name);
+                        if (isEqual(oursValue, originalValue)) {
+                            set(ours, name, theirsValue);
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var theirChildren = get(theirs, name);
+                        var ourChildren = get(ours, name);
+                        var originalChildren = get(ancestor, name);
+                        if (isEqual(ourChildren, originalChildren)) {
+                            var existing = Ep.ModelSet.create();
+                            existing.addObjects(ourChildren);
+                            theirChildren.forEach(function (model) {
+                                if (existing.contains(model)) {
+                                    existing.remove(model);
+                                } else {
+                                    ourChildren.pushObject(model);
+                                }
+                            }, this);
+                            ourChildren.removeObjects(existing);
+                        }
+                    }
+                }, this);
+            }
+        });
+    });
+    require.define('/lib/session/merge_strategies/theirs.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.Theirs = Ep.MergeStrategy.extend({
+            merge: function (dest, ancestor, model) {
+                dest.beginPropertyChanges();
+                this.copyAttributes(model, dest);
+                this.copyMeta(model, dest);
+                this.copyRelationships(model, dest);
+                dest.endPropertyChanges();
+                return dest;
+            },
+            copyAttributes: function (model, dest) {
+                model.eachAttribute(function (name, meta) {
+                    var left = get(model, name);
+                    var right = get(dest, name);
+                    if (left !== right)
+                        set(dest, name, left);
+                });
+            },
+            copyRelationships: function (model, dest) {
+                var session = get(this, 'session');
+                model.eachRelationship(function (name, relationship) {
+                    if (relationship.kind === 'belongsTo') {
+                        var child = get(model, name);
+                        var destChild = get(dest, name);
+                        if (child) {
+                            set(dest, name, child);
+                        } else if (destChild) {
+                            set(dest, name, null);
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var children = get(model, name);
+                        var destChildren = get(dest, name);
+                        var modelSet = Ep.ModelSet.create();
+                        modelSet.pushObjects(destChildren);
+                        set(destChildren, 'meta', get(children, 'meta'));
+                        children.forEach(function (child) {
+                            if (modelSet.contains(child)) {
+                                modelSet.remove(child);
+                            } else {
+                                destChildren.addObject(child);
+                            }
+                        }, this);
+                        destChildren.removeObjects(modelSet);
+                    }
+                }, this);
+            }
+        });
+    });
+    require.define('/lib/session/merge_strategies/merge_strategy.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
         function mustImplement(name) {
             return function () {
-                throw new Ember.Error('Your serializer ' + this.toString() + ' does not implement the required method ' + name);
+                throw new Ember.Error('Your merge strategy ' + this.toString() + ' does not implement the required method ' + name);
             };
         }
-        Ep.Serializer = Ember.Object.extend({
-            deserialize: mustImplement('deserialize'),
-            serialize: mustImplement('serialize')
+        Ep.MergeStrategy = Ember.Object.extend({
+            session: null,
+            merge: mustImplement('merge')
         });
     });
     require.define('/lib/model/index.js', function (module, exports, __dirname, __filename) {
@@ -506,6 +2129,15 @@
                 this.eachAttribute(function (name, meta) {
                     var left = get(this, name);
                     var right = get(model, name);
+                    if (left && typeof left.diff === 'function' && right && typeof right.diff === 'function') {
+                        if (left.diff(right).length > 0) {
+                            diffs.push({
+                                type: 'attr',
+                                name: name
+                            });
+                        }
+                        return;
+                    }
                     if (left && right && typeof left === 'object' && typeof right === 'object') {
                         var delta = jsondiffpatch.diff(left, right);
                         if (delta) {
@@ -1428,9 +3060,7 @@
                     });
                 this.eachComputedProperty(function (name, meta) {
                     if (meta.isRelationship) {
-                        if (typeof meta.type === 'string') {
-                            meta.type = Ep.__container__.lookupFactory('model:' + meta.type);
-                        }
+                        reifyRelationshipType(meta);
                         var relationshipsForType = map.get(meta.type);
                         relationshipsForType.push({
                             name: name,
@@ -1456,10 +3086,8 @@
                 var type, types = Ember.A([]);
                 this.eachComputedProperty(function (name, meta) {
                     if (meta.isRelationship) {
+                        reifyRelationshipType(meta);
                         type = meta.type;
-                        if (typeof type === 'string') {
-                            type = Ep.__container__.lookupFactory('model:' + type);
-                        }
                         Ember.assert('You specified a hasMany (' + meta.type + ') on ' + meta.parentType + ' but ' + meta.type + ' was not found.', type);
                         if (!types.contains(type)) {
                             Ember.assert('Trying to sideload ' + name + ' on ' + this.toString() + ' but the type doesn\'t exist.', !!type);
@@ -1473,11 +3101,9 @@
                 var map = Ember.Map.create(), type;
                 this.eachComputedProperty(function (name, meta) {
                     if (meta.isRelationship) {
+                        reifyRelationshipType(meta);
                         meta.key = name;
                         type = meta.type;
-                        if (typeof type === 'string') {
-                            meta.type = Ep.__container__.lookupFactory('model:' + type);
-                        }
                         map.set(name, meta);
                     }
                 });
@@ -1550,20 +3176,33 @@
                 }, this);
             }
         });
+        function reifyRelationshipType(relationship) {
+            if (!relationship.type) {
+                relationship.type == Ep.__container__.lookupFactory('model:' + relationship.typeKey);
+            }
+            if (!relationship.typeKey) {
+                relationship.typeKey = get(relationship.type, 'typeKey');
+            }
+        }
     });
     require.define('/lib/model/relationships/has_many.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
         require('/lib/model/model.js', module);
         require('/lib/collections/model_array.js', module);
-        Ep.hasMany = function (type, options) {
-            Ember.assert('The type passed to Ep.hasMany must be defined', !!type);
+        Ep.hasMany = function (typeKey, options) {
+            Ember.assert('The type passed to Ep.hasMany must be defined', !!typeKey);
             options = options || {};
             var meta = {
-                    type: type,
                     isRelationship: true,
                     options: options,
                     kind: 'hasMany'
                 };
+            if (typeof typeKey === 'string') {
+                meta.typeKey = typeKey;
+            } else {
+                Ember.deprecate('Using a raw class for relationship definitions is deprecated. Please pass in the name of the type (e.g. \'post\')');
+                meta.type = typeKey;
+            }
             return Ember.computed(function (key, value, cached) {
                 var content;
                 if (arguments.length === 1) {
@@ -2040,15 +3679,20 @@
             }
             return Ember.ComputedProperty.prototype.get.apply(this, arguments);
         };
-        Ep.belongsTo = function (type, options) {
-            Ember.assert('The type passed to Ep.belongsTo must be defined', !!type);
+        Ep.belongsTo = function (typeKey, options) {
+            Ember.assert('The type passed to Ep.belongsTo must be defined', !!typeKey);
             options = options || {};
             var meta = {
-                    type: type,
                     isRelationship: true,
                     options: options,
                     kind: 'belongsTo'
                 };
+            if (typeof typeKey === 'string') {
+                meta.typeKey = typeKey;
+            } else {
+                Ember.deprecate('Using a raw class for relationship definitions is deprecated. Please pass in the name of the type (e.g. \'post\')');
+                meta.type = typeKey;
+            }
             return new BelongsToDescriptor(function (key, value) {
                 if (arguments.length === 1) {
                     return null;
@@ -2367,1693 +4011,6 @@
             return promise;
         };
     });
-    require.define('/lib/serializer/json_serializer/embedded_helpers_mixin.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.EmbeddedHelpersMixin = Ember.Mixin.create({
-            serializerFor: function (type) {
-                var key = get(type, 'typeKey');
-                return this.container.lookup('serializer:' + key) || this.container.lookup('serializer:main');
-            },
-            embeddedType: function (type, name) {
-                var serializer = this.serializerFor(type);
-                if (this === serializer) {
-                    var config = this.configFor(name);
-                    return config.embedded;
-                }
-                return serializer.embeddedType(type, name);
-            },
-            eachEmbeddedRecord: function (record, callback, binding) {
-                this.eachEmbeddedBelongsToRecord(record, callback, binding);
-                this.eachEmbeddedHasManyRecord(record, callback, binding);
-            },
-            eachEmbeddedBelongsToRecord: function (record, callback, binding) {
-                this.eachEmbeddedBelongsTo(record.constructor, function (name, relationship, embeddedType) {
-                    var embeddedRecord = get(record, name);
-                    if (embeddedRecord) {
-                        callback.call(binding, embeddedRecord, embeddedType);
-                    }
-                });
-            },
-            eachEmbeddedHasManyRecord: function (record, callback, binding) {
-                this.eachEmbeddedHasMany(record.constructor, function (name, relationship, embeddedType) {
-                    var array = get(record, name);
-                    for (var i = 0, l = get(array, 'length'); i < l; i++) {
-                        callback.call(binding, array.objectAt(i), embeddedType);
-                    }
-                });
-            },
-            eachEmbeddedHasMany: function (type, callback, binding) {
-                this.eachEmbeddedRelationship(type, 'hasMany', callback, binding);
-            },
-            eachEmbeddedBelongsTo: function (type, callback, binding) {
-                this.eachEmbeddedRelationship(type, 'belongsTo', callback, binding);
-            },
-            eachEmbeddedRelationship: function (type, kind, callback, binding) {
-                type.eachRelationship(function (name, relationship) {
-                    var embeddedType = this.embeddedType(type, name);
-                    if (embeddedType) {
-                        if (relationship.kind === kind) {
-                            callback.call(binding, name, relationship, embeddedType);
-                        }
-                    }
-                }, this);
-            }
-        });
-    });
-    require.define('/lib/rest/rest_adapter.js', function (module, exports, __dirname, __filename) {
-        require('/lib/adapter.js', module);
-        require('/lib/rest/embedded_manager.js', module);
-        require('/lib/rest/operation_graph.js', module);
-        require('/lib/rest/rest_errors.js', module);
-        require('/lib/serializer/json_serializer/embedded_helpers_mixin.js', module);
-        var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
-        Ep.RestAdapter = Ep.Adapter.extend(Ep.EmbeddedHelpersMixin, {
-            init: function () {
-                this._super.apply(this, arguments);
-                this._embeddedManager = Ep.EmbeddedManager.create({ adapter: this });
-                this._pendingOps = {};
-            },
-            load: function (type, id) {
-                var root = this.rootForType(type), adapter = this;
-                return this.ajax(this.buildURL(root, id), 'GET').then(function (json) {
-                    return adapter.didReceiveDataForLoad(json, type, id);
-                }, function (xhr) {
-                    var model = Ep.LoadError.create({
-                            id: id,
-                            type: type
-                        });
-                    throw adapter.didError(xhr, model);
-                });
-            },
-            refresh: function (model) {
-                var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this;
-                return this.ajax(this.buildURL(root, id), 'GET').then(function (json) {
-                    return adapter.didReceiveData(json, model);
-                }, function (xhr) {
-                    throw adapter.didError(xhr, model);
-                });
-            },
-            update: function (model) {
-                var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this, serializer = this.serializerFor(type);
-                var data = {};
-                data[root] = serializer.serialize(model);
-                return this.ajax(this.buildURL(root, id), 'PUT', { data: data }).then(function (json) {
-                    return adapter.didReceiveData(json, model);
-                }, function (xhr) {
-                    throw adapter.didError(xhr, model);
-                });
-            },
-            create: function (model) {
-                var type = get(model, 'type'), root = this.rootForType(type), adapter = this, serializer = this.serializerFor(type);
-                var data = {};
-                data[root] = serializer.serialize(model, { includeId: true });
-                return this.ajax(this.buildURL(root), 'POST', { data: data }).then(function (json) {
-                    return adapter.didReceiveData(json, model);
-                }, function (xhr) {
-                    throw adapter.didError(xhr, model);
-                });
-            },
-            deleteModel: function (model) {
-                var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this;
-                return this.ajax(this.buildURL(root, id), 'DELETE').then(function (json) {
-                    return adapter.didReceiveData(json, model);
-                }, function (xhr) {
-                    throw adapter.didError(xhr, model);
-                });
-            },
-            query: function (type, query) {
-                var root = this.rootForType(type), adapter = this;
-                return this.ajax(this.buildURL(root), 'GET', { data: query }).then(function (json) {
-                    return adapter.didReceiveDataForFind(json, type);
-                }, function (xhr) {
-                    throw xhr;
-                });
-            },
-            remoteCall: function (context, name, params, opts) {
-                var adapter = this;
-                function normalizeContext(context) {
-                    if (typeof context === 'string') {
-                        return adapter.typeFor(context);
-                    }
-                    return context;
-                }
-                var url, adapter = this;
-                if (!opts) {
-                    opts = {};
-                }
-                context = normalizeContext(context);
-                if (typeof context === 'function') {
-                    url = this.buildURL(this.rootForType(context));
-                } else {
-                    var id = get(context, 'id');
-                    Ember.assert('Cannot perform a remote call with a context that doesn\'t have an id', id);
-                    url = this.buildURL(this.rootForType(get(context, 'type')), id);
-                }
-                url = url + '/' + name;
-                method = opts.type || 'POST';
-                var data = JSON.stringify(params, function (key, value) {
-                        if (value && get(value, 'isModel')) {
-                            var type = get(value, 'type');
-                            var serializer = adapter.serializerFor(type);
-                            return serializer.serialize(value);
-                        }
-                        return value;
-                    });
-                return this.ajax(url, method, { data: data }).then(function (json) {
-                    if (opts.deserialize === false) {
-                        return json;
-                    }
-                    var deserializationContext = opts.deserializationContext !== undefined ? normalizeContext(opts.deserializationContext) : context;
-                    return adapter.didReceiveDataForRpc(json, deserializationContext);
-                }, function (xhr) {
-                    throw adapter.didError(xhr, context);
-                });
-            },
-            typeFor: function (typeName) {
-                return this.container.lookupFactory('model:' + typeName);
-            },
-            didReceiveData: function (data, targetModel) {
-                var result = null;
-                this.processData(data, function (model) {
-                    if (targetModel && model.isEqual(targetModel)) {
-                        result = model;
-                    }
-                });
-                var serializer = get(this, 'serializer');
-                return serializer.setMeta(data, result);
-            },
-            didReceiveDataForLoad: function (data, type, id) {
-                var result = null;
-                this.processData(data, function (model) {
-                    if (model.hasType(type) && get(model, 'id') === id) {
-                        result = model;
-                    }
-                });
-                var serializer = get(this, 'serializer');
-                return serializer.setMeta(data, result);
-            },
-            didReceiveDataForFind: function (data, type) {
-                var result = [];
-                this.processData(data, function (model) {
-                    if (model.hasType(type)) {
-                        result.pushObject(model);
-                    }
-                });
-                var serializer = get(this, 'serializer');
-                return serializer.setMeta(data, Ep.ModelArray.create({ content: result }));
-            },
-            didReceiveDataForRpc: function (data, context) {
-                if (!context) {
-                    return this.processData(data);
-                } else if (typeof context === 'function') {
-                    return this.didReceiveDataForFind(data, context);
-                }
-                return this.didReceiveData(data, context);
-            },
-            processData: function (data, callback, binding) {
-                var models = get(this, 'serializer').deserializePayload(data);
-                models.forEach(function (model) {
-                    this.willLoadModel(model);
-                }, this);
-                models.forEach(function (model) {
-                    this.didLoadModel(model);
-                    if (callback)
-                        callback.call(binding || this, model);
-                }, this);
-                this.materializeRelationships(models);
-                return models;
-            },
-            willLoadModel: function (model) {
-                model.eachRelatedModel(function (relative) {
-                    if (get(relative, 'clientId')) {
-                        this.reifyClientId(model);
-                    }
-                }, this);
-            },
-            didLoadModel: function (model) {
-                model.eachRelatedModel(function (relative) {
-                    this.reifyClientId(relative);
-                }, this);
-                this._embeddedManager.updateParents(model);
-            },
-            didError: function (xhr, model) {
-                var errors;
-                if (xhr.status === 422) {
-                    var json = JSON.parse(xhr.responseText), serializer = get(this, 'serializer'), validationErrors = serializer.extractValidationErrors(get(model, 'type'), json);
-                    errors = Ep.RestErrors.create({ content: validationErrors });
-                } else {
-                    errors = Ep.RestErrors.create();
-                }
-                set(errors, 'status', xhr.status);
-                set(errors, 'xhr', xhr);
-                set(model, 'errors', errors);
-                throw model;
-            },
-            flush: function (session) {
-                var models = get(session, 'dirtyModels').copy(true);
-                var shadows = Ep.ModelSet.fromArray(models.map(function (model) {
-                        return session.shadows.getModel(model);
-                    }));
-                this.dirtyEmbedded(models, shadows, session);
-                this.removeEmbeddedOrphans(models, shadows, session);
-                this.materializeRelationships(models);
-                var op = Ep.OperationGraph.create({
-                        models: models,
-                        shadows: shadows,
-                        adapter: this
-                    });
-                return this._performFlush(op);
-            },
-            _performFlush: function (op) {
-                var models = get(op, 'models'), pending = Ember.Set.create();
-                models.forEach(function (model) {
-                    var op = this._pendingOps[model.clientId];
-                    if (op)
-                        pending.add(op);
-                }, this);
-                var adapter = this;
-                if (get(pending, 'length') > 0) {
-                    return Ember.RSVP.all(pending.toArray()).then(function () {
-                        return adapter._performFlush(op);
-                    });
-                }
-                var promise = op.perform();
-                models.forEach(function (model) {
-                    this._pendingOps[model.clientId] = promise;
-                }, this);
-                return promise.then(function (res) {
-                    models.forEach(function (model) {
-                        delete adapter._pendingOps[model.clientId];
-                    });
-                    return res;
-                }, function (err) {
-                    models.forEach(function (model) {
-                        delete adapter._pendingOps[model.clientId];
-                    });
-                    throw err;
-                });
-            },
-            rebuildRelationships: function (children, parent) {
-                var serializer = get(this, 'serializer');
-                parent.suspendRelationshipObservers(function () {
-                    for (var i = 0; i < children.length; i++) {
-                        var child = children[i];
-                        child.eachRelationship(function (name, relationship) {
-                            if (relationship.kind === 'belongsTo') {
-                                var value = get(child, name);
-                                var inverse = child.constructor.inverseFor(name);
-                                if (inverse) {
-                                    if (serializer.embeddedType(inverse.type, inverse.name)) {
-                                        return;
-                                    }
-                                    if (inverse.kind === 'hasMany') {
-                                        var parentCollection = get(parent, inverse.name);
-                                        if (child.get('isDeleted')) {
-                                            parentCollection.removeObject(child);
-                                        } else if (value && value.isEqual(parent)) {
-                                            parentCollection.addObject(child);
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                });
-            },
-            isRelationshipOwner: function (relationship) {
-                var serializer = get(this, 'serializer');
-                var config = this.configFor(relationship.parentType);
-                var owner = config[relationship.key] && config[relationship.key].owner;
-                return relationship.kind === 'belongsTo' && owner !== false || relationship.kind === 'hasMany' && owner === true;
-            },
-            isDirtyFromRelationships: function (model, cached, relDiff) {
-                var serializer = get(this, 'serializer');
-                for (var i = 0; i < relDiff.length; i++) {
-                    var diff = relDiff[i];
-                    if (this.isRelationshipOwner(diff.relationship) || serializer.embeddedType(model.constructor, diff.name) === 'always') {
-                        return true;
-                    }
-                }
-                return false;
-            },
-            shouldSave: function (model) {
-                return !this.isEmbedded(model);
-            },
-            isEmbedded: function (model) {
-                return this._embeddedManager.isEmbedded(model);
-            },
-            removeEmbeddedOrphans: function (models, shadows, session) {
-                var orphans = [];
-                models.forEach(function (model) {
-                    if (!this.isEmbedded(model))
-                        return;
-                    var root = this.findEmbeddedRoot(model, models);
-                    if (!root || root.isEqual(model)) {
-                        orphans.push(model);
-                    }
-                }, this);
-                models.removeObjects(orphans);
-                shadows.removeObjects(orphans);
-            },
-            dirtyEmbedded: function (models, shadows, session) {
-                models.forEach(function (model) {
-                    this.eachEmbeddedRelative(model, function (embeddedModel) {
-                        this._embeddedManager.updateParents(embeddedModel);
-                        if (models.contains(embeddedModel)) {
-                            return;
-                        }
-                        embeddedModel = session.getModel(embeddedModel);
-                        var copy = embeddedModel.copy();
-                        models.add(copy);
-                        shadows.add(copy);
-                    }, this);
-                }, this);
-            },
-            findEmbeddedRoot: function (model, models) {
-                var parent = model;
-                while (parent) {
-                    model = parent;
-                    parent = this._embeddedManager.findParent(model);
-                }
-                return models.getModel(model);
-            },
-            eachEmbeddedRelative: function (model, callback, binding, visited) {
-                if (!get(model, 'isLoaded'))
-                    return;
-                if (!visited)
-                    visited = new Ember.Set();
-                if (visited.contains(model))
-                    return;
-                visited.add(model);
-                callback.call(binding, model);
-                get(this, 'serializer').eachEmbeddedRecord(model, function (embeddedRecord, embeddedType) {
-                    this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
-                }, this);
-                var parent = this._embeddedManager.findParent(model);
-                if (parent) {
-                    this.eachEmbeddedRelative(parent, callback, binding, visited);
-                }
-            },
-            materializeRelationships: function (models) {
-                if (!(models instanceof Ep.ModelSet)) {
-                    models = Ep.ModelSet.fromArray(models);
-                }
-                models.forEach(function (model) {
-                    model.eachRelationship(function (name, relationship) {
-                        if (relationship.kind === 'belongsTo') {
-                            var child = get(model, name);
-                            if (child) {
-                                child = models.getModel(child) || child;
-                                set(model, name, child);
-                            }
-                        } else if (relationship.kind === 'hasMany') {
-                            var children = get(model, name);
-                            var lazyChildren = Ep.ModelSet.create();
-                            lazyChildren.addObjects(children);
-                            children.clear();
-                            lazyChildren.forEach(function (child) {
-                                child = models.getModel(child) || child;
-                                children.addObject(child);
-                            });
-                        }
-                    }, this);
-                }, this);
-            },
-            ajax: function (url, type, hash) {
-                var adapter = this;
-                return new Ember.RSVP.Promise(function (resolve, reject) {
-                    hash = hash || {};
-                    hash.url = url;
-                    hash.type = type;
-                    hash.dataType = 'json';
-                    hash.context = adapter;
-                    if (hash.data && type !== 'GET') {
-                        hash.contentType = 'application/json; charset=utf-8';
-                        if (typeof hash.data !== 'string') {
-                            hash.data = JSON.stringify(hash.data);
-                        }
-                    }
-                    if (adapter.headers !== undefined) {
-                        var headers = adapter.headers;
-                        hash.beforeSend = function (xhr) {
-                            forEach.call(Ember.keys(headers), function (key) {
-                                xhr.setRequestHeader(key, headers[key]);
-                            });
-                        };
-                    }
-                    hash.success = function (json) {
-                        Ember.run(null, resolve, json);
-                    };
-                    hash.error = function (jqXHR, textStatus, errorThrown) {
-                        if (jqXHR) {
-                            jqXHR.then = null;
-                        }
-                        Ember.run(null, reject, jqXHR);
-                    };
-                    Ember.$.ajax(hash);
-                });
-            },
-            url: '',
-            rootForType: function (type) {
-                var serializer = this.serializerFor(type);
-                return serializer.rootForType(type);
-            },
-            pluralize: function (string) {
-                var serializer = get(this, 'serializer');
-                return serializer.pluralize(string);
-            },
-            buildURL: function (record, suffix) {
-                var url = [this.url];
-                Ember.assert('Namespace URL (' + this.namespace + ') must not start with slash', !this.namespace || this.namespace.toString().charAt(0) !== '/');
-                Ember.assert('Record URL (' + record + ') must not start with slash', !record || record.toString().charAt(0) !== '/');
-                Ember.assert('URL suffix (' + suffix + ') must not start with slash', !suffix || suffix.toString().charAt(0) !== '/');
-                if (!Ember.isNone(this.namespace)) {
-                    url.push(this.namespace);
-                }
-                url.push(this.pluralize(record));
-                if (suffix !== undefined) {
-                    url.push(suffix);
-                }
-                return url.join('/');
-            }
-        });
-    });
-    require.define('/lib/rest/rest_errors.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.RestErrors = Ep.Errors.extend({
-            status: null,
-            xhr: null,
-            copy: function () {
-                return Ep.RestErrors.create({
-                    content: Ember.copy(this.content),
-                    status: this.status,
-                    xhr: this.xhr
-                });
-            }
-        });
-    });
-    require.define('/lib/rest/operation_graph.js', function (module, exports, __dirname, __filename) {
-        require('/lib/rest/operation.js', module);
-        var get = Ember.get, set = Ember.set;
-        Ep.OperationGraph = Ember.Object.extend({
-            models: null,
-            shadows: null,
-            rootOps: null,
-            adapter: null,
-            init: function () {
-                var graph = this;
-                this.ops = Ember.MapWithDefault.create({
-                    defaultValue: function (model) {
-                        return Ep.Operation.create({
-                            model: model,
-                            graph: graph,
-                            adapter: get(graph, 'adapter')
-                        });
-                    }
-                });
-                this.rootOps = Ember.Set.create();
-                this.build();
-            },
-            perform: function () {
-                return this.createPromise();
-            },
-            build: function () {
-                var adapter = get(this, 'adapter');
-                var serializer = get(adapter, 'serializer');
-                var models = get(this, 'models');
-                var shadows = get(this, 'shadows');
-                var rootOps = get(this, 'rootOps');
-                var ops = get(this, 'ops');
-                models.forEach(function (model) {
-                    if (!get(model, 'isLoaded')) {
-                        return;
-                    }
-                    var shadow = shadows.getModel(model);
-                    Ember.assert('Shadow does not exist for non-new model', shadow || get(model, 'isNew'));
-                    var op = ops.get(model);
-                    set(op, 'shadow', shadow);
-                    var isEmbedded = adapter.isEmbedded(model);
-                    if (get(op, 'isDirty') && isEmbedded) {
-                        var rootModel = adapter.findEmbeddedRoot(model, models);
-                        var rootOp = this.getOp(rootModel);
-                        set(rootOp, 'force', true);
-                        var parentModel = adapter._embeddedManager.findParent(model);
-                        var parentOp = this.getOp(parentModel);
-                        parentOp.addChild(op);
-                    }
-                    var rels = get(op, 'dirtyRelationships');
-                    for (var i = 0; i < rels.length; i++) {
-                        var d = rels[i];
-                        var name = d.name;
-                        var parentModel = model.get(name) || shadows.getModel(d.oldValue);
-                        var isEmbeddedRel = serializer.embeddedType(get(model, 'type'), name);
-                        if (parentModel && !isEmbeddedRel) {
-                            var parentOp = this.getOp(parentModel);
-                            parentOp.addChild(op);
-                        }
-                    }
-                }, this);
-                ops.forEach(function (model, op) {
-                    if (get(op, 'isDirty') && get(op, 'isRoot')) {
-                        rootOps.add(op);
-                    }
-                }, this);
-            },
-            getOp: function (model) {
-                var models = get(this, 'models');
-                var materializedModel = models.getModel(model);
-                if (materializedModel)
-                    model = materializedModel;
-                return this.ops.get(model);
-            },
-            createPromise: function () {
-                var rootOps = get(this, 'rootOps'), adapter = get(this, 'adapter'), cumulative = [];
-                function createNestedPromise(op) {
-                    var promise = op.perform();
-                    promise = promise.then(function (model) {
-                        cumulative.push(model);
-                        return model;
-                    }, function (model) {
-                        cumulative.push(model);
-                        throw model;
-                    });
-                    if (op.children.length > 0) {
-                        promise = promise.then(function (model) {
-                            var childPromises = op.children.map(createNestedPromise);
-                            return Ember.RSVP.all(childPromises).then(function (models) {
-                                adapter.rebuildRelationships(models, model);
-                                return model;
-                            });
-                        });
-                    }
-                    return promise;
-                }
-                return Ember.RSVP.all(rootOps.map(createNestedPromise)).then(function () {
-                    return cumulative;
-                }, function (err) {
-                    throw cumulative;
-                });
-            },
-            toStringExtension: function () {
-                var result = '';
-                var rootOps = get(this, 'rootOps');
-                rootOps.forEach(function (op) {
-                    result += '\n' + op.toString(1);
-                });
-                return result + '\n';
-            }
-        });
-    });
-    require.define('/lib/rest/operation.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.Operation = Ember.Object.extend({
-            model: null,
-            shadow: null,
-            adapter: null,
-            _promise: null,
-            force: false,
-            init: function () {
-                this.children = Ember.Set.create();
-                this.parents = Ember.Set.create();
-            },
-            dirtyRelationships: Ember.computed(function () {
-                var adapter = get(this, 'adapter'), model = get(this, 'model'), rels = [], shadow = get(this, 'shadow');
-                if (get(model, 'isNew')) {
-                    model.eachRelationship(function (name, relationship) {
-                        if (adapter.isRelationshipOwner(relationship)) {
-                            rels.push({
-                                name: name,
-                                type: relationship.kind,
-                                relationship: relationship,
-                                oldValue: null
-                            });
-                        }
-                    }, this);
-                } else {
-                    var diff = model.diff(shadow);
-                    for (var i = 0; i < diff.length; i++) {
-                        var d = diff[i];
-                        if (d.relationship && adapter.isRelationshipOwner(d.relationship)) {
-                            rels.push(d);
-                        }
-                    }
-                }
-                return rels;
-            }),
-            isDirty: Ember.computed(function () {
-                return !!get(this, 'dirtyType');
-            }),
-            isDirtyFromUpdates: Ember.computed(function () {
-                var model = get(this, 'model'), shadow = get(this, 'shadow'), adapter = get(this, 'adapter');
-                var diff = model.diff(shadow);
-                var dirty = false;
-                var relDiff = [];
-                for (var i = 0; i < diff.length; i++) {
-                    var d = diff[i];
-                    if (d.type == 'attr') {
-                        dirty = true;
-                    } else {
-                        relDiff.push(d);
-                    }
-                }
-                return dirty || adapter.isDirtyFromRelationships(model, shadow, relDiff);
-            }),
-            dirtyType: Ember.computed(function () {
-                var model = get(this, 'model');
-                if (get(model, 'isNew')) {
-                    return 'created';
-                } else if (get(model, 'isDeleted')) {
-                    return 'deleted';
-                } else if (get(this, 'isDirtyFromUpdates') || get(this, 'force')) {
-                    return 'updated';
-                }
-            }),
-            perform: function () {
-                if (this._promise)
-                    return this._promise;
-                var adapter = get(this, 'adapter'), dirtyType = get(this, 'dirtyType'), model = get(this, 'model'), shadow = get(this, 'shadow'), promise;
-                if (!dirtyType || !adapter.shouldSave(model)) {
-                    if (adapter.isEmbedded(model)) {
-                        promise = this._promiseFromEmbeddedParent();
-                    } else {
-                        promise = Ember.RSVP.resolve();
-                    }
-                } else if (dirtyType === 'created') {
-                    promise = adapter.create(model);
-                } else if (dirtyType === 'updated') {
-                    promise = adapter.update(model);
-                } else if (dirtyType === 'deleted') {
-                    promise = adapter.deleteModel(model);
-                }
-                promise = promise.then(function (serverModel) {
-                    if (!get(model, 'id')) {
-                        set(model, 'id', get(serverModel, 'id'));
-                    }
-                    if (!serverModel) {
-                        serverModel = model;
-                    } else {
-                        if (get(serverModel, 'meta') && Ember.keys(serverModel).length == 1) {
-                            model.meta = serverModel.meta;
-                            serverModel = model;
-                        }
-                        if (!get(serverModel, 'clientRev')) {
-                            set(serverModel, 'clientRev', get(model, 'clientRev'));
-                        }
-                    }
-                    return serverModel;
-                }, function (serverModel) {
-                    if (shadow) {
-                        shadow.set('errors', serverModel.get('errors'));
-                        throw shadow;
-                    }
-                    throw serverModel;
-                });
-                return this._promise = promise;
-            },
-            _embeddedParent: Ember.computed(function () {
-                var model = get(this, 'model'), parentModel = get(this, 'adapter')._embeddedManager.findParent(model), graph = get(this, 'graph');
-                Ember.assert('Embedded parent does not exist!', parentModel);
-                return graph.getOp(parentModel);
-            }),
-            _promiseFromEmbeddedParent: function () {
-                var serializer = get(this, 'adapter.serializer');
-                var model = this.model;
-                function findInParent(parentModel) {
-                    var res = null;
-                    serializer.eachEmbeddedRecord(parentModel, function (child, embeddedType) {
-                        if (res)
-                            return;
-                        if (child.isEqual(model))
-                            res = child;
-                    });
-                    return res;
-                }
-                return get(this, '_embeddedParent').perform().then(function (parent) {
-                    return findInParent(parent);
-                }, function (parent) {
-                    throw findInParent(parent);
-                });
-            },
-            toStringExtension: function () {
-                return '( ' + get(this, 'dirtyType') + ' ' + get(this, 'model') + ' )';
-            },
-            addChild: function (child) {
-                this.children.add(child);
-                child.parents.add(this);
-            },
-            isRoot: Ember.computed(function () {
-                return this.parents.every(function (parent) {
-                    return !get(parent, 'isDirty') && get(parent, 'isRoot');
-                });
-            }).volatile()
-        });
-    });
-    require.define('/lib/rest/embedded_manager.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.EmbeddedManager = Ember.Object.extend({
-            adapter: null,
-            init: function () {
-                this._super.apply(this, arguments);
-                this._parentMap = {};
-                this._cachedIsEmbedded = Ember.Map.create();
-            },
-            updateParents: function (model) {
-                var type = get(model, 'type'), adapter = get(this, 'adapter'), serializer = adapter.serializerFor(type);
-                serializer.eachEmbeddedRecord(model, function (embedded, kind) {
-                    this._parentMap[get(embedded, 'clientId')] = model;
-                }, this);
-            },
-            findParent: function (model) {
-                var parent = this._parentMap[get(model, 'clientId')];
-                return parent;
-            },
-            isEmbedded: function (model) {
-                var type = get(model, 'type'), result = this._cachedIsEmbedded.get(type);
-                if (result !== undefined)
-                    return result;
-                var adapter = get(this, 'adapter'), result = false;
-                type.eachRelationship(function (name, relationship) {
-                    var parentType = relationship.type, serializer = adapter.serializerFor(parentType), inverse = type.inverseFor(relationship.key);
-                    if (!inverse)
-                        return;
-                    var config = serializer.configFor(inverse.name);
-                    result = result || config.embedded === 'always';
-                }, this);
-                this._cachedIsEmbedded.set(type, result);
-                return result;
-            }
-        });
-    });
-    require.define('/lib/adapter.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set, merge = Ember.merge;
-        function mustImplement(name) {
-            return function () {
-                throw new Ember.Error('Your adapter ' + this.toString() + ' does not implement the required method ' + name);
-            };
-        }
-        var uuid = 1;
-        Ep.Adapter = Ember.Object.extend({
-            mergedProperties: ['configs'],
-            init: function () {
-                this._super.apply(this, arguments);
-                this.configs = {};
-                this.idMaps = Ember.MapWithDefault.create({
-                    defaultValue: function (type) {
-                        return Ember.Map.create();
-                    }
-                });
-            },
-            configFor: function (type) {
-                var configs = get(this, 'configs'), typeKey = get(type, 'typeKey');
-                return configs[typeKey] || {};
-            },
-            newSession: function () {
-                var Session = this.container.lookupFactory('session:base');
-                session = Session.create({ adapter: this });
-                return session;
-            },
-            serializerFor: function (type) {
-                return this.container.lookup('serializer:' + type.typeKey) || this.container.lookup('serializer:main');
-            },
-            load: mustImplement('load'),
-            query: mustImplement('find'),
-            refresh: mustImplement('refresh'),
-            flush: mustImplement('flush'),
-            remoteCall: mustImplement('remoteCall'),
-            isDirtyFromRelationships: function (model, cached, relDiff) {
-                return relDiff.length > 0;
-            },
-            shouldSave: function (model) {
-                return true;
-            },
-            reifyClientId: function (model) {
-                var id = get(model, 'id'), clientId = get(model, 'clientId'), type = get(model, 'type'), idMap = this.idMaps.get(type);
-                if (id && clientId) {
-                    var existingClientId = idMap.get(id);
-                    Ember.assert('clientId has changed for ' + model.toString(), !existingClientId || existingClientId === clientId);
-                    if (!existingClientId) {
-                        idMap.set(id, clientId);
-                    }
-                } else if (!clientId) {
-                    if (id) {
-                        clientId = idMap.get(id);
-                    }
-                    if (!clientId) {
-                        clientId = this._generateClientId(type);
-                    }
-                    set(model, 'clientId', clientId);
-                    idMap.set(id, clientId);
-                }
-                return clientId;
-            },
-            getClientId: function (type, id) {
-                var idMap = this.idMaps.get(type);
-                return idMap.get(id);
-            },
-            _generateClientId: function (type) {
-                return get(type, 'typeKey') + uuid++;
-            }
-        });
-    });
-    require.define('/lib/local/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/local/local_adapter.js', module);
-    });
-    require.define('/lib/local/local_adapter.js', function (module, exports, __dirname, __filename) {
-        require('/lib/adapter.js', module);
-        var get = Ember.get, set = Ember.set;
-        Ep.LocalAdapter = Ep.Adapter.extend({
-            serializer: Ep.Serializer.create(),
-            load: function (type, id) {
-                return Ember.RSVP.resolve(null);
-            },
-            refresh: function (model) {
-                return Ember.RSVP.resolve(model.copy());
-            },
-            flush: function (session) {
-                var models = get(session, 'dirtyModels');
-                return Ember.RSVP.resolve(models.copy(true));
-            }
-        });
-    });
-    require.define('/lib/transforms/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/transforms/base.js', module);
-        require('/lib/transforms/boolean.js', module);
-        require('/lib/transforms/date.js', module);
-        require('/lib/transforms/number.js', module);
-        require('/lib/transforms/string.js', module);
-    });
-    require.define('/lib/transforms/string.js', function (module, exports, __dirname, __filename) {
-        var none = Ember.isNone, empty = Ember.isEmpty;
-        Ep.StringTransform = Ep.Transform.extend({
-            deserialize: function (serialized) {
-                return none(serialized) ? null : String(serialized);
-            },
-            serialize: function (deserialized) {
-                return none(deserialized) ? null : String(deserialized);
-            }
-        });
-    });
-    require.define('/lib/transforms/number.js', function (module, exports, __dirname, __filename) {
-        var empty = Ember.isEmpty;
-        Ep.NumberTransform = Ep.Transform.extend({
-            deserialize: function (serialized) {
-                return empty(serialized) ? null : Number(serialized);
-            },
-            serialize: function (deserialized) {
-                return empty(deserialized) ? null : Number(deserialized);
-            }
-        });
-    });
-    require.define('/lib/transforms/date.js', function (module, exports, __dirname, __filename) {
-        require('/lib/ext/date.js', module);
-        Ep.DateTransform = Ep.Transform.extend({
-            deserialize: function (serialized) {
-                var type = typeof serialized;
-                if (type === 'string') {
-                    return new Date(Ember.Date.parse(serialized));
-                } else if (type === 'number') {
-                    return new Date(serialized);
-                } else if (serialized === null || serialized === undefined) {
-                    return serialized;
-                } else {
-                    return null;
-                }
-            },
-            serialize: function (date) {
-                if (date instanceof Date) {
-                    var days = [
-                            'Sun',
-                            'Mon',
-                            'Tue',
-                            'Wed',
-                            'Thu',
-                            'Fri',
-                            'Sat'
-                        ];
-                    var months = [
-                            'Jan',
-                            'Feb',
-                            'Mar',
-                            'Apr',
-                            'May',
-                            'Jun',
-                            'Jul',
-                            'Aug',
-                            'Sep',
-                            'Oct',
-                            'Nov',
-                            'Dec'
-                        ];
-                    var pad = function (num) {
-                        return num < 10 ? '0' + num : '' + num;
-                    };
-                    var utcYear = date.getUTCFullYear(), utcMonth = date.getUTCMonth(), utcDayOfMonth = date.getUTCDate(), utcDay = date.getUTCDay(), utcHours = date.getUTCHours(), utcMinutes = date.getUTCMinutes(), utcSeconds = date.getUTCSeconds();
-                    var dayOfWeek = days[utcDay];
-                    var dayOfMonth = pad(utcDayOfMonth);
-                    var month = months[utcMonth];
-                    return dayOfWeek + ', ' + dayOfMonth + ' ' + month + ' ' + utcYear + ' ' + pad(utcHours) + ':' + pad(utcMinutes) + ':' + pad(utcSeconds) + ' GMT';
-                } else {
-                    return null;
-                }
-            }
-        });
-    });
-    require.define('/lib/ext/date.js', function (module, exports, __dirname, __filename) {
-        Ember.Date = Ember.Date || {};
-        var origParse = Date.parse, numericKeys = [
-                1,
-                4,
-                5,
-                6,
-                7,
-                10,
-                11
-            ];
-        Ember.Date.parse = function (date) {
-            var timestamp, struct, minutesOffset = 0;
-            if (struct = /^(\d{4}|[+\-]\d{6})(?:-(\d{2})(?:-(\d{2}))?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{3}))?)?(?:(Z)|([+\-])(\d{2})(?::(\d{2}))?)?)?$/.exec(date)) {
-                for (var i = 0, k; k = numericKeys[i]; ++i) {
-                    struct[k] = +struct[k] || 0;
-                }
-                struct[2] = (+struct[2] || 1) - 1;
-                struct[3] = +struct[3] || 1;
-                if (struct[8] !== 'Z' && struct[9] !== undefined) {
-                    minutesOffset = struct[10] * 60 + struct[11];
-                    if (struct[9] === '+') {
-                        minutesOffset = 0 - minutesOffset;
-                    }
-                }
-                timestamp = Date.UTC(struct[1], struct[2], struct[3], struct[4], struct[5] + minutesOffset, struct[6], struct[7]);
-            } else {
-                timestamp = origParse ? origParse(date) : NaN;
-            }
-            return timestamp;
-        };
-        if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Date) {
-            Date.parse = Ember.Date.parse;
-        }
-    });
-    require.define('/lib/transforms/boolean.js', function (module, exports, __dirname, __filename) {
-        Ep.BooleanTransform = Ep.Transform.extend({
-            deserialize: function (serialized) {
-                var type = typeof serialized;
-                if (type === 'boolean') {
-                    return serialized;
-                } else if (type === 'string') {
-                    return serialized.match(/^true$|^t$|^1$/i) !== null;
-                } else if (type === 'number') {
-                    return serialized === 1;
-                } else {
-                    return false;
-                }
-            },
-            serialize: function (deserialized) {
-                return Boolean(deserialized);
-            }
-        });
-    });
-    require.define('/lib/transforms/base.js', function (module, exports, __dirname, __filename) {
-        Ep.Transform = Ember.Object.extend({
-            serialize: Ember.required(),
-            deserialize: Ember.required()
-        });
-    });
-    require.define('/lib/session/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/session/session.js', module);
-        require('/lib/session/merge.js', module);
-        require('/lib/session/child_session.js', module);
-    });
-    require.define('/lib/session/child_session.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.ChildSession = Ep.Session.extend({
-            fetch: function (model) {
-                var res = this._super(model);
-                if (!res) {
-                    res = get(this, 'parent').fetch(model);
-                    if (res) {
-                        res = this.adopt(res.copy());
-                        res.eachRelationship(function (name, relationship) {
-                            if (relationship.kind === 'belongsTo') {
-                                var child = get(res, name);
-                                if (child) {
-                                    set(child, 'session', this);
-                                }
-                            }
-                        }, this);
-                    }
-                }
-                return res;
-            },
-            load: function (type, id) {
-                type = this.modelFor(type);
-                id = id.toString();
-                var cached = this.getForId(type, id);
-                if (cached && get(cached, 'isLoaded')) {
-                    return Ep.resolveModel(cached);
-                }
-                var parentModel = get(this, 'parent').getForId(type, id);
-                if (parentModel && get(parentModel, 'isLoaded')) {
-                    return Ep.resolveModel(this.merge(parentModel));
-                }
-                var session = this;
-                return Ep.resolveModel(this.parent.load(type, id).then(function (model) {
-                    return session.merge(model);
-                }, function (model) {
-                    throw session.merge(model);
-                }), type, id, session);
-            },
-            query: function (type, query) {
-                var session = this;
-                return this.parent.query(type, query).then(function (models) {
-                    return session.mergeModels(models);
-                });
-            },
-            refresh: function (model) {
-                var session = this;
-                return this.parent.refresh(model).then(function (refreshedModel) {
-                    return session.merge(refreshedModel);
-                }, function (refreshedModel) {
-                    throw session.merge(refreshedModel);
-                });
-            },
-            flush: function () {
-                var session = this, dirtyModels = get(this, 'dirtyModels'), shadows = get(this, 'shadows'), parent = this.parent;
-                var dirty = get(this, 'dirtyModels');
-                dirty.forEach(function (model) {
-                    parent.update(model);
-                });
-                var promise = parent.flush().then(function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        return res;
-                    }, function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        throw res;
-                    });
-                dirtyModels.forEach(function (model) {
-                    this.shadows.add(model.copy());
-                }, this);
-                return promise;
-            },
-            reifyClientId: function (model) {
-                return this.parent.reifyClientId(model);
-            },
-            getForId: function (type, id) {
-                var adapter = get(this.parent, 'adapter');
-                var clientId = adapter.getClientId(type, id);
-                return this.models.getForClientId(clientId);
-            },
-            remoteCall: function (context, name, params, method) {
-                var session = this;
-                function merge(model) {
-                    if (Ember.isArray(model)) {
-                        if (get(model, 'firstObject.isModel')) {
-                            return session.mergeModels(model);
-                        }
-                    } else if (model && get(model, 'isModel')) {
-                        return session.merge(model);
-                    }
-                    return model;
-                }
-                return this.parent.remoteCall.apply(this.parent, arguments).then(function (model) {
-                    return merge(model);
-                }, function (model) {
-                    throw merge(model);
-                });
-            }
-        });
-    });
-    require.define('/lib/session/merge.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.Session.reopen({
-            merge: function (model, strategy, visited) {
-                this.reifyClientId(model);
-                if (!visited)
-                    visited = new Ember.Set();
-                if (visited.contains(model)) {
-                    return this.getModel(model);
-                }
-                visited.add(model);
-                var detachedChildren = [];
-                model.eachChild(function (child) {
-                    if (get(child, 'isDetached')) {
-                        detachedChildren.push(child);
-                    }
-                }, this);
-                var merged;
-                if (get(model, 'hasErrors')) {
-                    merged = this._mergeError(model, strategy);
-                } else {
-                    merged = this._mergeSuccess(model, strategy);
-                }
-                if (model.meta) {
-                    merged.meta = model.meta;
-                }
-                for (var i = 0; i < detachedChildren.length; i++) {
-                    var child = detachedChildren[i];
-                    this.merge(child, strategy, visited);
-                }
-                return merged;
-            },
-            mergeModels: function (models) {
-                var merged = Ep.ModelArray.create({
-                        session: this,
-                        content: []
-                    });
-                merged.meta = models.meta;
-                var session = this;
-                models.forEach(function (model) {
-                    merged.pushObject(session.merge(model));
-                });
-                return merged;
-            },
-            _mergeSuccess: function (model, strategy) {
-                var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
-                if (existing && this._containsRev(existing, model)) {
-                    return existing;
-                }
-                var hasClientChanges = !existing || this._containsClientRev(model, existing);
-                if (hasClientChanges) {
-                    ancestor = shadows.getModel(model);
-                } else {
-                    ancestor = originals.getModel(model);
-                }
-                this.suspendDirtyChecking(function () {
-                    merged = this._mergeModel(existing, ancestor, model, strategy);
-                }, this);
-                if (hasClientChanges) {
-                    if (get(merged, 'isDeleted')) {
-                        this.remove(merged);
-                    } else {
-                        if (shadows.contains(model) && get(model, 'isLoaded')) {
-                            shadows.add(model);
-                        }
-                        originals.remove(model);
-                        if (!get(merged, 'isNew')) {
-                            newModels.remove(merged);
-                        }
-                    }
-                } else {
-                }
-                return merged;
-            },
-            _mergeError: function (model, strategy) {
-                var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
-                if (!existing) {
-                    Ember.assert('Errors returned for non-existant model: ' + model.toString(), model instanceof Ep.LoadError);
-                    return model;
-                }
-                ancestor = originals.getModel(model);
-                if (ancestor && !this._containsRev(existing, model)) {
-                    this.suspendDirtyChecking(function () {
-                        merged = this._mergeModel(existing, ancestor, model, strategy);
-                    }, this);
-                } else {
-                    merged = existing;
-                }
-                set(merged, 'errors', Ember.copy(get(model, 'errors')));
-                if (get(model, 'isLoaded')) {
-                    shadows.add(model);
-                    originals.remove(model);
-                }
-                return merged;
-            },
-            _mergeModel: function (dest, ancestor, model, strategy) {
-                if (!strategy)
-                    strategy = get(this, 'mergeStrategy').create({ session: this });
-                if (get(model, 'isPromise')) {
-                    return this._mergePromise(dest, ancestor, model, strategy);
-                }
-                var promise;
-                if (dest && get(dest, 'isPromise')) {
-                    promise = dest;
-                    dest = dest.content;
-                }
-                if (!dest) {
-                    if (get(model, 'isDetached')) {
-                        dest = model;
-                    } else {
-                        dest = model.copy();
-                    }
-                    this.adopt(dest);
-                    if (promise) {
-                        promise.resolve(dest);
-                    }
-                    return dest;
-                }
-                set(dest, 'id', get(model, 'id'));
-                set(dest, 'clientId', get(model, 'clientId'));
-                set(dest, 'rev', get(model, 'rev'));
-                set(dest, 'isDeleted', get(model, 'isDeleted'));
-                this.adopt(dest);
-                if (!ancestor) {
-                    ancestor = dest;
-                }
-                strategy.merge(dest, ancestor, model);
-                return dest;
-            },
-            _mergePromise: function (dest, ancestor, promise, strategy) {
-                var content = get(promise, 'content');
-                if (content) {
-                    return this._mergeModel(dest, ancestor, content, strategy);
-                }
-                if (!dest) {
-                    if (get(promise, 'isDetached')) {
-                        dest = promise;
-                    } else {
-                        dest = promise.lazyCopy();
-                    }
-                    this.adopt(dest);
-                }
-                return dest;
-            },
-            _containsRev: function (modelA, modelB) {
-                if (!get(modelA, 'rev'))
-                    return false;
-                if (!get(modelB, 'rev'))
-                    return false;
-                return get(modelA, 'rev') >= get(modelB, 'rev');
-            },
-            _containsClientRev: function (modelA, modelB) {
-                return get(modelA, 'clientRev') >= get(modelB, 'clientRev');
-            }
-        });
-    });
-    require.define('/lib/session/session.js', function (module, exports, __dirname, __filename) {
-        require('/lib/collections/model_array.js', module);
-        require('/lib/collections/model_set.js', module);
-        require('/lib/session/collection_manager.js', module);
-        require('/lib/session/belongs_to_manager.js', module);
-        require('/lib/model/index.js', module);
-        require('/lib/session/merge_strategies/index.js', module);
-        var get = Ember.get, set = Ember.set;
-        Ep.PromiseArray = Ember.ArrayProxy.extend(Ember.PromiseProxyMixin);
-        Ep.Session = Ember.Object.extend({
-            mergeStrategy: Ep.PerField,
-            _dirtyCheckingSuspended: false,
-            init: function () {
-                this._super.apply(this, arguments);
-                this.models = Ep.ModelSet.create();
-                this.collectionManager = Ep.CollectionManager.create();
-                this.belongsToManager = Ep.BelongsToManager.create();
-                this.shadows = Ep.ModelSet.create();
-                this.originals = Ep.ModelSet.create();
-                this.newModels = Ep.ModelSet.create();
-            },
-            create: function (type, hash) {
-                type = this.modelFor(type);
-                var model = type.create(hash || {});
-                model = this.add(model);
-                return model;
-            },
-            adopt: function (model) {
-                Ember.assert('Cannot adopt a model with a clientId!', get(model, 'clientId'));
-                Ember.assert('Models instances cannot be moved between sessions. Use `add` or `update` instead.', !get(model, 'session') || get(model, 'session') === this);
-                Ember.assert('An equivalent model already exists in the session!', !this.getModel(model) || this.getModel(model) === model);
-                set(model, 'session', this);
-                if (get(model, 'isNew')) {
-                    this.newModels.add(model);
-                }
-                if (!get(model, 'isProxy')) {
-                    this.models.add(model);
-                    model._registerRelationships();
-                }
-                return model;
-            },
-            add: function (model) {
-                this.reifyClientId(model);
-                var dest = this.fetch(model);
-                if (dest && get(dest, 'isLoaded'))
-                    return dest;
-                if (get(model, 'isProxy')) {
-                    var content = get(model, 'content');
-                    if (content) {
-                        return this.add(content);
-                    }
-                }
-                if (get(model, 'isNew') && get(model, 'isDetached')) {
-                    dest = model;
-                } else if (get(model, 'isNew')) {
-                    dest = model.copy();
-                } else {
-                    dest = model.lazyCopy();
-                }
-                return this.adopt(dest);
-            },
-            remove: function (model) {
-                get(this, 'models').remove(model);
-                get(this, 'shadows').remove(model);
-                get(this, 'originals').remove(model);
-            },
-            update: function (model) {
-                this.reifyClientId(model);
-                if (get(model, 'isProxy')) {
-                    var content = get(model, 'content');
-                    if (content) {
-                        return this.update(content);
-                    }
-                    throw new Ember.Error('Cannot update with an unloaded model: ' + model.toString());
-                }
-                var dest = this.fetch(model);
-                if (get(model, 'isNew') && !dest) {
-                    dest = get(model, 'type').create();
-                    set(dest, 'clientId', get(model, 'clientId'));
-                    this.adopt(dest);
-                }
-                if (get(model, 'isDetached') || !dest || !get(dest, 'isLoaded')) {
-                    return this.add(model);
-                }
-                if (get(model, 'isDeleted')) {
-                    if (!get(dest, 'isDeleted')) {
-                        this.deleteModel(dest);
-                    }
-                    return dest;
-                }
-                model.copyAttributes(dest);
-                model.copyMeta(dest);
-                model.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var child = get(model, name);
-                        if (child) {
-                            set(dest, name, child);
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var children = get(model, name);
-                        var destChildren = get(dest, name);
-                        children.copyTo(destChildren);
-                    }
-                }, this);
-                return dest;
-            },
-            deleteModel: function (model) {
-                if (get(model, 'isNew')) {
-                    var newModels = get(this, 'newModels');
-                    newModels.remove(model);
-                } else {
-                    this.modelWillBecomeDirty(model);
-                }
-                set(model, 'isDeleted', true);
-                this.collectionManager.modelWasDeleted(model);
-                this.belongsToManager.modelWasDeleted(model);
-            },
-            load: function (type, id) {
-                type = this.modelFor(type);
-                id = id.toString();
-                var cached = this.getForId(type, id);
-                if (cached && get(cached, 'isLoaded')) {
-                    return Ep.resolveModel(cached);
-                }
-                var session = this;
-                return Ep.resolveModel(this.adapter.load(type, id).then(function (model) {
-                    return session.merge(model);
-                }, function (model) {
-                    throw session.merge(model);
-                }), type, id, session);
-            },
-            find: function (type, query) {
-                if (Ember.typeOf(query) === 'object') {
-                    return this.query(type, query);
-                }
-                return this.load(type, query);
-            },
-            fetch: function (model) {
-                return this.getModel(model);
-            },
-            query: function (type, query) {
-                type = this.modelFor(type);
-                var session = this;
-                var prom = this.adapter.query(type, query).then(function (models) {
-                        return session.mergeModels(models);
-                    });
-                return Ep.PromiseArray.create({ promise: prom });
-            },
-            refresh: function (model) {
-                var session = this;
-                return this.adapter.refresh(model).then(function (refreshedModel) {
-                    return session.merge(refreshedModel);
-                }, function (refreshedModel) {
-                    throw session.merge(refreshedModel);
-                });
-            },
-            flush: function () {
-                var session = this, dirtyModels = get(this, 'dirtyModels'), newModels = get(this, 'newModels'), shadows = get(this, 'shadows');
-                dirtyModels.forEach(function (model) {
-                    model.incrementProperty('clientRev');
-                }, this);
-                var promise = this.adapter.flush(this).then(function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        return res;
-                    }, function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        throw res;
-                    });
-                dirtyModels.forEach(function (model) {
-                    var original = this.originals.getModel(model);
-                    var shadow = this.shadows.getModel(model);
-                    if (shadow && (!original || original.get('rev') < shadow.get('rev'))) {
-                        this.originals.add(shadow);
-                    }
-                    this.markClean(model);
-                }, this);
-                newModels.clear();
-                return promise;
-            },
-            getModel: function (model) {
-                return this.models.getModel(model);
-            },
-            getForId: function (type, id) {
-                var clientId = this.adapter.getClientId(type, id);
-                return this.models.getForClientId(clientId);
-            },
-            reifyClientId: function (model) {
-                this.adapter.reifyClientId(model);
-            },
-            remoteCall: function (context, name, params, opts) {
-                var session = this;
-                function merge(model) {
-                    if (Ember.isArray(model)) {
-                        if (get(model, 'firstObject.isModel')) {
-                            return session.mergeModels(model);
-                        }
-                    } else if (model && get(model, 'isModel')) {
-                        return session.merge(model);
-                    }
-                    return model;
-                }
-                return this.adapter.remoteCall.apply(this.adapter, arguments).then(function (model) {
-                    return merge(model);
-                }, function (model) {
-                    throw merge(model);
-                });
-            },
-            modelWillBecomeDirty: function (model) {
-                if (this._dirtyCheckingSuspended) {
-                    return;
-                }
-                this.touch(model);
-            },
-            destroy: function () {
-                this._super();
-                this.models.forEach(function (model) {
-                    model.destroy();
-                });
-                this.models.destroy();
-                this.collectionManager.destroy();
-                this.belongsToManager.destroy();
-                this.shadows.destroy();
-                this.originals.destroy();
-                this.newModels.destroy();
-            },
-            dirtyModels: Ember.computed(function () {
-                var models = Ep.ModelSet.fromArray(this.shadows.map(function (model) {
-                        return this.models.getModel(model);
-                    }, this));
-                get(this, 'newModels').forEach(function (model) {
-                    models.add(model);
-                });
-                return models;
-            }).property('shadows.[]', 'newModels.[]'),
-            suspendDirtyChecking: function (callback, binding) {
-                var self = this;
-                if (this._dirtyCheckingSuspended) {
-                    return callback.call(binding || self);
-                }
-                try {
-                    this._dirtyCheckingSuspended = true;
-                    return callback.call(binding || self);
-                } finally {
-                    this._dirtyCheckingSuspended = false;
-                }
-            },
-            newSession: function () {
-                var child = this.container.lookup('session:child');
-                set(child, 'parent', this);
-                return child;
-            },
-            modelFor: function (key) {
-                if (typeof key !== 'string') {
-                    return key;
-                }
-                var factory = this.container.lookupFactory('model:' + key);
-                Ember.assert('No model was found for \'' + key + '\'', factory);
-                factory.session = this;
-                factory.typeKey = key;
-                return factory;
-            },
-            getShadow: function (model) {
-                var shadows = get(this, 'shadows');
-                var models = get(this, 'models');
-                return shadows.getModel(model) || models.getModel(model);
-            },
-            markClean: function (model) {
-                this.shadows.remove(model);
-            },
-            touch: function (model) {
-                if (get(model, 'isNew')) {
-                    return;
-                }
-                var shadow = this.shadows.getModel(model);
-                if (!shadow) {
-                    this.shadows.addObject(model.copy());
-                }
-            },
-            isDirty: Ember.computed(function () {
-                return get(this, 'dirtyModels.length') > 0;
-            }).property('dirtyModels.length')
-        });
-    });
-    require.define('/lib/session/merge_strategies/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/session/merge_strategies/merge_strategy.js', module);
-        require('/lib/session/merge_strategies/theirs.js', module);
-        require('/lib/session/merge_strategies/per_field.js', module);
-    });
-    require.define('/lib/session/merge_strategies/per_field.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set, isEqual = Ember.isEqual;
-        Ep.PerField = Ep.MergeStrategy.extend({
-            init: function () {
-                this.cache = Ep.ModelSet.create();
-            },
-            merge: function (ours, ancestor, theirs) {
-                if (this.cache.contains(ours))
-                    return ours;
-                this.cache.addObject(theirs);
-                ours.beginPropertyChanges();
-                this.mergeAttributes(ours, ancestor, theirs);
-                this.mergeRelationships(ours, ancestor, theirs);
-                ours.endPropertyChanges();
-                return ours;
-            },
-            mergeAttributes: function (ours, ancestor, theirs) {
-                ours.eachAttribute(function (name, meta) {
-                    var oursValue = get(ours, name);
-                    var theirsValue = get(theirs, name);
-                    var originalValue = get(ancestor, name);
-                    if (oursValue === theirsValue)
-                        return;
-                    if (oursValue === originalValue) {
-                        set(ours, name, theirsValue);
-                    }
-                });
-            },
-            mergeRelationships: function (ours, ancestor, theirs) {
-                var session = get(this, 'session');
-                ours.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var oursValue = get(ours, name);
-                        var theirsValue = get(theirs, name);
-                        var originalValue = get(ancestor, name);
-                        if (isEqual(oursValue, originalValue)) {
-                            set(ours, name, theirsValue);
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var theirChildren = get(theirs, name);
-                        var ourChildren = get(ours, name);
-                        var originalChildren = get(ancestor, name);
-                        if (isEqual(ourChildren, originalChildren)) {
-                            var existing = Ep.ModelSet.create();
-                            existing.addObjects(ourChildren);
-                            theirChildren.forEach(function (model) {
-                                if (existing.contains(model)) {
-                                    existing.remove(model);
-                                } else {
-                                    ourChildren.pushObject(model);
-                                }
-                            }, this);
-                            ourChildren.removeObjects(existing);
-                        }
-                    }
-                }, this);
-            }
-        });
-    });
-    require.define('/lib/session/merge_strategies/theirs.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.Theirs = Ep.MergeStrategy.extend({
-            merge: function (dest, ancestor, model) {
-                dest.beginPropertyChanges();
-                this.copyAttributes(model, dest);
-                this.copyMeta(model, dest);
-                this.copyRelationships(model, dest);
-                dest.endPropertyChanges();
-                return dest;
-            },
-            copyAttributes: function (model, dest) {
-                model.eachAttribute(function (name, meta) {
-                    var left = get(model, name);
-                    var right = get(dest, name);
-                    if (left !== right)
-                        set(dest, name, left);
-                });
-            },
-            copyRelationships: function (model, dest) {
-                var session = get(this, 'session');
-                model.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var child = get(model, name);
-                        var destChild = get(dest, name);
-                        if (child) {
-                            set(dest, name, child);
-                        } else if (destChild) {
-                            set(dest, name, null);
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var children = get(model, name);
-                        var destChildren = get(dest, name);
-                        var modelSet = Ep.ModelSet.create();
-                        modelSet.pushObjects(destChildren);
-                        set(destChildren, 'meta', get(children, 'meta'));
-                        children.forEach(function (child) {
-                            if (modelSet.contains(child)) {
-                                modelSet.remove(child);
-                            } else {
-                                destChildren.addObject(child);
-                            }
-                        }, this);
-                        destChildren.removeObjects(modelSet);
-                    }
-                }, this);
-            }
-        });
-    });
-    require.define('/lib/session/merge_strategies/merge_strategy.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        function mustImplement(name) {
-            return function () {
-                throw new Ember.Error('Your merge strategy ' + this.toString() + ' does not implement the required method ' + name);
-            };
-        }
-        Ep.MergeStrategy = Ember.Object.extend({
-            session: null,
-            merge: mustImplement('merge')
-        });
-    });
     require.define('/lib/session/belongs_to_manager.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
         Ep.BelongsToManager = Ember.Object.extend({
@@ -4128,8 +4085,9 @@
     });
     require.define('/lib/initializers.js', function (module, exports, __dirname, __filename) {
         var set = Ember.set;
-        require('/lib/transforms/index.js', module);
+        require('/lib/serializers/index.js', module);
         require('/lib/debug/index.js', module);
+        require('/lib/id_manager.js', module);
         Ember.onLoad('Ember.Application', function (Application) {
             Application.initializer({
                 name: 'epf.container',
@@ -4139,14 +4097,16 @@
                     application.register('session:base', application.Session || Ep.Session, { singleton: false });
                     application.register('session:child', application.ChildSession || Ep.ChildSession, { singleton: false });
                     application.register('session:main', application.DefaultSession || Ep.Session);
-                    application.register('serializer:main', application.Serializer || Ep.RestSerializer);
+                    application.register('id_manager:main', Ep.IdManager);
                 }
             });
             Application.initializer({
                 name: 'epf.injections',
                 initialize: function (container, application) {
-                    application.inject('adapter', 'serializer', 'serializer:main');
                     application.inject('session', 'adapter', 'adapter:main');
+                    application.inject('serializer', 'idManager', 'id_manager:main');
+                    application.inject('session', 'idManager', 'id_manager:main');
+                    application.inject('adapter', 'idManager', 'id_manager:main');
                     application.inject('controller', 'adapter', 'adapter:main');
                     application.inject('controller', 'session', 'session:main');
                     application.inject('route', 'adapter', 'adapter:main');
@@ -4155,12 +4115,18 @@
                 }
             });
             Application.initializer({
-                name: 'epf.transforms',
+                name: 'epf.serializers',
                 initialize: function (container, application) {
-                    application.register('transform:boolean', Ep.BooleanTransform);
-                    application.register('transform:date', Ep.DateTransform);
-                    application.register('transform:number', Ep.NumberTransform);
-                    application.register('transform:string', Ep.StringTransform);
+                    application.register('serializer:belongs_to', Ep.BelongsToSerializer);
+                    application.register('serializer:boolean', Ep.BooleanSerializer);
+                    application.register('serializer:date', Ep.DateSerializer);
+                    application.register('serializer:has_many', Ep.HasManySerializer);
+                    application.register('serializer:id', Ep.IdSerializer);
+                    application.register('serializer:number', Ep.NumberSerializer);
+                    application.register('serializer:model', Ep.ModelSerializer);
+                    application.register('serializer:payload', Ep.PayloadSerializer);
+                    application.register('serializer:revision', Ep.RevisionSerializer);
+                    application.register('serializer:string', Ep.StringSerializer);
                 }
             });
             Application.initializer({
@@ -4169,6 +4135,48 @@
                     application.register('dataAdapter:main', Ep.DebugAdapter);
                 }
             });
+        });
+    });
+    require.define('/lib/id_manager.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set, merge = Ember.merge;
+        var uuid = 1;
+        Ep.IdManager = Ember.Object.extend({
+            mergedProperties: ['configs'],
+            init: function () {
+                this._super.apply(this, arguments);
+                this.idMaps = Ember.MapWithDefault.create({
+                    defaultValue: function (type) {
+                        return Ember.Map.create();
+                    }
+                });
+            },
+            reifyClientId: function (model) {
+                var id = get(model, 'id'), clientId = get(model, 'clientId'), type = get(model, 'type'), idMap = this.idMaps.get(type);
+                if (id && clientId) {
+                    var existingClientId = idMap.get(id);
+                    Ember.assert('clientId has changed for ' + model.toString(), !existingClientId || existingClientId === clientId);
+                    if (!existingClientId) {
+                        idMap.set(id, clientId);
+                    }
+                } else if (!clientId) {
+                    if (id) {
+                        clientId = idMap.get(id);
+                    }
+                    if (!clientId) {
+                        clientId = this._generateClientId(type);
+                    }
+                    set(model, 'clientId', clientId);
+                    idMap.set(id, clientId);
+                }
+                return clientId;
+            },
+            getClientId: function (type, id) {
+                var idMap = this.idMaps.get(type);
+                return idMap.get(id);
+            },
+            _generateClientId: function (type) {
+                return get(type, 'typeKey') + uuid++;
+            }
         });
     });
     require.define('/lib/debug/index.js', function (module, exports, __dirname, __filename) {
