@@ -688,9 +688,10 @@
         });
     });
     require.define('/lib/rest/serializers/errors.js', function (module, exports, __dirname, __filename) {
+        var isEmpty = Ember.isEmpty;
         Ep.RestErrorsSerializer = Ep.Serializer.extend({
             deserialize: function (serialized) {
-                if (!serialized)
+                if (isEmpty(serialized) || isEmptyObject(serialized))
                     return;
                 return Ep.RestErrors.create({ content: serialized });
             },
@@ -698,6 +699,9 @@
                 throw new Ember.Error('Errors are not currently serialized down to the server.');
             }
         });
+        function isEmptyObject(obj) {
+            return Ember.keys(obj).length === 0;
+        }
     });
     require.define('/lib/rest/rest_errors.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;

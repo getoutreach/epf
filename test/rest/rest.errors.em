@@ -46,6 +46,19 @@ describe "rest", ->
           expect(post.errors.title).to.eq('title is too short')
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
+    it 'empty errors object should deserialize without errors', ->
+      adapter.r['PUT:/posts/1'] = ->
+        post: {id: 1, title: '', errors: {}}
+
+      session.merge @Post.create(id: "1", title: 'test')
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('test')
+        post.title = ''
+        session.flush().then null, ->
+          expect(post.hasErrors).to.be.false
+          expect(post.title).to.eq('')
+          expect(adapter.h).to.eql(['PUT:/posts/1'])
+
 
     it 'handles error on create', ->
       adapter.r['POST:/posts'] = ->
