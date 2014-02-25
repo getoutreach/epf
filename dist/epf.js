@@ -79,7 +79,6 @@
                     container: this.container
                 });
                 this._pendingOps = {};
-                this.container = this.setupContainer(this.container);
             },
             setupContainer: function (parent) {
                 var container = parent.child();
