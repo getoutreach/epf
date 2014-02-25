@@ -32,6 +32,20 @@ describe "rest", ->
           expect(post.errors.title).to.eq('title is too short')
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
+    it 'handles payload with error properties', ->
+      adapter.r['PUT:/posts/1'] = ->
+        throw status: 422, responseText: JSON.stringify(post: {id: 1, title: 'test', errors: {title: 'title is too short'}})
+
+      session.merge @Post.create(id: "1", title: 'test')
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('test')
+        post.title = ''
+        session.flush().then null, ->
+          expect(post.hasErrors).to.be.true
+          expect(post.title).to.eq('')
+          expect(post.errors.title).to.eq('title is too short')
+          expect(adapter.h).to.eql(['PUT:/posts/1'])
+
 
     it 'handles error on create', ->
       adapter.r['POST:/posts'] = ->

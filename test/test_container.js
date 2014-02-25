@@ -25,7 +25,6 @@ function TestContainer() {
   this.register('serializer:id', Ep.IdSerializer);
   this.register('serializer:number', Ep.NumberSerializer);
   this.register('serializer:model', Ep.ModelSerializer);
-  this.register('serializer:payload', Ep.PayloadSerializer);
   this.register('serializer:revision', Ep.RevisionSerializer);
   this.register('serializer:string', Ep.StringSerializer);
 }

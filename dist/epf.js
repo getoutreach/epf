@@ -68,7 +68,7 @@
         require('/lib/rest/embedded_manager.js', module);
         require('/lib/rest/operation_graph.js', module);
         require('/lib/rest/rest_errors.js', module);
-        require('/lib/rest/model_serializer.js', module);
+        require('/lib/rest/serializers/index.js', module);
         var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
         var EmbeddedHelpersMixin = require('/lib/rest/embedded_helpers_mixin.js', module);
         Ep.RestAdapter = Ep.Adapter.extend(EmbeddedHelpersMixin, {
@@ -83,6 +83,8 @@
             setupContainer: function (parent) {
                 var container = parent.child();
                 container.register('serializer:model', Ep.RestSerializer);
+                container.register('serializer:errors', Ep.RestErrorsSerializer);
+                container.register('serializer:payload', Ep.PayloadSerializer);
                 return container;
             },
             load: function (type, id) {
@@ -253,18 +255,29 @@
                 }, this);
                 this._embeddedManager.updateParents(model);
             },
-            didError: function (xhr, model) {
-                var errors;
-                if (xhr.status === 422) {
-                    var json = JSON.parse(xhr.responseText), serializer = this.serializerForModel(model), validationErrors = this.extractValidationErrors(get(model, 'type'), json);
-                    errors = Ep.RestErrors.create({ content: validationErrors });
+            didError: function (xhr, targetModel) {
+                var data;
+                if (xhr.responseText) {
+                    data = JSON.parse(xhr.responseText);
                 } else {
-                    errors = Ep.RestErrors.create();
+                    data = {};
                 }
+                var result = null;
+                var payload = this.processData(data, function (model) {
+                        if (targetModel && model.isEqual(targetModel)) {
+                            result = model;
+                        }
+                    });
+                if (result) {
+                    set(result, 'meta', payload.meta);
+                    throw result;
+                }
+                ;
+                var errors = payload.errors || Ep.RestErrors.create();
                 set(errors, 'status', xhr.status);
                 set(errors, 'xhr', xhr);
-                set(model, 'errors', errors);
-                throw model;
+                set(targetModel, 'errors', errors);
+                throw targetModel;
             },
             flush: function (session) {
                 var models = get(session, 'dirtyModels').copy(true);
@@ -582,7 +595,84 @@
             }
         });
     });
-    require.define('/lib/rest/model_serializer.js', function (module, exports, __dirname, __filename) {
+    require.define('/lib/rest/serializers/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/rest/serializers/errors.js', module);
+        require('/lib/rest/serializers/model.js', module);
+        require('/lib/rest/serializers/payload.js', module);
+    });
+    require.define('/lib/rest/serializers/payload.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        Ep.PayloadSerializer = Ep.Serializer.extend({
+            mergedProperties: ['aliases'],
+            aliases: {},
+            metaKey: 'meta',
+            errorsKey: 'errors',
+            singularize: function (name) {
+                return Ember.String.singularize(name);
+            },
+            typeKeyFor: function (name) {
+                var singular = this.singularize(name), aliases = get(this, 'aliases'), alias = aliases[name];
+                return alias || singular;
+            },
+            rootForTypeKey: function (typeKey) {
+                return typeKey;
+            },
+            serialize: function (model) {
+                var root = this.rootForTypeKey(model.typeKey), res = {}, serializer = this.serializerFor(model.typeKey);
+                res[root] = serializer.serialize(model);
+            },
+            deserialize: function (hash, opts) {
+                var result = Ep.ModelSet.create(), metaKey = get(this, 'metaKey'), errorsKey = get(this, 'errorsKey');
+                for (var prop in hash) {
+                    if (!hash.hasOwnProperty(prop)) {
+                        continue;
+                    }
+                    if (prop === metaKey) {
+                        result.meta = hash[prop];
+                        continue;
+                    }
+                    var value = hash[prop];
+                    if (prop === errorsKey) {
+                        var serializer = this.serializerFor('errors'), errors = serializer.deserialize(value);
+                        result.errors = errors;
+                        continue;
+                    }
+                    var typeKey = this.typeKeyFor(prop), serializer = this.serializerFor(typeKey);
+                    if (value instanceof Array) {
+                        for (var i = 0; i < value.length; i++) {
+                            result.push(serializer.deserialize(value[i]));
+                        }
+                    } else {
+                        result.push(serializer.deserialize(value));
+                    }
+                }
+                return result;
+            },
+            materializeRelationships: function (models) {
+                models.forEach(function (model) {
+                    model.eachRelationship(function (name, relationship) {
+                        if (relationship.kind === 'belongsTo') {
+                            var child = get(model, name);
+                            if (child) {
+                                child = models.getModel(child) || child;
+                                set(model, name, child);
+                            }
+                        } else if (relationship.kind === 'hasMany') {
+                            var children = get(model, name);
+                            var lazyChildren = Ep.ModelSet.create();
+                            lazyChildren.addObjects(children);
+                            children.clear();
+                            lazyChildren.forEach(function (child) {
+                                child = models.getModel(child) || child;
+                                children.addObject(child);
+                            });
+                        }
+                    }, this);
+                }, this);
+            }
+        });
+    });
+    require.define('/lib/rest/serializers/model.js', function (module, exports, __dirname, __filename) {
         Ep.RestSerializer = Ep.ModelSerializer.extend({
             keyForType: function (name, type, opts) {
                 var key = this._super(name, type);
@@ -594,6 +684,18 @@
                     }
                 }
                 return key;
+            }
+        });
+    });
+    require.define('/lib/rest/serializers/errors.js', function (module, exports, __dirname, __filename) {
+        Ep.RestErrorsSerializer = Ep.Serializer.extend({
+            deserialize: function (serialized) {
+                if (!serialized)
+                    return;
+                return Ep.RestErrors.create({ content: serialized });
+            },
+            serialize: function (id) {
+                throw new Ember.Error('Errors are not currently serialized down to the server.');
             }
         });
     });
@@ -982,73 +1084,6 @@
         require('/lib/serializers/id.js', module);
         require('/lib/serializers/has_many.js', module);
         require('/lib/serializers/belongs_to.js', module);
-        require('/lib/serializers/payload.js', module);
-    });
-    require.define('/lib/serializers/payload.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.PayloadSerializer = Ep.Serializer.extend({
-            mergedProperties: ['aliases'],
-            aliases: {},
-            metaKey: 'meta',
-            singularize: function (name) {
-                return Ember.String.singularize(name);
-            },
-            typeKeyFor: function (name) {
-                var singular = this.singularize(name), aliases = get(this, 'aliases'), alias = aliases[name];
-                return alias || singular;
-            },
-            rootForTypeKey: function (typeKey) {
-                return typeKey;
-            },
-            serialize: function (model) {
-                var root = this.rootForTypeKey(model.typeKey), res = {}, serializer = this.serializerFor(model.typeKey);
-                res[root] = serializer.serialize;
-            },
-            deserialize: function (hash, opts) {
-                var result = Ep.ModelSet.create(), metaKey = get(this, 'metaKey');
-                for (var prop in hash) {
-                    if (!hash.hasOwnProperty(prop)) {
-                        continue;
-                    }
-                    if (prop === metaKey) {
-                        result.meta = hash[prop];
-                        continue;
-                    }
-                    var typeKey = this.typeKeyFor(prop), serializer = this.serializerFor(typeKey);
-                    var value = hash[prop];
-                    if (value instanceof Array) {
-                        for (var i = 0; i < value.length; i++) {
-                            result.push(serializer.deserialize(value[i]));
-                        }
-                    } else {
-                        result.push(serializer.deserialize(value));
-                    }
-                }
-                return result;
-            },
-            materializeRelationships: function (models) {
-                models.forEach(function (model) {
-                    model.eachRelationship(function (name, relationship) {
-                        if (relationship.kind === 'belongsTo') {
-                            var child = get(model, name);
-                            if (child) {
-                                child = models.getModel(child) || child;
-                                set(model, name, child);
-                            }
-                        } else if (relationship.kind === 'hasMany') {
-                            var children = get(model, name);
-                            var lazyChildren = Ep.ModelSet.create();
-                            lazyChildren.addObjects(children);
-                            children.clear();
-                            lazyChildren.forEach(function (child) {
-                                child = models.getModel(child) || child;
-                                children.addObject(child);
-                            });
-                        }
-                    }, this);
-                }, this);
-            }
-        });
     });
     require.define('/lib/serializers/belongs_to.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
@@ -1130,7 +1165,6 @@
         });
     });
     require.define('/lib/serializers/id.js', function (module, exports, __dirname, __filename) {
-        var none = Ember.isNone, empty = Ember.isEmpty;
         Ep.IdSerializer = Ep.Serializer.extend({
             deserialize: function (serialized) {
                 return serialized + '';
@@ -1243,6 +1277,7 @@
                 this.extractProperty(model, hash, 'clientId', 'string');
                 this.extractProperty(model, hash, 'rev', 'revision');
                 this.extractProperty(model, hash, 'clientRev', 'revision');
+                this.extractProperty(model, hash, 'errors', 'errors');
                 this.idManager.reifyClientId(model);
             },
             extractAttributes: function (model, hash) {
@@ -4116,7 +4151,6 @@
                     application.register('serializer:id', Ep.IdSerializer);
                     application.register('serializer:number', Ep.NumberSerializer);
                     application.register('serializer:model', Ep.ModelSerializer);
-                    application.register('serializer:payload', Ep.PayloadSerializer);
                     application.register('serializer:revision', Ep.RevisionSerializer);
                     application.register('serializer:string', Ep.StringSerializer);
                 }

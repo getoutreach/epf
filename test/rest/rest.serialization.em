@@ -3,8 +3,7 @@ TestContainer = require('../test_container');
 describe 'rest serialization', ->
 
   beforeEach ->
-    @container = new TestContainer()
-    @adapter = @container.lookup('adapter:main')
+    require('./_shared').setupRest.apply(this)
     @serializer = @adapter.serializerFor('payload')
 
 

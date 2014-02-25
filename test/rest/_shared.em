@@ -34,3 +34,5 @@ exports.setupRest = ->
   # Can't use container since the adapter is non-singleton
   # and injecting into the main session duplicates
   @session = @adapter.newSession()
+
+  @container = @adapter.container
