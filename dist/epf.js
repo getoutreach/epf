@@ -57,6 +57,7 @@
         require('/lib/model/index.js', module);
         require('/lib/session/index.js', module);
         require('/lib/serializers/index.js', module);
+        require('/lib/merge_strategies/index.js', module);
         require('/lib/local/index.js', module);
         require('/lib/rest/index.js', module);
     });
@@ -1069,6 +1070,66 @@
             }
         });
     });
+    require.define('/lib/merge_strategies/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/merge_strategies/base.js', module);
+        require('/lib/merge_strategies/per_field.js', module);
+    });
+    require.define('/lib/merge_strategies/per_field.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set, isEqual = Ember.isEqual;
+        Ep.PerField = Ep.MergeStrategy.extend({
+            merge: function (ours, ancestor, theirs) {
+                ours.beginPropertyChanges();
+                this.mergeAttributes(ours, ancestor, theirs);
+                this.mergeRelationships(ours, ancestor, theirs);
+                ours.endPropertyChanges();
+                return ours;
+            },
+            mergeAttributes: function (ours, ancestor, theirs) {
+                ours.eachAttribute(function (name, meta) {
+                    var oursValue = get(ours, name);
+                    var theirsValue = get(theirs, name);
+                    var originalValue = get(ancestor, name);
+                    if (oursValue === theirsValue)
+                        return;
+                    if (oursValue === originalValue) {
+                        set(ours, name, theirsValue);
+                    }
+                });
+            },
+            mergeRelationships: function (ours, ancestor, theirs) {
+                var session = get(this, 'session');
+                ours.eachRelationship(function (name, relationship) {
+                    if (relationship.kind === 'belongsTo') {
+                        var oursValue = get(ours, name);
+                        var theirsValue = get(theirs, name);
+                        var originalValue = get(ancestor, name);
+                        if (isEqual(oursValue, originalValue)) {
+                            set(ours, name, theirsValue);
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var theirChildren = get(theirs, name);
+                        var ourChildren = get(ours, name);
+                        var originalChildren = get(ancestor, name);
+                        if (isEqual(ourChildren, originalChildren)) {
+                            var existing = Ep.ModelSet.create();
+                            existing.addObjects(ourChildren);
+                            theirChildren.forEach(function (model) {
+                                if (existing.contains(model)) {
+                                    existing.remove(model);
+                                } else {
+                                    ourChildren.pushObject(model);
+                                }
+                            }, this);
+                            ourChildren.removeObjects(existing);
+                        }
+                    }
+                }, this);
+            }
+        });
+    });
+    require.define('/lib/merge_strategies/base.js', function (module, exports, __dirname, __filename) {
+        Ep.MergeStrategy = Ember.Object.extend({ merge: Ember.required() });
+    });
     require.define('/lib/serializers/index.js', function (module, exports, __dirname, __filename) {
         require('/lib/serializers/base.js', module);
         require('/lib/serializers/boolean.js', module);
@@ -1573,7 +1634,19 @@
     require.define('/lib/session/merge.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
         Ep.Session.reopen({
-            merge: function (model, strategy, visited) {
+            mergeStrategyFor: function (typeKey) {
+                Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
+                var lookupKey = Ember.String.dasherize(typeKey);
+                var mergeStrategy = this.container.lookup('mergeStrategy:' + lookupKey);
+                if (!mergeStrategy) {
+                    var Strategy = this.container.lookupFactory('mergeStrategy:default');
+                    this.container.register('mergeStrategy:' + lookupKey, Strategy);
+                    mergeStrategy = this.container.lookup('mergeStrategy:' + lookupKey);
+                }
+                mergeStrategy.typeKey = typeKey;
+                return mergeStrategy;
+            },
+            merge: function (model, visited) {
                 this.reifyClientId(model);
                 if (!visited)
                     visited = new Ember.Set();
@@ -1589,16 +1662,16 @@
                 }, this);
                 var merged;
                 if (get(model, 'hasErrors')) {
-                    merged = this._mergeError(model, strategy);
+                    merged = this._mergeError(model);
                 } else {
-                    merged = this._mergeSuccess(model, strategy);
+                    merged = this._mergeSuccess(model);
                 }
                 if (model.meta) {
                     merged.meta = model.meta;
                 }
                 for (var i = 0; i < detachedChildren.length; i++) {
                     var child = detachedChildren[i];
-                    this.merge(child, strategy, visited);
+                    this.merge(child, visited);
                 }
                 return merged;
             },
@@ -1614,7 +1687,7 @@
                 });
                 return merged;
             },
-            _mergeSuccess: function (model, strategy) {
+            _mergeSuccess: function (model) {
                 var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
                 if (existing && this._containsRev(existing, model)) {
                     return existing;
@@ -1626,7 +1699,7 @@
                     ancestor = originals.getModel(model);
                 }
                 this.suspendDirtyChecking(function () {
-                    merged = this._mergeModel(existing, ancestor, model, strategy);
+                    merged = this._mergeModel(existing, ancestor, model);
                 }, this);
                 if (hasClientChanges) {
                     if (get(merged, 'isDeleted')) {
@@ -1644,7 +1717,7 @@
                 }
                 return merged;
             },
-            _mergeError: function (model, strategy) {
+            _mergeError: function (model) {
                 var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
                 if (!existing) {
                     Ember.assert('Errors returned for non-existant model: ' + model.toString(), model instanceof Ep.LoadError);
@@ -1653,7 +1726,7 @@
                 ancestor = originals.getModel(model);
                 if (ancestor && !this._containsRev(existing, model)) {
                     this.suspendDirtyChecking(function () {
-                        merged = this._mergeModel(existing, ancestor, model, strategy);
+                        merged = this._mergeModel(existing, ancestor, model);
                     }, this);
                 } else {
                     merged = existing;
@@ -1665,11 +1738,9 @@
                 }
                 return merged;
             },
-            _mergeModel: function (dest, ancestor, model, strategy) {
-                if (!strategy)
-                    strategy = get(this, 'mergeStrategy').create({ session: this });
+            _mergeModel: function (dest, ancestor, model) {
                 if (get(model, 'isPromise')) {
-                    return this._mergePromise(dest, ancestor, model, strategy);
+                    return this._mergePromise(dest, ancestor, model);
                 }
                 var promise;
                 if (dest && get(dest, 'isPromise')) {
@@ -1696,13 +1767,14 @@
                 if (!ancestor) {
                     ancestor = dest;
                 }
+                var strategy = this.mergeStrategyFor(get(model, 'type.typeKey'));
                 strategy.merge(dest, ancestor, model);
                 return dest;
             },
-            _mergePromise: function (dest, ancestor, promise, strategy) {
+            _mergePromise: function (dest, ancestor, promise) {
                 var content = get(promise, 'content');
                 if (content) {
-                    return this._mergeModel(dest, ancestor, content, strategy);
+                    return this._mergeModel(dest, ancestor, content);
                 }
                 if (!dest) {
                     if (get(promise, 'isDetached')) {
@@ -1732,11 +1804,9 @@
         require('/lib/session/collection_manager.js', module);
         require('/lib/session/belongs_to_manager.js', module);
         require('/lib/model/index.js', module);
-        require('/lib/session/merge_strategies/index.js', module);
         var get = Ember.get, set = Ember.set;
         Ep.PromiseArray = Ember.ArrayProxy.extend(Ember.PromiseProxyMixin);
         Ep.Session = Ember.Object.extend({
-            mergeStrategy: Ep.PerField,
             _dirtyCheckingSuspended: false,
             init: function () {
                 this._super.apply(this, arguments);
@@ -2009,131 +2079,6 @@
             isDirty: Ember.computed(function () {
                 return get(this, 'dirtyModels.length') > 0;
             }).property('dirtyModels.length')
-        });
-    });
-    require.define('/lib/session/merge_strategies/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/session/merge_strategies/merge_strategy.js', module);
-        require('/lib/session/merge_strategies/theirs.js', module);
-        require('/lib/session/merge_strategies/per_field.js', module);
-    });
-    require.define('/lib/session/merge_strategies/per_field.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set, isEqual = Ember.isEqual;
-        Ep.PerField = Ep.MergeStrategy.extend({
-            init: function () {
-                this.cache = Ep.ModelSet.create();
-            },
-            merge: function (ours, ancestor, theirs) {
-                if (this.cache.contains(ours))
-                    return ours;
-                this.cache.addObject(theirs);
-                ours.beginPropertyChanges();
-                this.mergeAttributes(ours, ancestor, theirs);
-                this.mergeRelationships(ours, ancestor, theirs);
-                ours.endPropertyChanges();
-                return ours;
-            },
-            mergeAttributes: function (ours, ancestor, theirs) {
-                ours.eachAttribute(function (name, meta) {
-                    var oursValue = get(ours, name);
-                    var theirsValue = get(theirs, name);
-                    var originalValue = get(ancestor, name);
-                    if (oursValue === theirsValue)
-                        return;
-                    if (oursValue === originalValue) {
-                        set(ours, name, theirsValue);
-                    }
-                });
-            },
-            mergeRelationships: function (ours, ancestor, theirs) {
-                var session = get(this, 'session');
-                ours.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var oursValue = get(ours, name);
-                        var theirsValue = get(theirs, name);
-                        var originalValue = get(ancestor, name);
-                        if (isEqual(oursValue, originalValue)) {
-                            set(ours, name, theirsValue);
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var theirChildren = get(theirs, name);
-                        var ourChildren = get(ours, name);
-                        var originalChildren = get(ancestor, name);
-                        if (isEqual(ourChildren, originalChildren)) {
-                            var existing = Ep.ModelSet.create();
-                            existing.addObjects(ourChildren);
-                            theirChildren.forEach(function (model) {
-                                if (existing.contains(model)) {
-                                    existing.remove(model);
-                                } else {
-                                    ourChildren.pushObject(model);
-                                }
-                            }, this);
-                            ourChildren.removeObjects(existing);
-                        }
-                    }
-                }, this);
-            }
-        });
-    });
-    require.define('/lib/session/merge_strategies/theirs.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        Ep.Theirs = Ep.MergeStrategy.extend({
-            merge: function (dest, ancestor, model) {
-                dest.beginPropertyChanges();
-                this.copyAttributes(model, dest);
-                this.copyMeta(model, dest);
-                this.copyRelationships(model, dest);
-                dest.endPropertyChanges();
-                return dest;
-            },
-            copyAttributes: function (model, dest) {
-                model.eachAttribute(function (name, meta) {
-                    var left = get(model, name);
-                    var right = get(dest, name);
-                    if (left !== right)
-                        set(dest, name, left);
-                });
-            },
-            copyRelationships: function (model, dest) {
-                var session = get(this, 'session');
-                model.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var child = get(model, name);
-                        var destChild = get(dest, name);
-                        if (child) {
-                            set(dest, name, child);
-                        } else if (destChild) {
-                            set(dest, name, null);
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var children = get(model, name);
-                        var destChildren = get(dest, name);
-                        var modelSet = Ep.ModelSet.create();
-                        modelSet.pushObjects(destChildren);
-                        set(destChildren, 'meta', get(children, 'meta'));
-                        children.forEach(function (child) {
-                            if (modelSet.contains(child)) {
-                                modelSet.remove(child);
-                            } else {
-                                destChildren.addObject(child);
-                            }
-                        }, this);
-                        destChildren.removeObjects(modelSet);
-                    }
-                }, this);
-            }
-        });
-    });
-    require.define('/lib/session/merge_strategies/merge_strategy.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set;
-        function mustImplement(name) {
-            return function () {
-                throw new Ember.Error('Your merge strategy ' + this.toString() + ' does not implement the required method ' + name);
-            };
-        }
-        Ep.MergeStrategy = Ember.Object.extend({
-            session: null,
-            merge: mustImplement('merge')
         });
     });
     require.define('/lib/model/index.js', function (module, exports, __dirname, __filename) {

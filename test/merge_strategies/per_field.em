@@ -1,4 +1,4 @@
-TestContainer = require('../../test_container')
+TestContainer = require('../test_container')
 
 describe 'Ep.PerField', ->
 
@@ -26,9 +26,6 @@ describe 'Ep.PerField', ->
     App.User.reopen
       name: Ep.attr('string')
       posts: Ep.hasMany(App.Post)
-
-    class Session extends Ep.Session
-      mergeStrategy: Ep.PerField
 
     @container.register 'model:post', @Post
 

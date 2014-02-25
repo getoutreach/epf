@@ -27,6 +27,9 @@ function TestContainer() {
   this.register('serializer:model', Ep.ModelSerializer);
   this.register('serializer:revision', Ep.RevisionSerializer);
   this.register('serializer:string', Ep.StringSerializer);
+
+  this.register('mergeStrategy:per-field', Ep.PerField);
+  this.register('mergeStrategy:default', Ep.PerField);
 }
 
 TestContainer.prototype = new Ember.Container();
