@@ -586,9 +586,9 @@
             keyForType: function (name, type, opts) {
                 var key = this._super(name, type);
                 if (!opts || !opts.embedded) {
-                    if (type === 'belongs_to') {
+                    if (type === 'belongsTo') {
                         return key + '_id';
-                    } else if (type === 'has_many') {
+                    } else if (type === 'hasMany') {
                         return Ember.String.singularize(key) + '_ids';
                     }
                 }
@@ -1215,11 +1215,7 @@
                             typeKey: relationship.typeKey,
                             embedded: config.embedded
                         };
-                    if (relationship.kind === 'belongsTo') {
-                        this.addProperty(serialized, model, name, 'belongs_to', opts);
-                    } else if (relationship.kind === 'hasMany') {
-                        this.addProperty(serialized, model, name, 'has_many', opts);
-                    }
+                    this.addProperty(serialized, model, name, relationship.kind, opts);
                 }, this);
             },
             addProperty: function (serialized, model, name, type, opts) {
@@ -1259,11 +1255,7 @@
                             typeKey: relationship.typeKey,
                             embedded: config.embedded
                         };
-                    if (relationship.kind === 'hasMany') {
-                        this.extractProperty(model, hash, name, 'has_many', opts);
-                    } else if (relationship.kind === 'belongsTo') {
-                        this.extractProperty(model, hash, name, 'belongs_to', opts);
-                    }
+                    this.extractProperty(model, hash, name, relationship.kind, opts);
                 }, this);
             },
             extractProperty: function (model, hash, name, type, opts) {
@@ -4096,16 +4088,16 @@
                     application.register('session:base', application.Session || Ep.Session, { singleton: false });
                     application.register('session:child', application.ChildSession || Ep.ChildSession, { singleton: false });
                     application.register('session:main', application.DefaultSession || Ep.Session);
-                    application.register('id_manager:main', Ep.IdManager);
+                    application.register('idManager:main', Ep.IdManager);
                 }
             });
             Application.initializer({
                 name: 'epf.injections',
                 initialize: function (container, application) {
                     application.inject('session', 'adapter', 'adapter:main');
-                    application.inject('serializer', 'idManager', 'id_manager:main');
-                    application.inject('session', 'idManager', 'id_manager:main');
-                    application.inject('adapter', 'idManager', 'id_manager:main');
+                    application.inject('serializer', 'idManager', 'idManager:main');
+                    application.inject('session', 'idManager', 'idManager:main');
+                    application.inject('adapter', 'idManager', 'idManager:main');
                     application.inject('controller', 'adapter', 'adapter:main');
                     application.inject('controller', 'session', 'session:main');
                     application.inject('route', 'adapter', 'adapter:main');
@@ -4116,10 +4108,10 @@
             Application.initializer({
                 name: 'epf.serializers',
                 initialize: function (container, application) {
-                    application.register('serializer:belongs_to', Ep.BelongsToSerializer);
+                    application.register('serializer:belongsTo', Ep.BelongsToSerializer);
                     application.register('serializer:boolean', Ep.BooleanSerializer);
                     application.register('serializer:date', Ep.DateSerializer);
-                    application.register('serializer:has_many', Ep.HasManySerializer);
+                    application.register('serializer:hasMany', Ep.HasManySerializer);
                     application.register('serializer:id', Ep.IdSerializer);
                     application.register('serializer:number', Ep.NumberSerializer);
                     application.register('serializer:model', Ep.ModelSerializer);

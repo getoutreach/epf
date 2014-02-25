@@ -1,4 +1,5 @@
-global.jQuery = require('jquery')
+global.jQuery = require('jquery');
+global.window = global.window || {};
 require('../vendor/ember-runtime');
 require('../lib/index');
 

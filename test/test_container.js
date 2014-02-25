@@ -5,12 +5,12 @@ function TestContainer() {
   this.register('session:base', Ep.Session, {singleton: false});
   this.register('session:child', Ep.ChildSession, {singleton: false});
   this.register('session:main', Ep.Session);
-  this.register('id_manager:main', Ep.IdManager);
+  this.register('idManager:main', Ep.IdManager);
 
   this.typeInjection('session', 'adapter', 'adapter:main');
-  this.typeInjection('serializer', 'idManager', 'id_manager:main');
-  this.typeInjection('session', 'idManager', 'id_manager:main');
-  this.typeInjection('adapter', 'idManager', 'id_manager:main');
+  this.typeInjection('serializer', 'idManager', 'idManager:main');
+  this.typeInjection('session', 'idManager', 'idManager:main');
+  this.typeInjection('adapter', 'idManager', 'idManager:main');
 
   this.typeInjection('controller', 'adapter', 'adapter:main');
   this.typeInjection('controller', 'session', 'session:main');
@@ -18,10 +18,10 @@ function TestContainer() {
   this.typeInjection('route', 'session', 'session:main');
   this.typeInjection('dataAdapter', 'session', 'session:main');
 
-  this.register('serializer:belongs_to', Ep.BelongsToSerializer);
+  this.register('serializer:belongsTo', Ep.BelongsToSerializer);
   this.register('serializer:boolean', Ep.BooleanSerializer);
   this.register('serializer:date', Ep.DateSerializer);
-  this.register('serializer:has_many', Ep.HasManySerializer);
+  this.register('serializer:hasMany', Ep.HasManySerializer);
   this.register('serializer:id', Ep.IdSerializer);
   this.register('serializer:number', Ep.NumberSerializer);
   this.register('serializer:model', Ep.ModelSerializer);
