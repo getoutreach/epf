@@ -4101,6 +4101,13 @@
                 }
             });
             Application.initializer({
+                name: 'epf.mergeStrategies',
+                initialize: function (container, application) {
+                    application.register('mergeStrategy:per-field', Ep.PerField);
+                    application.register('mergeStrategy:default', Ep.PerField);
+                }
+            });
+            Application.initializer({
                 name: 'dataAdapter',
                 initialize: function (container, application) {
                     application.register('dataAdapter:main', Ep.DebugAdapter);
