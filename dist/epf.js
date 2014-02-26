@@ -263,14 +263,14 @@
                     });
                 if (result) {
                     set(result, 'meta', payload.meta);
-                    throw result;
+                    return result;
                 }
                 ;
                 var errors = payload.errors || Ep.RestErrors.create();
                 set(errors, 'status', xhr.status);
                 set(errors, 'xhr', xhr);
                 set(targetModel, 'errors', errors);
-                throw targetModel;
+                return targetModel;
             },
             flush: function (session) {
                 var models = get(session, 'dirtyModels').copy(true);
@@ -920,7 +920,7 @@
                     }
                     return serverModel;
                 }, function (serverModel) {
-                    if (shadow) {
+                    if (shadow && serverModel === model) {
                         shadow.set('errors', serverModel.get('errors'));
                         throw shadow;
                     }
@@ -4119,7 +4119,6 @@
         var get = Ember.get, set = Ember.set, merge = Ember.merge;
         var uuid = 1;
         Ep.IdManager = Ember.Object.extend({
-            mergedProperties: ['configs'],
             init: function () {
                 this._super.apply(this, arguments);
                 this.idMaps = Ember.MapWithDefault.create({

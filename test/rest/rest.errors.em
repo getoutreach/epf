@@ -13,6 +13,7 @@ describe "rest", ->
     beforeEach ->
       class @Post extends Ep.Model
         title: Ep.attr('string')
+        category: Ep.attr('string')
       @App.Post = @Post
 
       @container.register 'model:post', @Post
@@ -43,6 +44,21 @@ describe "rest", ->
         session.flush().then null, ->
           expect(post.hasErrors).to.be.true
           expect(post.title).to.eq('')
+          expect(post.errors.title).to.eq('title is too short')
+          expect(adapter.h).to.eql(['PUT:/posts/1'])
+
+    it 'merges payload with error properties and higher rev', ->
+      adapter.r['PUT:/posts/1'] = ->
+        throw status: 422, responseText: JSON.stringify(post: {id: 1, title: '', category: 'new', rev: 10, errors: {title: 'title is too short'}})
+
+      session.merge @Post.create(id: "1", title: 'test')
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('test')
+        post.title = ''
+        session.flush().then null, ->
+          expect(post.hasErrors).to.be.true
+          expect(post.title).to.eq('')
+          expect(post.category).to.eq('new')
           expect(post.errors.title).to.eq('title is too short')
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
