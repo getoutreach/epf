@@ -64,7 +64,20 @@ describe "Ep.Session", ->
       parent = @adapter.newSession()
       child = parent.newSession()
 
-    it 'flushes update immediately', ->
+    it '.flushIntoParent flushes updates immediately', ->
+      parent.merge @Post.create(id: "1", title: 'original')
+
+      child.load('post', 1).then (childPost) ->
+
+        childPost.title = 'child version'
+
+        parent.load('post', 1).then (parentPost) ->
+          expect(parentPost.title).to.eq('original')
+          f = child.flushIntoParent()
+          expect(parentPost.title).to.eq('child version')
+          f
+
+    it '.flush waits for success before updating parent', ->
       parent.merge @Post.create(id: "1", title: 'original')
 
       child.load('post', 1).then (childPost) ->
@@ -74,8 +87,9 @@ describe "Ep.Session", ->
         parent.load('post', 1).then (parentPost) ->
           expect(parentPost.title).to.eq('original')
           f = child.flush()
-          expect(parentPost.title).to.eq('child version')
-          f
+          expect(parentPost.title).to.eq('original')
+          f.then ->
+            expect(parentPost.title).to.eq('child version')
 
     it 'does not mutate parent session relationships', ->
       post = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2')])

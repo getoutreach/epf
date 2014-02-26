@@ -59,14 +59,14 @@ describe "rest", ->
       user = childSession.create 'user', name: 'wes'
       group = null
       member = null
-      childSession.flush().then ->
+      childSession.flushIntoParent().then ->
         expect(user.id).to.not.be.null
         expect(adapter.h).to.eql(['POST:/users'])
         childSession = session.newSession()
         user = childSession.add(user)
         group = childSession.create 'group', name: 'brogrammers', user: user
         member = childSession.create 'member', role: 'chief', user: user, group: group
-        childSession.flush().then ->
+        childSession.flushIntoParent().then ->
           expect(adapter.h).to.eql(['POST:/users', 'POST:/groups'])
           expect(user.id).to.not.be.null
           expect(group.id).to.not.be.null
@@ -85,7 +85,7 @@ describe "rest", ->
           expect(user.groups.length).to.eq(1)
 
           adapter.r['PUT:/groups/2'] = -> groups: {client_id: group.clientId, id: "2", name: "brogrammers", members: [], user_id: "1"}
-          childSession.flush().then ->
+          childSession.flushIntoParent().then ->
             expect(member.get('isDeleted')).to.be.true
             expect(group.members.length).to.eq(0)
             expect(user.members.length).to.eq(0)
@@ -123,7 +123,7 @@ describe "rest", ->
         expect(group.members.length).to.eq(1)
 
         adapter.r['PUT:/groups/1'] = -> groups: {id: "1", name: "employees", members: [{id: "2", name: "kinz", group_id: "1"}, {id: 3, client_id: member.clientId, name: "mollie", group_id: "1"}]}
-        promise = childSession.flush().then ->
+        promise = childSession.flushIntoParent().then ->
           expect(childGroup.members.length).to.eq(2)
           expect(group.members.length).to.eq(2)
           expect(adapter.h).to.eql(['GET:/groups/1', 'PUT:/groups/1'])
@@ -165,7 +165,7 @@ describe "rest", ->
 
       expect(childPost.comments.length).to.eq(2)
 
-      promise = childSession.flush().then ->
+      promise = childSession.flushIntoParent().then ->
         expect(childPost.comments.length).to.eq(2)
         expect(post.comments.length).to.eq(2)
 
@@ -266,7 +266,7 @@ describe "rest", ->
       baz = childSession.create 'baz'
       foo.set 'bar', bar
       foo.set 'baz', baz
-      childSession.flush().then ->
+      childSession.flushIntoParent().then ->
         expect(adapter.h).to.eql ['POST:/bars', 'POST:/bazs', 'POST:/foos']
         expect(foo.id).to.not.be.null
         expect(bar.id).to.not.be.null

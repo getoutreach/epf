@@ -144,3 +144,11 @@ describe "Ep.Session", ->
         expect(session.isDirty).to.be.false
 
 
+  describe '.mergeData', ->
+
+    it 'should merge in data', ->
+      post = session.mergeData {id: "1", title: "easy peazy"}, 'post'
+      expect(post.title).to.eq('easy peazy')
+      expect(session.getModel(post)).to.eq(post)
+
+

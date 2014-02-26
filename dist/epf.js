@@ -72,7 +72,9 @@
         require('/lib/rest/serializers/index.js', module);
         var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
         var EmbeddedHelpersMixin = require('/lib/rest/embedded_helpers_mixin.js', module);
+        var materializeRelationships = require('/lib/utils/materialize_relationships.js', module);
         Ep.RestAdapter = Ep.Adapter.extend(EmbeddedHelpersMixin, {
+            defaultMergeType: 'payload',
             init: function () {
                 this._super.apply(this, arguments);
                 this._embeddedManager = Ep.EmbeddedManager.create({
@@ -88,63 +90,63 @@
                 container.register('serializer:payload', Ep.PayloadSerializer);
                 return container;
             },
-            load: function (type, id) {
+            load: function (type, id, session) {
                 var root = this.rootForType(type), adapter = this;
-                return this.ajax(this.buildURL(root, id), 'GET').then(function (json) {
-                    return adapter.didReceiveDataForLoad(json, type, id);
+                return this.ajax(this.buildURL(root, id), 'GET').then(function (data) {
+                    return adapter.didReceiveDataForLoad(data, type, id, session);
                 }, function (xhr) {
                     var model = Ep.LoadError.create({
                             id: id,
                             type: type
                         });
-                    throw adapter.didError(xhr, model);
+                    throw adapter.didError(xhr, model, session);
                 });
             },
-            refresh: function (model) {
+            refresh: function (model, session) {
                 var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this;
                 return this.ajax(this.buildURL(root, id), 'GET').then(function (json) {
-                    return adapter.didReceiveData(json, model);
+                    return adapter.didReceiveData(json, model, session);
                 }, function (xhr) {
-                    throw adapter.didError(xhr, model);
+                    throw adapter.didError(xhr, model, session);
                 });
             },
-            update: function (model) {
+            update: function (model, session) {
                 var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this, serializer = this.serializerForType(type);
                 var data = {};
                 data[root] = serializer.serialize(model);
                 return this.ajax(this.buildURL(root, id), 'PUT', { data: data }).then(function (json) {
-                    return adapter.didReceiveData(json, model);
+                    return adapter.didReceiveData(json, model, session);
                 }, function (xhr) {
-                    throw adapter.didError(xhr, model);
+                    throw adapter.didError(xhr, model, session);
                 });
             },
-            create: function (model) {
+            create: function (model, session) {
                 var type = get(model, 'type'), root = this.rootForType(type), adapter = this, serializer = this.serializerForType(type);
                 var data = {};
-                data[root] = serializer.serialize(model, { includeId: true });
+                data[root] = serializer.serialize(model);
                 return this.ajax(this.buildURL(root), 'POST', { data: data }).then(function (json) {
-                    return adapter.didReceiveData(json, model);
+                    return adapter.didReceiveData(json, model, session);
                 }, function (xhr) {
-                    throw adapter.didError(xhr, model);
+                    throw adapter.didError(xhr, model, session);
                 });
             },
-            deleteModel: function (model) {
+            deleteModel: function (model, session) {
                 var type = get(model, 'type'), root = this.rootForType(type), id = get(model, 'id'), adapter = this;
                 return this.ajax(this.buildURL(root, id), 'DELETE').then(function (json) {
-                    return adapter.didReceiveData(json, model);
+                    return adapter.didReceiveData(json, model, session);
                 }, function (xhr) {
-                    throw adapter.didError(xhr, model);
+                    throw adapter.didError(xhr, model, session);
                 });
             },
-            query: function (type, query) {
+            query: function (type, query, session) {
                 var root = this.rootForType(type), adapter = this;
                 return this.ajax(this.buildURL(root), 'GET', { data: query }).then(function (json) {
-                    return adapter.didReceiveDataForFind(json, type);
+                    return adapter.didReceiveDataForFind(json, type, session);
                 }, function (xhr) {
                     throw xhr;
                 });
             },
-            remoteCall: function (context, name, params, opts) {
+            remoteCall: function (context, name, params, opts, session) {
                 var adapter = this;
                 function normalizeContext(context) {
                     if (typeof context === 'string') {
@@ -179,76 +181,64 @@
                         return json;
                     }
                     var deserializationContext = opts.deserializationContext !== undefined ? normalizeContext(opts.deserializationContext) : context;
-                    return adapter.didReceiveDataForRpc(json, deserializationContext);
+                    return adapter.didReceiveDataForRpc(json, deserializationContext, session);
                 }, function (xhr) {
-                    throw adapter.didError(xhr, context);
+                    throw adapter.didError(xhr, context, session);
                 });
             },
             typeFor: function (typeName) {
                 return this.container.lookupFactory('model:' + typeName);
             },
-            didReceiveData: function (data, targetModel) {
+            didReceiveData: function (data, targetModel, session) {
                 var result = null;
-                var payload = this.processData(data, function (model) {
-                        if (targetModel && model.isEqual(targetModel)) {
-                            result = model;
-                        }
-                    });
+                var payload = this.mergeData(data, this.defaultMergeType, session);
+                payload.forEach(function (model) {
+                    if (targetModel && model.isEqual(targetModel)) {
+                        result = model;
+                    }
+                });
                 if (result) {
                     set(result, 'meta', payload.meta);
                 }
                 return result;
             },
-            didReceiveDataForLoad: function (data, type, id) {
+            didReceiveDataForLoad: function (data, type, id, session) {
                 var result = null;
-                var payload = this.processData(data, function (model) {
-                        if (model.hasType(type) && get(model, 'id') === id) {
-                            result = model;
-                        }
-                    });
+                var payload = this.mergeData(data, this.defaultMergeType, session);
+                payload.forEach(function (model) {
+                    if (model.hasType(type) && get(model, 'id') === id) {
+                        result = model;
+                    }
+                });
                 if (result) {
                     set(result, 'meta', payload.meta);
                 }
                 return result;
             },
-            didReceiveDataForFind: function (data, type) {
+            didReceiveDataForFind: function (data, type, session) {
                 var result = [];
-                var payload = this.processData(data, function (model) {
-                        if (model.hasType(type)) {
-                            result.pushObject(model);
-                        }
-                    });
+                var payload = this.mergeData(data, this.defaultMergeType, session);
+                payload.forEach(function (model) {
+                    if (model.hasType(type)) {
+                        result.pushObject(model);
+                    }
+                });
                 result = Ep.ModelArray.create({ content: result });
                 set(result, 'meta', payload.meta);
                 return result;
             },
-            didReceiveDataForRpc: function (data, context) {
+            didReceiveDataForRpc: function (data, context, session) {
                 if (!context) {
-                    return this.processData(data);
+                    return this.mergeData(data, this.defaultMergeType, session);
                 } else if (typeof context === 'function') {
-                    return this.didReceiveDataForFind(data, context);
+                    return this.didReceiveDataForFind(data, context, session);
                 }
-                return this.didReceiveData(data, context);
-            },
-            processData: function (data, callback, binding) {
-                var serializer = this.serializerFor('payload'), payload = serializer.deserialize(data);
-                payload.forEach(function (model) {
-                    this.willLoadModel(model);
-                }, this);
-                payload.forEach(function (model) {
-                    this.didLoadModel(model);
-                    if (callback)
-                        callback.call(binding || this, model);
-                }, this);
-                this.materializeRelationships(payload);
-                return payload;
-            },
-            willLoadModel: function (model) {
+                return this.didReceiveData(data, context, session);
             },
             didLoadModel: function (model) {
                 this._embeddedManager.updateParents(model);
             },
-            didError: function (xhr, targetModel) {
+            didError: function (xhr, targetModel, session) {
                 var data;
                 if (xhr.responseText) {
                     data = JSON.parse(xhr.responseText);
@@ -256,11 +246,12 @@
                     data = {};
                 }
                 var result = null;
-                var payload = this.processData(data, function (model) {
-                        if (targetModel && model.isEqual(targetModel)) {
-                            result = model;
-                        }
-                    });
+                var payload = this.mergeError(data, this.defaultMergeType, session);
+                payload.forEach(function (model) {
+                    if (targetModel && model.isEqual(targetModel)) {
+                        result = model;
+                    }
+                });
                 if (result) {
                     set(result, 'meta', payload.meta);
                     return result;
@@ -279,15 +270,16 @@
                     }));
                 this.dirtyEmbedded(models, shadows, session);
                 this.removeEmbeddedOrphans(models, shadows, session);
-                this.materializeRelationships(models);
+                materializeRelationships(models);
                 var op = Ep.OperationGraph.create({
                         models: models,
                         shadows: shadows,
-                        adapter: this
+                        adapter: this,
+                        session: session
                     });
-                return this._performFlush(op);
+                return this._performFlush(op, session);
             },
-            _performFlush: function (op) {
+            _performFlush: function (op, session) {
                 var models = get(op, 'models'), pending = Ember.Set.create();
                 models.forEach(function (model) {
                     var op = this._pendingOps[model.clientId];
@@ -297,7 +289,7 @@
                 var adapter = this;
                 if (get(pending, 'length') > 0) {
                     return Ember.RSVP.all(pending.toArray()).then(function () {
-                        return adapter._performFlush(op);
+                        return adapter._performFlush(op, session);
                     });
                 }
                 var promise = op.perform();
@@ -308,10 +300,16 @@
                     models.forEach(function (model) {
                         delete adapter._pendingOps[model.clientId];
                     });
+                    res.forEach(function (model) {
+                        session.merge(model);
+                    });
                     return res;
                 }, function (err) {
                     models.forEach(function (model) {
                         delete adapter._pendingOps[model.clientId];
+                    });
+                    err.forEach(function (model) {
+                        session.merge(model);
                     });
                     throw err;
                 });
@@ -415,31 +413,6 @@
                     this.eachEmbeddedRelative(parent, callback, binding, visited);
                 }
             },
-            materializeRelationships: function (models) {
-                if (!(models instanceof Ep.ModelSet)) {
-                    models = Ep.ModelSet.fromArray(models);
-                }
-                models.forEach(function (model) {
-                    model.eachRelationship(function (name, relationship) {
-                        if (relationship.kind === 'belongsTo') {
-                            var child = get(model, name);
-                            if (child) {
-                                child = models.getModel(child) || child;
-                                set(model, name, child);
-                            }
-                        } else if (relationship.kind === 'hasMany') {
-                            var children = get(model, name);
-                            var lazyChildren = Ep.ModelSet.create();
-                            lazyChildren.addObjects(children);
-                            children.clear();
-                            lazyChildren.forEach(function (child) {
-                                child = models.getModel(child) || child;
-                                children.addObject(child);
-                            });
-                        }
-                    }, this);
-                }, this);
-            },
             ajax: function (url, type, hash) {
                 var adapter = this;
                 return new Ember.RSVP.Promise(function (resolve, reject) {
@@ -510,6 +483,34 @@
                 return errors;
             }
         });
+    });
+    require.define('/lib/utils/materialize_relationships.js', function (module, exports, __dirname, __filename) {
+        var get = Ember.get, set = Ember.set;
+        module.exports = function (models) {
+            if (!(models instanceof Ep.ModelSet)) {
+                models = Ep.ModelSet.fromArray(models);
+            }
+            models.forEach(function (model) {
+                model.eachRelationship(function (name, relationship) {
+                    if (relationship.kind === 'belongsTo') {
+                        var child = get(model, name);
+                        if (child) {
+                            child = models.getModel(child) || child;
+                            set(model, name, child);
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var children = get(model, name);
+                        var lazyChildren = Ep.ModelSet.create();
+                        lazyChildren.addObjects(children);
+                        children.clear();
+                        lazyChildren.forEach(function (child) {
+                            child = models.getModel(child) || child;
+                            children.addObject(child);
+                        });
+                    }
+                }, this);
+            }, this);
+        };
     });
     require.define('/lib/rest/embedded_helpers_mixin.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
@@ -595,6 +596,7 @@
     });
     require.define('/lib/rest/serializers/payload.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
+        var materializeRelationships = require('/lib/utils/materialize_relationships.js', module);
         Ep.PayloadSerializer = Ep.Serializer.extend({
             mergedProperties: ['aliases'],
             aliases: {},
@@ -639,6 +641,7 @@
                         result.push(serializer.deserialize(value));
                     }
                 }
+                materializeRelationships(result);
                 return result;
             },
             materializeRelationships: function (models) {
@@ -719,13 +722,14 @@
             rootOps: null,
             adapter: null,
             init: function () {
-                var graph = this;
+                var graph = this, adapter = get(this, 'adapter'), session = get(this, 'session');
                 this.ops = Ember.MapWithDefault.create({
                     defaultValue: function (model) {
                         return Ep.Operation.create({
                             model: model,
                             graph: graph,
-                            adapter: get(graph, 'adapter')
+                            adapter: adapter,
+                            session: session
                         });
                     }
                 });
@@ -889,7 +893,7 @@
             perform: function () {
                 if (this._promise)
                     return this._promise;
-                var adapter = get(this, 'adapter'), dirtyType = get(this, 'dirtyType'), model = get(this, 'model'), shadow = get(this, 'shadow'), promise;
+                var adapter = get(this, 'adapter'), session = get(this, 'session'), dirtyType = get(this, 'dirtyType'), model = get(this, 'model'), shadow = get(this, 'shadow'), promise;
                 if (!dirtyType || !adapter.shouldSave(model)) {
                     if (adapter.isEmbedded(model)) {
                         promise = this._promiseFromEmbeddedParent();
@@ -897,11 +901,11 @@
                         promise = Ember.RSVP.resolve();
                     }
                 } else if (dirtyType === 'created') {
-                    promise = adapter.create(model);
+                    promise = adapter.create(model, session);
                 } else if (dirtyType === 'updated') {
-                    promise = adapter.update(model);
+                    promise = adapter.update(model, session);
                 } else if (dirtyType === 'deleted') {
-                    promise = adapter.deleteModel(model);
+                    promise = adapter.deleteModel(model, session);
                 }
                 promise = promise.then(function (serverModel) {
                     if (!get(model, 'id')) {
@@ -1015,11 +1019,6 @@
             init: function () {
                 this._super.apply(this, arguments);
                 this.configs = {};
-                this.idMaps = Ember.MapWithDefault.create({
-                    defaultValue: function (type) {
-                        return Ember.Map.create();
-                    }
-                });
                 this.container = this.setupContainer(this.container);
             },
             setupContainer: function (container) {
@@ -1039,6 +1038,30 @@
             refresh: mustImplement('refresh'),
             flush: mustImplement('flush'),
             remoteCall: mustImplement('remoteCall'),
+            mergeData: function (data, typeKey, session) {
+                if (!session) {
+                    session = this.container.lookup('session:main');
+                }
+                if (!typeKey) {
+                    typeKey = this.defaultMergeType;
+                }
+                var serializer = this.serializerFor(typeKey), deserialized = serializer.deserialize(data);
+                if (get(deserialized, 'isModel')) {
+                    this.willLoadModel(deserialized);
+                    session.merge(deserialized);
+                    this.didLoadModel(deserialized);
+                } else {
+                    Ember.EnumerableUtils.forEach(deserialized, function (model) {
+                        this.willLoadModel(model);
+                        session.merge(model);
+                        this.didLoadModel(model);
+                    }, this);
+                }
+                return deserialized;
+            },
+            mergeError: Ember.aliasMethod('mergeData'),
+            willLoadModel: Ember.K,
+            didLoadModel: Ember.K,
             isDirtyFromRelationships: function (model, cached, relDiff) {
                 return relDiff.length > 0;
             },
@@ -1066,7 +1089,11 @@
             },
             flush: function (session) {
                 var models = get(session, 'dirtyModels');
-                return Ember.RSVP.resolve(models.copy(true));
+                return Ember.RSVP.resolve(models.copy(true)).then(function (models) {
+                    models.forEach(function (model) {
+                        session.merge(model);
+                    });
+                });
             }
         });
     });
@@ -1532,6 +1559,10 @@
     require.define('/lib/session/child_session.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
         Ep.ChildSession = Ep.Session.extend({
+            merge: function (model, visited) {
+                var parentModel = this.parent.merge(model, visited);
+                return this._super(parentModel, visited);
+            },
             fetch: function (model) {
                 var res = this._super(model);
                 if (!res) {
@@ -1561,73 +1592,17 @@
                 if (parentModel && get(parentModel, 'isLoaded')) {
                     return Ep.resolveModel(this.merge(parentModel));
                 }
-                var session = this;
-                return Ep.resolveModel(this.parent.load(type, id).then(function (model) {
-                    return session.merge(model);
-                }, function (model) {
-                    throw session.merge(model);
-                }), type, id, session);
+                return this._super(type, id);
             },
-            query: function (type, query) {
-                var session = this;
-                return this.parent.query(type, query).then(function (models) {
-                    return session.mergeModels(models);
-                });
-            },
-            refresh: function (model) {
-                var session = this;
-                return this.parent.refresh(model).then(function (refreshedModel) {
-                    return session.merge(refreshedModel);
-                }, function (refreshedModel) {
-                    throw session.merge(refreshedModel);
-                });
-            },
-            flush: function () {
-                var session = this, dirtyModels = get(this, 'dirtyModels'), shadows = get(this, 'shadows'), parent = this.parent;
-                var dirty = get(this, 'dirtyModels');
+            updateParent: function () {
+                var dirty = get(this, 'dirtyModels'), parent = get(this, 'parent');
                 dirty.forEach(function (model) {
                     parent.update(model);
-                });
-                var promise = parent.flush().then(function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        return res;
-                    }, function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        throw res;
-                    });
-                dirtyModels.forEach(function (model) {
-                    this.shadows.add(model.copy());
                 }, this);
-                return promise;
             },
-            reifyClientId: function (model) {
-                return this.parent.reifyClientId(model);
-            },
-            getForId: function (type, id) {
-                var clientId = this.idManager.getClientId(type, id);
-                return this.models.getForClientId(clientId);
-            },
-            remoteCall: function (context, name, params, method) {
-                var session = this;
-                function merge(model) {
-                    if (Ember.isArray(model)) {
-                        if (get(model, 'firstObject.isModel')) {
-                            return session.mergeModels(model);
-                        }
-                    } else if (model && get(model, 'isModel')) {
-                        return session.merge(model);
-                    }
-                    return model;
-                }
-                return this.parent.remoteCall.apply(this.parent, arguments).then(function (model) {
-                    return merge(model);
-                }, function (model) {
-                    throw merge(model);
-                });
+            flushIntoParent: function () {
+                this.updateParent();
+                return this.flush();
             }
         });
     });
@@ -1919,12 +1894,7 @@
                 if (cached && get(cached, 'isLoaded')) {
                     return Ep.resolveModel(cached);
                 }
-                var session = this;
-                return Ep.resolveModel(this.adapter.load(type, id).then(function (model) {
-                    return session.merge(model);
-                }, function (model) {
-                    throw session.merge(model);
-                }), type, id, session);
+                return Ep.resolveModel(this.adapter.load(type, id, this), type, id, this);
             },
             find: function (type, query) {
                 if (Ember.typeOf(query) === 'object') {
@@ -1938,35 +1908,19 @@
             query: function (type, query) {
                 type = this.modelFor(type);
                 var session = this;
-                var prom = this.adapter.query(type, query).then(function (models) {
-                        return session.mergeModels(models);
-                    });
+                var prom = this.adapter.query(type, query, this);
                 return Ep.PromiseArray.create({ promise: prom });
             },
             refresh: function (model) {
                 var session = this;
-                return this.adapter.refresh(model).then(function (refreshedModel) {
-                    return session.merge(refreshedModel);
-                }, function (refreshedModel) {
-                    throw session.merge(refreshedModel);
-                });
+                return this.adapter.refresh(model, this);
             },
             flush: function () {
                 var session = this, dirtyModels = get(this, 'dirtyModels'), newModels = get(this, 'newModels'), shadows = get(this, 'shadows');
                 dirtyModels.forEach(function (model) {
                     model.incrementProperty('clientRev');
                 }, this);
-                var promise = this.adapter.flush(this).then(function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        return res;
-                    }, function (models) {
-                        var res = models.map(function (model) {
-                                return session.merge(model);
-                            });
-                        throw res;
-                    });
+                var promise = this.adapter.flush(this);
                 dirtyModels.forEach(function (model) {
                     var original = this.originals.getModel(model);
                     var shadow = this.shadows.getModel(model);
@@ -2000,7 +1954,7 @@
                     }
                     return model;
                 }
-                return this.adapter.remoteCall.apply(this.adapter, arguments).then(function (model) {
+                return this.adapter.remoteCall(context, name, params, opts, this).then(function (model) {
                     return merge(model);
                 }, function (model) {
                     throw merge(model);
@@ -2046,8 +2000,11 @@
                 }
             },
             newSession: function () {
-                var child = this.container.lookup('session:child');
-                set(child, 'parent', this);
+                var Child = this.container.lookupFactory('session:child');
+                var child = Child.create({
+                        parent: this,
+                        adapter: this.adapter
+                    });
                 return child;
             },
             modelFor: function (key) {
@@ -2078,7 +2035,10 @@
             },
             isDirty: Ember.computed(function () {
                 return get(this, 'dirtyModels.length') > 0;
-            }).property('dirtyModels.length')
+            }).property('dirtyModels.length'),
+            mergeData: function (data, typeKey) {
+                return this.adapter.mergeData(data, typeKey, this);
+            }
         });
     });
     require.define('/lib/model/index.js', function (module, exports, __dirname, __filename) {
@@ -4066,8 +4026,8 @@
                 initialize: function (container, application) {
                     Ep.__container__ = container;
                     application.register('adapter:main', application.Adapter || Ep.RestAdapter);
-                    application.register('session:base', application.Session || Ep.Session, { singleton: false });
-                    application.register('session:child', application.ChildSession || Ep.ChildSession, { singleton: false });
+                    application.register('session:base', application.Session || Ep.Session);
+                    application.register('session:child', application.ChildSession || Ep.ChildSession);
                     application.register('session:main', application.DefaultSession || Ep.Session);
                     application.register('idManager:main', Ep.IdManager);
                 }

@@ -2,8 +2,8 @@
 function TestContainer() {
   Ember.Container.call(this);
   this.register('adapter:main', Ep.LocalAdapter);
-  this.register('session:base', Ep.Session, {singleton: false});
-  this.register('session:child', Ep.ChildSession, {singleton: false});
+  this.register('session:base', Ep.Session);
+  this.register('session:child', Ep.ChildSession);
   this.register('session:main', Ep.Session);
   this.register('idManager:main', Ep.IdManager);
 

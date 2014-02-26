@@ -115,20 +115,20 @@ describe "rest", ->
         expect(adapter.h).to.eql(['GET:/posts'])
 
 
-    it 'loads then updates in a child session', ->
-      adapter.r['GET:/posts/1'] = meta: {traffic: 'heavy'}, posts: {id: 1, title: 'mvcc ftw'}
-      adapter.r['PUT:/posts/1'] = meta: {traffic: 'lighter'}, posts: {id: 1, title: 'no more fsm'}
+    # it 'loads then updates in a child session', ->
+    #   adapter.r['GET:/posts/1'] = meta: {traffic: 'heavy'}, posts: {id: 1, title: 'mvcc ftw'}
+    #   adapter.r['PUT:/posts/1'] = meta: {traffic: 'lighter'}, posts: {id: 1, title: 'no more fsm'}
 
-      childSession = session.newSession()
-      childSession.load(@Post, 1).then (post) ->
-        expect(post.id).to.eq("1")
-        expect(post.title).to.eq('mvcc ftw')
-        expect(post.meta.traffic).to.eq('heavy')
-        expect(adapter.h).to.eql(['GET:/posts/1'])
+    #   childSession = session.newSession()
+    #   childSession.load(@Post, 1).then (post) ->
+    #     expect(post.id).to.eq("1")
+    #     expect(post.title).to.eq('mvcc ftw')
+    #     expect(post.meta.traffic).to.eq('heavy')
+    #     expect(adapter.h).to.eql(['GET:/posts/1'])
 
-        post.title = 'no more fsm'
-        childSession.flush().then (result)->
-          expect(result.firstObject.meta.traffic).to.eq('lighter')
-          expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
-          expect(post.title).to.eq('no more fsm')
+    #     post.title = 'no more fsm'
+    #     childSession.flush().then (result)->
+    #       expect(result.firstObject.meta.traffic).to.eq('lighter')
+    #       expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
+    #       expect(post.title).to.eq('no more fsm')
   
