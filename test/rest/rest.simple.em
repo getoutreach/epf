@@ -18,7 +18,7 @@ describe "rest", ->
       @container.register 'model:post', @Post
 
 
-    it 'loads', ->
+    it 'loads', ->  
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw'}
       session.load(@Post, 1).then (post) ->
         expect(post.id).to.eq("1")

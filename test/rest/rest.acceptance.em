@@ -98,9 +98,9 @@ describe "rest", ->
 
       session.query("group").then (result) ->
         expect(adapter.h).to.eql(['GET:/groups'])
-        expect(result.content.length).to.eq(1)
-        expect(result.content[0].name).to.eq("brogrammers")
-        expect(result.content[0].groups).to.be.undefined
+        expect(result.length).to.eq(1)
+        expect(result.firstObject.name).to.eq("brogrammers")
+        expect(result.firstObject.groups).to.be.undefined
 
 
     it 'adds a member to an existing group', ->

@@ -75,19 +75,19 @@ describe "rest", ->
           expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/posts/1'])
 
 
-    # it 'deletes', ->
-    #   adapter.r['DELETE:/posts/1'] = meta: {traffic: 'heavy'}
+    it 'deletes', ->
+      adapter.r['DELETE:/posts/1'] = meta: {traffic: 'heavy'}
 
-    #   session.merge @Post.create(id: "1", title: 'test')
+      session.merge @Post.create(id: "1", title: 'test')
 
-    #   session.load('post', 1).then (post) ->
-    #     expect(post.id).to.eq("1")
-    #     expect(post.title).to.eq('test')
-    #     session.deleteModel(post)
-    #     session.flush().then (result)->
-    #       expect(result.firstObject.meta.traffic).to.eq('heavy')
-    #       expect(post.isDeleted).to.be.true
-    #       expect(adapter.h).to.eql(['DELETE:/posts/1'])
+      session.load('post', 1).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('test')
+        session.deleteModel(post)
+        session.flush().then (result)->
+          expect(result.firstObject.meta.traffic).to.eq('heavy')
+          expect(post.isDeleted).to.be.true
+          expect(adapter.h).to.eql(['DELETE:/posts/1'])
 
 
     it 'refreshes', ->
