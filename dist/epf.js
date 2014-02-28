@@ -114,13 +114,13 @@
                 return this._deserializePromise(this.ajax(this.buildUrlFromContext(context), 'GET'), context, opts);
             },
             refresh: function (model, session, opts) {
-                return this._mergeAndContextualizePromise(this._refresh(model, opts), session, context, opts);
+                return this._mergeAndContextualizePromise(this._refresh(model, opts), session, model, opts);
             },
             _refresh: function (model, opts) {
                 return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'GET'), model, opts);
             },
             update: function (model, session, opts) {
-                return this._mergeAndContextualizePromise(this._update(model, opts), session, context, opts);
+                return this._mergeAndContextualizePromise(this._update(model, opts), session, model, opts);
             },
             _update: function (model, opts) {
                 var typeKey = get(model, 'typeKey');
@@ -129,7 +129,7 @@
                 return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'PUT', { data: data }), model, opts);
             },
             create: function (model, session, opts) {
-                return this._mergeAndContextualizePromise(this._create(model, opts), session, context, opts);
+                return this._mergeAndContextualizePromise(this._create(model, opts), session, model, opts);
             },
             _create: function (model, opts) {
                 var typeKey = get(model, 'typeKey');
@@ -138,13 +138,13 @@
                 return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'POST', { data: data }), model, opts);
             },
             deleteModel: function (model, session, opts) {
-                return this._mergeAndContextualizePromise(this._deleteModel(model, opts), session, context, opts);
+                return this._mergeAndContextualizePromise(this._deleteModel(model, opts), session, model, opts);
             },
             _deleteModel: function (model, opts) {
                 return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'DELETE'), model, opts);
             },
             query: function (typeKey, query, session, opts) {
-                return this._mergeAndContextualizePromise(this._query(typeKey, query, opts), session, context, opts);
+                return this._mergeAndContextualizePromise(this._query(typeKey, query, opts), session, typeKey, opts);
             },
             _query: function (typeKey, query, opts) {
                 return this._deserializePromise(this.ajax(this.buildUrlFromContext(typeKey), 'GET', { data: query }), typeKey, opts);
