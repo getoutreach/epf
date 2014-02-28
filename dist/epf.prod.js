@@ -1297,6 +1297,8 @@
     require.define('/lib/serializers/id.js', function (module, exports, __dirname, __filename) {
         Ep.IdSerializer = Ep.Serializer.extend({
             deserialize: function (serialized) {
+                if (serialized === undefined)
+                    return;
                 return serialized + '';
             },
             serialize: function (id) {
@@ -1757,7 +1759,7 @@
                     merged = existing;
                 }
                 set(merged, 'errors', Ember.copy(get(model, 'errors')));
-                if (get(model, 'isLoaded')) {
+                if (get(model, 'isLoaded') && !get(model, 'isNew')) {
                     shadows.add(model);
                     originals.remove(model);
                 }

@@ -121,6 +121,20 @@ describe "rest", ->
             expect(post.title).to.eq('linkbait')
             expect(adapter.h).to.eql(['POST:/posts', 'POST:/posts'])
 
+      it 'succeeds after retry when failure merged data', ->
+        adapter.r['POST:/posts'] = (url, type, hash) ->
+          throw status: 422, responseText: JSON.stringify(post: {title: 'Something', client_id: hash.data.post.client_id, client_rev: hash.data.post.client_rev, errors: {title: 'is lamerz'}})
+
+        post = session.create 'post', title: 'errorz'
+        session.flush().then null, ->
+          expect(post.title).to.eq('Something')
+          adapter.r['POST:/posts'] = (url, type, hash) ->
+            post: {title: 'linkbait', id: 1, client_id: hash.data.post.client_id, client_rev: hash.data.post.client_rev}
+          session.title = 'linkbait'
+          session.flush().then ->
+            #expect(post.title).to.eq('linkbait')
+            expect(adapter.h).to.eql(['POST:/posts', 'POST:/posts'])
+
 
       context 'in child session', ->
 
