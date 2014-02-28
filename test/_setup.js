@@ -8,6 +8,8 @@ require("mocha-as-promised")();
 global.chai = require('chai');
 global.expect = chai.expect;
 
+Ember.LOG_STACKTRACE_ON_DEPRECATION = false;
+
 var syncForTest = function(fn) {
   var callSuper;
 

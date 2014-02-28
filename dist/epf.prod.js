@@ -92,6 +92,10 @@
                 return container;
             },
             load: function (typeKey, id, session, opts) {
+                var context = {
+                        typeKey: typeKey,
+                        id: id
+                    };
                 var promise = this._load(typeKey, id, opts).then(null, function (payload) {
                         var type = session.typeFor(typeKey);
                         throw Ep.LoadError.create({
