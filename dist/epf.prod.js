@@ -60,10 +60,46 @@
         require('/lib/merge_strategies/index.js', module);
         require('/lib/local/index.js', module);
         require('/lib/rest/index.js', module);
+        require('/lib/active_model/index.js', module);
     });
-    require.define('/lib/rest/index.js', function (module, exports, __dirname, __filename) {
-        require('/lib/rest/payload.js', module);
+    require.define('/lib/active_model/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/active_model/active_model_adapter.js', module);
+    });
+    require.define('/lib/active_model/active_model_adapter.js', function (module, exports, __dirname, __filename) {
         require('/lib/rest/rest_adapter.js', module);
+        require('/lib/active_model/serializers/index.js', module);
+        var decamelize = Ember.String.decamelize, underscore = Ember.String.underscore, pluralize = Ember.String.pluralize;
+        Ep.ActiveModelAdapter = Ep.RestAdapter.extend({
+            defaultMergeType: 'payload',
+            setupContainer: function (parent) {
+                var container = this._super(parent);
+                container.register('serializer:model', Ep.ActiveModelSerializer);
+                return container;
+            },
+            pathForType: function (type) {
+                var decamelized = decamelize(type);
+                var underscored = underscore(decamelized);
+                return pluralize(underscored);
+            }
+        });
+    });
+    require.define('/lib/active_model/serializers/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/active_model/serializers/model.js', module);
+    });
+    require.define('/lib/active_model/serializers/model.js', function (module, exports, __dirname, __filename) {
+        Ep.ActiveModelSerializer = Ep.ModelSerializer.extend({
+            keyForType: function (name, type, opts) {
+                var key = this._super(name, type);
+                if (!opts || !opts.embedded) {
+                    if (type === 'belongsTo') {
+                        return key + '_id';
+                    } else if (type === 'hasMany') {
+                        return Ember.String.singularize(key) + '_ids';
+                    }
+                }
+                return key;
+            }
+        });
     });
     require.define('/lib/rest/rest_adapter.js', function (module, exports, __dirname, __filename) {
         require('/lib/adapter.js', module);
@@ -86,7 +122,6 @@
             },
             setupContainer: function (parent) {
                 var container = parent.child();
-                container.register('serializer:model', Ep.RestSerializer);
                 container.register('serializer:errors', Ep.RestErrorsSerializer);
                 container.register('serializer:payload', Ep.PayloadSerializer);
                 return container;
@@ -612,7 +647,6 @@
     });
     require.define('/lib/rest/serializers/index.js', function (module, exports, __dirname, __filename) {
         require('/lib/rest/serializers/errors.js', module);
-        require('/lib/rest/serializers/model.js', module);
         require('/lib/rest/serializers/payload.js', module);
     });
     require.define('/lib/rest/serializers/payload.js', function (module, exports, __dirname, __filename) {
@@ -682,21 +716,6 @@
                 }
                 materializeRelationships(result);
                 return result;
-            }
-        });
-    });
-    require.define('/lib/rest/serializers/model.js', function (module, exports, __dirname, __filename) {
-        Ep.RestSerializer = Ep.ModelSerializer.extend({
-            keyForType: function (name, type, opts) {
-                var key = this._super(name, type);
-                if (!opts || !opts.embedded) {
-                    if (type === 'belongsTo') {
-                        return key + '_id';
-                    } else if (type === 'hasMany') {
-                        return Ember.String.singularize(key) + '_ids';
-                    }
-                }
-                return key;
             }
         });
     });
@@ -1093,6 +1112,10 @@
                 this.idManager.reifyClientId(model);
             }
         });
+    });
+    require.define('/lib/rest/index.js', function (module, exports, __dirname, __filename) {
+        require('/lib/rest/payload.js', module);
+        require('/lib/rest/rest_adapter.js', module);
     });
     require.define('/lib/rest/payload.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
@@ -1661,11 +1684,11 @@
             mergeStrategyFor: function (typeKey) {
 
                 var lookupKey = Ember.String.dasherize(typeKey);
-                var mergeStrategy = this.container.lookup('mergeStrategy:' + lookupKey);
+                var mergeStrategy = this.container.lookup('merge-strategy:' + lookupKey);
                 if (!mergeStrategy) {
-                    var Strategy = this.container.lookupFactory('mergeStrategy:default');
-                    this.container.register('mergeStrategy:' + lookupKey, Strategy);
-                    mergeStrategy = this.container.lookup('mergeStrategy:' + lookupKey);
+                    var Strategy = this.container.lookupFactory('merge-strategy:default');
+                    this.container.register('merge-strategy:' + lookupKey, Strategy);
+                    mergeStrategy = this.container.lookup('merge-strategy:' + lookupKey);
                 }
                 mergeStrategy.typeKey = typeKey;
                 return mergeStrategy;
@@ -4078,21 +4101,21 @@
                     application.register('session:base', application.Session || Ep.Session);
                     application.register('session:child', application.ChildSession || Ep.ChildSession);
                     application.register('session:main', application.DefaultSession || Ep.Session);
-                    application.register('idManager:main', Ep.IdManager);
+                    application.register('id-manager:main', Ep.IdManager);
                 }
             });
             Application.initializer({
                 name: 'epf.injections',
                 initialize: function (container, application) {
                     application.inject('session', 'adapter', 'adapter:main');
-                    application.inject('serializer', 'idManager', 'idManager:main');
-                    application.inject('session', 'idManager', 'idManager:main');
-                    application.inject('adapter', 'idManager', 'idManager:main');
+                    application.inject('serializer', 'idManager', 'id-manager:main');
+                    application.inject('session', 'idManager', 'id-manager:main');
+                    application.inject('adapter', 'idManager', 'id-manager:main');
                     application.inject('controller', 'adapter', 'adapter:main');
                     application.inject('controller', 'session', 'session:main');
                     application.inject('route', 'adapter', 'adapter:main');
                     application.inject('route', 'session', 'session:main');
-                    application.inject('dataAdapter', 'session', 'session:main');
+                    application.inject('data-adapter', 'session', 'session:main');
                 }
             });
             Application.initializer({
@@ -4112,14 +4135,14 @@
             Application.initializer({
                 name: 'epf.mergeStrategies',
                 initialize: function (container, application) {
-                    application.register('mergeStrategy:per-field', Ep.PerField);
-                    application.register('mergeStrategy:default', Ep.PerField);
+                    application.register('merge-strategy:per-field', Ep.PerField);
+                    application.register('merge-strategy:default', Ep.PerField);
                 }
             });
             Application.initializer({
-                name: 'dataAdapter',
+                name: 'data-adapter',
                 initialize: function (container, application) {
-                    application.register('dataAdapter:main', Ep.DebugAdapter);
+                    application.register('data-adapter:main', Ep.DebugAdapter);
                 }
             });
         });

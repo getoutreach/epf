@@ -48,7 +48,7 @@ describe 'rest serialization', ->
 
 
       it 'obeys custom keys', ->
-        class PostSerializer extends Ep.RestSerializer
+        class PostSerializer extends Ep.ModelSerializer
           properties:
             title:
               key: 'POST_TITLE'
@@ -226,14 +226,14 @@ describe 'rest serialization', ->
 
 
     it 'deserializes null hasMany', ->
-      data = {post: [{id: 1, title: 'wat', comment_ids: null}] }
+      data = {post: [{id: 1, title: 'wat', comments: null}] }
       models = @serializer.deserialize(data)
       post = models[0]
       expect(post.comments.length).to.eq(0)
 
 
     it 'deserializes null belongsTo', ->
-      data = {comments: [{id: 1, title: 'wat', post_id: null}] }
+      data = {comments: [{id: 1, title: 'wat', post: null}] }
       models = @serializer.deserialize(data)
       comment = models[0]
       expect(comment.post).to.be.null
@@ -254,7 +254,7 @@ describe 'rest serialization', ->
       @Post.reopen
         comments: Ep.hasMany(@Comment)
 
-      PostSerializer = Ep.RestSerializer.extend
+      PostSerializer = Ep.ModelSerializer.extend
         properties:
           comments: { embedded: 'always' }
 
@@ -287,7 +287,7 @@ describe 'rest serialization', ->
       @Post.reopen
         user: Ep.belongsTo(@User)
 
-      PostSerializer = Ep.RestSerializer.extend
+      PostSerializer = Ep.ModelSerializer.extend
         properties:
           user: { embedded: 'always' }
 

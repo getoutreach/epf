@@ -25,7 +25,7 @@ describe 'Ep.EmbeddedManager', ->
     @Post.reopen
       comments: Ep.hasMany(@Comment) 
 
-    PostSerializer = Ep.RestSerializer.extend
+    PostSerializer = Ep.ModelSerializer.extend
       properties:
         comments:
           embedded: 'always'

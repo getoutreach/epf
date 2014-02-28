@@ -1,7 +1,7 @@
 TestContainer = require('../test_container');
 
-exports.setupRest = ->
-  class TestRestAdapter extends Ep.RestAdapter
+exports.setup = ->
+  class TestActiveModelAdapter extends Ep.ActiveModelAdapter
     h: null
     r: null
     init: ->
@@ -26,7 +26,7 @@ exports.setupRest = ->
   @container = new TestContainer();
 
   # TestAdapter already is a subclass
-  @RestAdapter = TestRestAdapter.extend()
+  @RestAdapter = TestActiveModelAdapter.extend()
 
   @container.register 'adapter:main', @RestAdapter
 

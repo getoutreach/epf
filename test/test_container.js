@@ -5,18 +5,18 @@ function TestContainer() {
   this.register('session:base', Ep.Session);
   this.register('session:child', Ep.ChildSession);
   this.register('session:main', Ep.Session);
-  this.register('idManager:main', Ep.IdManager);
+  this.register('id-manager:main', Ep.IdManager);
 
   this.typeInjection('session', 'adapter', 'adapter:main');
-  this.typeInjection('serializer', 'idManager', 'idManager:main');
-  this.typeInjection('session', 'idManager', 'idManager:main');
-  this.typeInjection('adapter', 'idManager', 'idManager:main');
+  this.typeInjection('serializer', 'idManager', 'id-manager:main');
+  this.typeInjection('session', 'idManager', 'id-manager:main');
+  this.typeInjection('adapter', 'idManager', 'id-manager:main');
 
   this.typeInjection('controller', 'adapter', 'adapter:main');
   this.typeInjection('controller', 'session', 'session:main');
   this.typeInjection('route', 'adapter', 'adapter:main');
   this.typeInjection('route', 'session', 'session:main');
-  this.typeInjection('dataAdapter', 'session', 'session:main');
+  this.typeInjection('data-adapter', 'session', 'session:main');
 
   this.register('serializer:belongs-to', Ep.BelongsToSerializer);
   this.register('serializer:boolean', Ep.BooleanSerializer);
@@ -28,8 +28,8 @@ function TestContainer() {
   this.register('serializer:revision', Ep.RevisionSerializer);
   this.register('serializer:string', Ep.StringSerializer);
 
-  this.register('mergeStrategy:per-field', Ep.PerField);
-  this.register('mergeStrategy:default', Ep.PerField);
+  this.register('merge-strategy:per-field', Ep.PerField);
+  this.register('merge-strategy:default', Ep.PerField);
 }
 
 TestContainer.prototype = new Ember.Container();

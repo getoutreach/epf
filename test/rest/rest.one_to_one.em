@@ -34,8 +34,8 @@ describe "rest", ->
 
 
     it 'child can be null', ->
-      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: null}
-      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'new title', user_id: null}
+      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user: null}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'new title', user: null}
 
       session.load(@Post, 1).then (post) ->
         expect(post.id).to.eq("1")
@@ -47,8 +47,8 @@ describe "rest", ->
 
 
     it 'loads lazily', ->
-      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user_id: 2}
-      adapter.r['GET:/users/2'] = users: {id: 2, name: 'brogrammer', post_id: 1}
+      adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', user: 2}
+      adapter.r['GET:/users/2'] = users: {id: 2, name: 'brogrammer', post: 1}
 
       session.load(@Post, 1).then (post) ->
         expect(adapter.h).to.eql(['GET:/posts/1'])
@@ -97,8 +97,8 @@ describe "rest", ->
 
 
     it 'creates on server', ->
-      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user_id: 2}
-      adapter.r['GET:/users/2'] = users: {id: 1, name: 'derp', post_id: 1}
+      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user: 2}
+      adapter.r['GET:/users/2'] = users: {id: 1, name: 'derp', post: 1}
 
       post = session.create 'post', title: 'herp'
 
@@ -125,7 +125,7 @@ describe "rest", ->
         user: Ep.belongsTo(@User)
 
 
-      PostSerializer = Ep.RestSerializer.extend
+      PostSerializer = Ep.ModelSerializer.extend
         properties:
           user:
             embedded: 'always'
@@ -153,7 +153,7 @@ describe "rest", ->
 
 
     it 'creates hierarchy', ->
-      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user: {client_id: post.user.clientId, id: 1, name: 'derp', post_id: 1}}
+      adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'herp', user: {client_id: post.user.clientId, id: 1, name: 'derp', post: 1}}
 
       post = session.create 'post', title: 'herp'
       post.user = session.create 'user', name: 'derp'

@@ -29,7 +29,7 @@ describe "rest", ->
 
 
     it 'sideloads', ->
-      adapter.r['GET:/posts/1'] = posts: {id: "1", title: 'sideload my children', comment_ids: [2, 3]}, comments: [{id: "2",  message: "here we", post_id: "1"}, {id: "3",  message: "are", post_id: "1"}]
+      adapter.r['GET:/posts/1'] = posts: {id: "1", title: 'sideload my children', comments: [2, 3]}, comments: [{id: "2",  message: "here we", post: "1"}, {id: "3",  message: "are", post: "1"}]
 
       session.load('post', 1).then (post) ->
         expect(adapter.h).to.eql(['GET:/posts/1'])

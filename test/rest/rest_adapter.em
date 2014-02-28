@@ -27,7 +27,7 @@ describe "Ep.RestAdapter", ->
   describe '.mergePayload', ->
 
     data =
-      post: {id: 1, title: 'ma post', comment_ids: [2, 3]}
+      post: {id: 1, title: 'ma post', comments: [2, 3]}
       comments: [{id: 2, body: 'yo'}, {id: 3, body: 'sup'}]
 
     it 'should merge with typeKey as context', ->
