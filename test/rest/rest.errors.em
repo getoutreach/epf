@@ -62,6 +62,19 @@ describe "rest", ->
           expect(post.errors.title).to.eq('title is too short')
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
+    it 'merges payload with error and latest client changes against latest client version', ->
+      adapter.r['PUT:/posts/1'] = (url, type, hash) ->
+        throw status: 422, responseText: JSON.stringify(post: {id: 1, title: 'Something', client_rev: hash.data.post.client_rev, errors: {title: 'cannot be empty'}})
+
+      session.merge @Post.create(id: "1", title: 'test')
+      session.load('post', 1).then (post) ->
+        expect(post.title).to.eq('test')
+        post.title = ''
+        session.flush().then null, ->
+          expect(post.hasErrors).to.be.true
+          expect(post.title).to.eq('Something')
+          expect(adapter.h).to.eql(['PUT:/posts/1'])
+
     it 'empty errors object should deserialize without errors', ->
       adapter.r['PUT:/posts/1'] = ->
         post: {id: 1, title: '', errors: {}}
