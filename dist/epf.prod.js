@@ -1741,10 +1741,14 @@
             _mergeError: function (model) {
                 var models = get(this, 'models'), shadows = get(this, 'shadows'), newModels = get(this, 'newModels'), originals = get(this, 'originals'), merged, ancestor, existing = models.getModel(model);
                 if (!existing) {
-
                     return model;
                 }
-                ancestor = originals.getModel(model);
+                var hasClientChanges = this._containsClientRev(model, existing);
+                if (hasClientChanges) {
+                    ancestor = shadows.getModel(model) || existing;
+                } else {
+                    ancestor = originals.getModel(model);
+                }
                 if (ancestor && !this._containsRev(existing, model)) {
                     this.suspendDirtyChecking(function () {
                         merged = this._mergeModel(existing, ancestor, model);
