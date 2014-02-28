@@ -1155,15 +1155,15 @@
             },
             mergeAttributes: function (ours, ancestor, theirs) {
                 ours.eachAttribute(function (name, meta) {
-                    var oursValue = get(ours, name);
-                    var theirsValue = get(theirs, name);
-                    var originalValue = get(ancestor, name);
-                    if (oursValue === theirsValue)
-                        return;
-                    if (oursValue === originalValue) {
-                        set(ours, name, theirsValue);
-                    }
-                });
+                    var oursValue = get(ours, name), ancestorValue = get(ancestor, name), theirsValue = get(theirs, name);
+                    set(ours, name, this.mergeAttribute(name, oursValue, ancestorValue, theirsValue));
+                }, this);
+            },
+            mergeAttribute: function (name, ours, ancestor, theirs) {
+                if (isEqual(ours, ancestor)) {
+                    return theirs;
+                }
+                return ours;
             },
             mergeRelationships: function (ours, ancestor, theirs) {
                 var session = get(this, 'session');
