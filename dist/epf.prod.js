@@ -1297,7 +1297,7 @@
     require.define('/lib/serializers/id.js', function (module, exports, __dirname, __filename) {
         Ep.IdSerializer = Ep.Serializer.extend({
             deserialize: function (serialized) {
-                if (serialized === undefined)
+                if (serialized === undefined || serialized === null)
                     return;
                 return serialized + '';
             },
