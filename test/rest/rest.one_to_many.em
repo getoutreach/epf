@@ -258,9 +258,6 @@ describe "rest", ->
         post.comments.addObject(@Comment.create(id: "2", message: 'child'))
         session.merge post
 
-        # HACK: required because all knowledge of embeddedness is tracked by the adapter
-        adapter._embeddedManager.updateParents(post);
-
         session.load('post', 1).then (post) ->
           comment = post.comments.firstObject
           session.deleteModel(comment)
@@ -279,9 +276,6 @@ describe "rest", ->
         post.comments.addObject(@Comment.create(id: "2", message: 'child1'))
         post.comments.addObject(@Comment.create(id: "3", message: 'child2'))
         session.merge post
-
-        # HACK: required because all knowledge of embeddedness is tracked by the adapter
-        adapter._embeddedManager.updateParents(post);
 
         sibling = null
         session.load('post', 1).then (post) ->
@@ -317,9 +311,6 @@ describe "rest", ->
         post.comments.addObject @Comment.create(id: "3", message: 'thing 2')
         post = session.merge(post)
 
-        # HACK: required because all knowledge of embeddedness is tracked by the adapter
-        adapter._embeddedManager.updateParents(post);
-
         adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{post: "1", id: "3", message: 'thing 2'}]}
 
         session.deleteModel post.comments.objectAt(0)
@@ -339,9 +330,6 @@ describe "rest", ->
         post = @Post.create(id: "1", title: 'parent');
         post.comments.addObject(@Comment.create(id: "2", message: 'child'))
         session.merge post
-
-        # HACK: required because all knowledge of embeddedness is tracked by the adapter
-        adapter._embeddedManager.updateParents(post);
 
         # TODO: once we have support for side deletions beef up this test
         session.load('post', 1).then (post) ->
