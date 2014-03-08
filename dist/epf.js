@@ -526,7 +526,9 @@
                 hash.context = this;
                 if (hash.data && type !== 'GET') {
                     hash.contentType = 'application/json; charset=utf-8';
-                    hash.data = JSON.stringify(hash.data);
+                    if (typeof hash.data !== 'string') {
+                        hash.data = JSON.stringify(hash.data);
+                    }
                 }
                 var headers = get(this, 'headers');
                 if (headers !== undefined) {
