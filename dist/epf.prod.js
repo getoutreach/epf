@@ -3181,7 +3181,7 @@
         });
         function reifyRelationshipType(relationship) {
             if (!relationship.type) {
-                relationship.type == Ep.__container__.lookupFactory('model:' + relationship.typeKey);
+                relationship.type = Ep.__container__.lookupFactory('model:' + relationship.typeKey);
             }
             if (!relationship.typeKey) {
                 relationship.typeKey = get(relationship.type, 'typeKey');
