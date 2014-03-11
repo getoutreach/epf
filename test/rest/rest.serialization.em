@@ -108,15 +108,6 @@ describe 'rest serialization', ->
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd', rev: 123, client_rev: 321)
 
 
-      it 'handles unloaded lazy model', ->
-        lazyPost = Ep.LazyModel.create
-          id: 1,
-          clientId: "2"
-          type: @Post
-        data = @serializer.serialize(lazyPost)
-        expect(data).to.eql client_id: "2", id: 1
-
-
       it 'handles loaded lazy model', ->
         post = @Post.create()
         post.id = 1
@@ -259,7 +250,7 @@ describe 'rest serialization', ->
           comments: { embedded: 'always' }
 
       @container.register 'serializer:post', PostSerializer
-      
+
       @container.register 'model:post', @Post
       @container.register 'model:comment', @Comment
 
@@ -302,6 +293,3 @@ describe 'rest serialization', ->
       models = @serializer.deserialize(data)
       post = models[0]
       expect(post.user).to.be.null
-      
-    
-  

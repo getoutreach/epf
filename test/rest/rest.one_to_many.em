@@ -235,7 +235,7 @@ describe "rest", ->
 
       it 'adds child', ->
         adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: []}
-        adapter.r['PUT:/posts/1'] =  -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post: 1, message: 'reborn'}]}
+        adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'mvcc ftw', comments: [{id: 2, client_id: comment.clientId, post: 1, message: 'reborn'}]}
 
         comment = null
         session.load(@Post, 1).then (post) ->
@@ -247,6 +247,25 @@ describe "rest", ->
             expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
             expect(comment.message).to.eq('reborn')
             expect(post.comments.firstObject).to.eq(comment)
+
+
+      it 'adds child with sibling', ->
+        adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [id: 2, post: 1, message: 'first-born']}
+        adapter.r['PUT:/posts/1'] =  (url, type, hash) ->
+          expect(hash.data.post.comments[0].message).to.eq('first-born')
+          return posts: {id: 1, title: 'mvcc ftw', comments: [{id:2, post: 1, message: 'first-born'}, {id: 3, client_id: comment.clientId, post: 1, message: 'second-born'}]}
+
+        comment = null
+        session.load(@Post, 1).then (post) ->
+          expect(adapter.h).to.eql(['GET:/posts/1'])
+          expect(post.comments.length).to.eq(1)
+          comment = session.create('comment', message: 'second-born')
+          comment.post = post
+          session.flush().then ->
+            expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
+            expect(comment.message).to.eq('second-born')
+            expect(post.comments.firstObject.message).to.eq('first-born')
+            expect(post.comments.lastObject).to.eq(comment)
 
 
       it 'deletes child', ->
@@ -289,7 +308,7 @@ describe "rest", ->
 
 
       it 'new parent creates and deletes child before flush', ->
-        adapter.r['POST:/posts'] = (url, type, hash) -> 
+        adapter.r['POST:/posts'] = (url, type, hash) ->
           expect(hash.data.post.comments.length).to.eq(0)
           return posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw', comments: []}
 

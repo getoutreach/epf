@@ -408,7 +408,9 @@
             dirtyEmbedded: function (models, shadows, session) {
                 models.forEach(function (model) {
                     this.eachEmbeddedRelative(model, function (embeddedModel) {
-                        this._embeddedManager.updateParents(embeddedModel);
+                        if (get(embeddedModel, 'isLoaded')) {
+                            this._embeddedManager.updateParents(embeddedModel);
+                        }
                         if (models.contains(embeddedModel)) {
                             return;
                         }
@@ -428,14 +430,14 @@
                 return models.getModel(model);
             },
             eachEmbeddedRelative: function (model, callback, binding, visited) {
-                if (!get(model, 'isLoaded'))
-                    return;
                 if (!visited)
                     visited = new Ember.Set();
                 if (visited.contains(model))
                     return;
                 visited.add(model);
                 callback.call(binding, model);
+                if (!get(model, 'isLoaded'))
+                    return;
                 this.serializerForModel(model).eachEmbeddedRecord(model, function (embeddedRecord, embeddedType) {
                     this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
                 }, this);
@@ -1389,6 +1391,7 @@
             },
             serialize: function (model) {
                 var serialized = {};
+                Ember.assert('Cannot serialize an unloaded model.', get(model, 'isLoaded'));
                 this.addMeta(serialized, model);
                 this.addAttributes(serialized, model);
                 this.addRelationships(serialized, model);
