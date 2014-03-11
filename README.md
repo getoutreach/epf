@@ -1,6 +1,6 @@
 # Ember.js Persistence Foundation
 
-[![Build Status](https://travis-ci.org/GroupTalent/epf.png)](https://travis-ci.org/GroupTalent/epf)
+[![Build Status](https://travis-ci.org/getoutreach/epf.png)](https://travis-ci.org/getoutreach/epf)
 
 Ember.js Persistence Foundation (epf) is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection. Defining characteristic of epf include:
 
@@ -46,7 +46,7 @@ The primary means of interacting with `epf` is through a `session`. Epf automati
 
 ```
 App.PostRoute = Ember.Route.extend({
-  
+
   model: function(params) {
     return this.session.load('post', params.post_id);
   }
@@ -58,7 +58,7 @@ For compatibility with the behavior of the Ember.js router, a `find` method is a
 
 ```
 App.PostRoute = Ember.Route.extend({
-  
+
   model: function(params) {
     return App.Post.find(params.post_id);
   }
@@ -146,7 +146,7 @@ childSession.flush(); // this will flush changes both to the backend and the par
 To build epf, follow the instructions below:
 
 * Install [node](http://nodejs.org/).
-* `git clone https://github.com/GroupTalent/epf`
+* `git clone https://github.com/getoutreach/epf`
 * `cd epf`
 * `npm install`
 * `npm test` to run the tests via `mocha`

@@ -11,7 +11,7 @@ Gem::Specification.new do |gem|
   gem.date        = Time.now.strftime('%Y-%m-%d')
   gem.summary     = 'Epf source code wrapper'
   gem.description = 'Epf source code wrapper for ruby libs.'
-  gem.homepage    = 'https://github.com/GroupTalent/epf'
+  gem.homepage    = 'https://github.com/getoutreach/epf'
 
   gem.files       = ['dist/epf.js', 'dist/epf.js.map', 'lib/epf/source.rb']
 
