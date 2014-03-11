@@ -252,6 +252,7 @@ describe "rest", ->
       it 'adds child with sibling', ->
         adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [id: 2, post: 1, message: 'first-born']}
         adapter.r['PUT:/posts/1'] =  (url, type, hash) ->
+          expect(hash.data.post.comments[1].id).to.be.null
           expect(hash.data.post.comments[0].message).to.eq('first-born')
           return posts: {id: 1, title: 'mvcc ftw', comments: [{id:2, post: 1, message: 'first-born'}, {id: 3, client_id: comment.clientId, post: 1, message: 'second-born'}]}
 
