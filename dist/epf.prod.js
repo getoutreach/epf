@@ -3477,7 +3477,13 @@
                 this.eachAttribute(function (name, meta) {
                     var left = get(this, name);
                     var right = get(dest, name);
-                    set(dest, name, Ember.copy(left, true));
+                    var copy;
+                    if (left instanceof Date) {
+                        copy = new Date(left.getTime());
+                    } else {
+                        copy = Ember.copy(left, true);
+                    }
+                    set(dest, name, copy);
                 }, this);
                 dest.endPropertyChanges();
             },

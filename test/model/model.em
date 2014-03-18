@@ -10,6 +10,7 @@ describe 'Ep.Model', ->
     class App.User extends Ep.Model
       name: Ep.attr('string')
       raw: Ep.attr()
+      createdAt: Ep.attr('date')
     @container = new TestContainer()
     @container.register 'model:user', App.User
     session = @container.lookup('session:main')
@@ -90,6 +91,15 @@ describe 'Ep.Model', ->
 
 
   describe '.copy', ->
+  
+    it 'copies dates', ->
+      
+      date = new Date(2014, 7, 22)
+      user = App.User.create
+        createdAt: date
+      copy = user.copy()
+      expect(user.createdAt.getTime()).to.eq(copy.createdAt.getTime())
+        
 
     it 'deep copies complex object attributes', ->
 
