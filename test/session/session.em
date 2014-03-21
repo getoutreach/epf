@@ -30,7 +30,7 @@ describe "Ep.Session", ->
     session.destroy()
 
 
-  describe 'create', ->
+  describe '.create', ->
 
 
     it 'works with hash', ->
@@ -38,7 +38,7 @@ describe "Ep.Session", ->
       expect(post.title).to.eq('test')
 
 
-  describe 'add', ->
+  describe '.add', ->
 
     it 'works with lazy models', ->
       post = Ep.LazyModel.create
@@ -62,7 +62,7 @@ describe "Ep.Session", ->
       expect(session.getModel(lazy)).to.eq(post)
 
 
-  describe 'merge', ->
+  describe '.merge', ->
 
     it 'works with proxy with no corresponding record in session', ->
       post = @Post.create(id: '1', title: 'someday')
@@ -88,7 +88,19 @@ describe "Ep.Session", ->
       post = session.merge @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")])
       comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2"))
       expect(comment.post).to.eq(post)
+      
+      
+    it 'handles merging detached model with lazy belongsTo reference', ->
+      post = session.merge @Post.create id: "2"
+      comment = session.merge @Comment.create id: "1", body: "obscurity", post: Ep.LazyModel.create(type: @Post, id: "2")
+      expect(post.comments.firstObject).to.eq(comment)
 
+
+    it 'handles merging detached model with lazy hasMany reference', ->
+      comment = session.merge @Comment.create id: "1", body: "obscurity"
+      post = session.merge @Post.create id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")]
+      expect(comment.post).to.eq(post)
+      
 
   context 'with orphaned proxy', ->
 
@@ -150,5 +162,3 @@ describe "Ep.Session", ->
       post = session.mergeData {id: "1", title: "easy peazy"}, 'post'
       expect(post.title).to.eq('easy peazy')
       expect(session.getModel(post)).to.eq(post)
-
-

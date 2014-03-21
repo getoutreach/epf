@@ -1891,9 +1891,34 @@
                 }
                 if (!get(model, 'isProxy')) {
                     this.models.add(model);
+                    this._materializeRelationships(model);
                     model._registerRelationships();
                 }
                 return model;
+            },
+            _materializeRelationships: function (model) {
+                model.eachRelationship(function (name, relationship) {
+                    if (relationship.kind === 'belongsTo') {
+                        var child = get(model, name);
+                        if (child) {
+                            this.reifyClientId(child);
+                            var existing = this.getModel(child);
+                            if (!get(child, 'isLoaded') && existing) {
+                                set(model, name, existing);
+                            }
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var children = get(model, name);
+                        var content = children.get('content');
+                        content.forEach(function (child, index) {
+                            this.reifyClientId(child);
+                            var existing = this.getModel(child);
+                            if (!get(child, 'isLoaded') && existing) {
+                                children.replace(index, 1, [existing]);
+                            }
+                        }, this);
+                    }
+                }, this);
             },
             add: function (model) {
                 this.reifyClientId(model);
