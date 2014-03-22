@@ -86,7 +86,8 @@ describe "Ep.Session", ->
 
     it 'handles merging detached model with belongsTo child already in session', ->
       post = session.merge @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")])
-      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2"))
+      debugger
+      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")]))
       expect(comment.post).to.eq(post)
       
       
@@ -94,12 +95,14 @@ describe "Ep.Session", ->
       post = session.merge @Post.create id: "2"
       comment = session.merge @Comment.create id: "1", body: "obscurity", post: Ep.LazyModel.create(type: @Post, id: "2")
       expect(post.comments.firstObject).to.eq(comment)
+      expect(post.isDirty).to.be.false
 
 
     it 'handles merging detached model with lazy hasMany reference', ->
       comment = session.merge @Comment.create id: "1", body: "obscurity"
       post = session.merge @Post.create id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")]
       expect(comment.post).to.eq(post)
+      expect(comment.isDirty).to.be.false
       
 
   context 'with orphaned proxy', ->

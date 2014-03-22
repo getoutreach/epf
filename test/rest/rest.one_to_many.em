@@ -110,7 +110,7 @@ describe "rest", ->
       adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post: 1}
 
       post = @Post.create(id: "1", title: 'parent');
-      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
       comment = null
@@ -145,7 +145,7 @@ describe "rest", ->
       adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
-      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
       session.load('post', 1).then (post) ->
@@ -158,11 +158,11 @@ describe "rest", ->
 
 
     it 'deletes child and updates parent', ->
-      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comments: [2]}
+      adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comments: []}
       adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
-      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
       session.load('post', 1).then (post) ->
@@ -171,7 +171,7 @@ describe "rest", ->
         expect(post.comments.length).to.eq(0)
         post.title = 'childless'
         session.flush().then ->
-          expect(adapter.h).to.eql(['PUT:/posts/1', 'DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['DELETE:/comments/2', 'PUT:/posts/1'])
           expect(post.comments.length).to.eq(0)
           expect(post.title).to.eq('childless')
 
@@ -181,7 +181,7 @@ describe "rest", ->
       adapter.r['DELETE:/comments/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent');
-      post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+      post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
       session.load('post', 1).then (post) ->
@@ -190,7 +190,7 @@ describe "rest", ->
         expect(post.comments.length).to.eq(0)
         session.deleteModel(post)
         session.flush().then ->
-          expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['DELETE:/comments/2', 'DELETE:/posts/1'])
           expect(post.isDeleted).to.be.true
           expect(comment.isDeleted).to.be.true
 
@@ -275,7 +275,7 @@ describe "rest", ->
           return posts: {id: 1, title: 'mvcc ftw', comments: []}
 
         post = @Post.create(id: "1", title: 'parent');
-        post.comments.addObject(@Comment.create(id: "2", message: 'child'))
+        post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
         session.merge post
 
         session.load('post', 1).then (post) ->
@@ -293,8 +293,8 @@ describe "rest", ->
           return posts: {id: 1, title: 'mvcc ftw', comments: [{id: 3, client_id: sibling.clientId, post: 1, message: 'child2'}]}
 
         post = @Post.create(id: "1", title: 'parent');
-        post.comments.addObject(@Comment.create(id: "2", message: 'child1'))
-        post.comments.addObject(@Comment.create(id: "3", message: 'child2'))
+        post.comments.addObject @Comment.create(id: "2", message: 'child1', post: post)
+        post.comments.addObject @Comment.create(id: "3", message: 'child2', post: post)
         session.merge post
 
         sibling = null
@@ -327,8 +327,8 @@ describe "rest", ->
 
       it 'deletes multiple children in multiple flushes', ->
         post = @Post.create(id: "1", title: 'parent');
-        post.comments.addObject @Comment.create(id: "2", message: 'thing 1')
-        post.comments.addObject @Comment.create(id: "3", message: 'thing 2')
+        post.comments.addObject @Comment.create(id: "2", message: 'thing 1', post: post)
+        post.comments.addObject @Comment.create(id: "3", message: 'thing 2', post: post)
         post = session.merge(post)
 
         adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [{post: "1", id: "3", message: 'thing 2'}]}

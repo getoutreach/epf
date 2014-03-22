@@ -68,7 +68,7 @@ describe "rest", ->
       adapter.r['DELETE:/users/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent')
-      post.user = @User.create(id: "2", name: 'wes')
+      post.user = @User.create(id: "2", name: 'wes', post: post)
       session.merge post
 
       session.load('post', 1).then (post) ->
@@ -85,7 +85,7 @@ describe "rest", ->
       adapter.r['DELETE:/users/2'] = {}
 
       post = @Post.create(id: "1", title: 'parent')
-      post.user = @User.create(id: "2", name: 'wes')
+      post.user = @User.create(id: "2", name: 'wes', post: post)
       session.merge post
 
       session.load('post', 1).then (post) ->
@@ -93,7 +93,7 @@ describe "rest", ->
         session.deleteModel(user)
         session.deleteModel(post)
         session.flush().then ->
-          expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/users/2'])
+          expect(adapter.h).to.eql(['DELETE:/users/2', 'DELETE:/posts/1'])
 
 
     it 'creates on server', ->
@@ -140,7 +140,7 @@ describe "rest", ->
 
 
     it 'creates child', ->
-      adapter.r['PUT:/posts/1'] = -> posts: {id: "1", title: 'parent', user: {client_id: post.user.clientId, id: '2', name: 'child'}}
+      adapter.r['PUT:/posts/1'] = -> posts: {id: 1, title: 'parent', user: {client_id: post.user.clientId, id: 2, name: 'child', post: 1}}
 
       post = session.merge @Post.create(id: "1", title: 'parent')
 
@@ -176,4 +176,3 @@ describe "rest", ->
       session.flush().then ->
         expect(adapter.h).to.eql(['DELETE:/posts/1'])
         expect(post.isDeleted).to.be.true
-

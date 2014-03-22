@@ -79,13 +79,13 @@ describe "relationships", ->
       expect(comment.post).to.be.null
 
 
-    # it 'hasMany updates inverse on create', ->
-    #   post = @session.create('post', comments: [])
-    #   comment = @session.create('comment')
-    #   post.comments.addObject(comment)
-    #   expect(comment.post).to.eq(post)
-    #   @session.deleteModel post
-    #   expect(comment.post).to.be.null
+    it 'hasMany updates inverse on create', ->
+      post = @session.create('post', comments: [])
+      comment = @session.create('comment')
+      post.comments.addObject(comment)
+      expect(comment.post).to.eq(post)
+      @session.deleteModel post
+      expect(comment.post).to.be.null
 
 
     it 'hasMany adds to session', ->
@@ -97,7 +97,7 @@ describe "relationships", ->
 
 
     it 'hasMany content can be set directly', ->
-      post = @session.merge(@Post.create(id: '1', comments: [@Comment.create(id: '2')]))
+      post = @session.create 'post', comments: [@Comment.create(id: '2')]
       expect(post.comments.length).to.eq(1)
       expect(post.comments.firstObject.id).to.eq('2')
 
@@ -182,4 +182,3 @@ describe "relationships", ->
 
       expect(user.members.toArray()).to.eql([])
       expect(group.members.toArray()).to.eql([])
-

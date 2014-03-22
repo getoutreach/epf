@@ -1645,14 +1645,6 @@
                     res = get(this, 'parent').fetch(model);
                     if (res) {
                         res = this.adopt(res.copy());
-                        res.eachRelationship(function (name, relationship) {
-                            if (relationship.kind === 'belongsTo') {
-                                var child = get(res, name);
-                                if (child) {
-                                    set(child, 'session', this);
-                                }
-                            }
-                        }, this);
                     }
                 }
                 return res;
@@ -1826,6 +1818,9 @@
                 if (!ancestor) {
                     ancestor = dest;
                 }
+                model.eachChild(function (child) {
+                    this.reifyClientId(child);
+                }, this);
                 var strategy = this.mergeStrategyFor(get(model, 'type.typeKey'));
                 strategy.merge(dest, ancestor, model);
                 return dest;
@@ -1861,7 +1856,7 @@
         require('/lib/collections/model_array.js', module);
         require('/lib/collections/model_set.js', module);
         require('/lib/session/collection_manager.js', module);
-        require('/lib/session/belongs_to_manager.js', module);
+        require('/lib/session/inverse_manager.js', module);
         require('/lib/model/index.js', module);
         var get = Ember.get, set = Ember.set;
         Ep.PromiseArray = Ember.ArrayProxy.extend(Ember.PromiseProxyMixin);
@@ -1871,7 +1866,7 @@
                 this._super.apply(this, arguments);
                 this.models = Ep.ModelSet.create();
                 this.collectionManager = Ep.CollectionManager.create();
-                this.belongsToManager = Ep.BelongsToManager.create();
+                this.inverseManager = Ep.InverseManager.create({ session: this });
                 this.shadows = Ep.ModelSet.create();
                 this.originals = Ep.ModelSet.create();
                 this.newModels = Ep.ModelSet.create();
@@ -1885,40 +1880,15 @@
             adopt: function (model) {
 
 
-                set(model, 'session', this);
                 if (get(model, 'isNew')) {
                     this.newModels.add(model);
                 }
-                if (!get(model, 'isProxy')) {
+                if (!get(model, 'isProxy') && !get(model, 'session')) {
                     this.models.add(model);
-                    this._materializeRelationships(model);
-                    model._registerRelationships();
+                    this.inverseManager.register(model);
                 }
+                set(model, 'session', this);
                 return model;
-            },
-            _materializeRelationships: function (model) {
-                model.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var child = get(model, name);
-                        if (child) {
-                            this.reifyClientId(child);
-                            var existing = this.getModel(child);
-                            if (!get(child, 'isLoaded') && existing) {
-                                set(model, name, existing);
-                            }
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var children = get(model, name);
-                        var content = children.get('content');
-                        content.forEach(function (child, index) {
-                            this.reifyClientId(child);
-                            var existing = this.getModel(child);
-                            if (!get(child, 'isLoaded') && existing) {
-                                children.replace(index, 1, [existing]);
-                            }
-                        }, this);
-                    }
-                }, this);
             },
             add: function (model) {
                 this.reifyClientId(model);
@@ -1994,7 +1964,7 @@
                 }
                 set(model, 'isDeleted', true);
                 this.collectionManager.modelWasDeleted(model);
-                this.belongsToManager.modelWasDeleted(model);
+                this.inverseManager.unregister(model);
             },
             load: function (type, id) {
                 type = this.typeFor(type);
@@ -2072,7 +2042,7 @@
                 });
                 this.models.destroy();
                 this.collectionManager.destroy();
-                this.belongsToManager.destroy();
+                this.inverseManager.destroy();
                 this.shadows.destroy();
                 this.originals.destroy();
                 this.newModels.destroy();
@@ -3017,25 +2987,6 @@
                 } finally {
                     this._suspendedRelationships = false;
                 }
-            },
-            _registerRelationships: function () {
-                var session = get(this, 'session');
-
-                this.eachRelationship(function (name, relationship) {
-                    if (relationship.kind === 'belongsTo') {
-                        var child = get(this, name);
-                        if (child) {
-                            session.reifyClientId(child);
-                            session.belongsToManager.register(this, name, child);
-                        }
-                    } else if (relationship.kind === 'hasMany') {
-                        var children = get(this, name);
-                        children.forEach(function (child) {
-                            session.reifyClientId(child);
-                            session.collectionManager.register(children, child);
-                        }, this);
-                    }
-                }, this);
             }
         });
         Ep.Model.reopenClass({
@@ -3241,12 +3192,6 @@
                 } else {
                     content = value;
                 }
-                var session = get(this, 'session');
-                if (session) {
-                    content = content.map(function (model) {
-                        return session.add(model);
-                    }, this);
-                }
                 if (cached) {
                     set(cached, 'content', content);
                     return cached;
@@ -3262,15 +3207,6 @@
             name: null,
             owner: null,
             session: Ember.computed.alias('owner.session'),
-            replaceContent: function (idx, amt, objects) {
-                var session = get(this, 'session');
-                if (session) {
-                    objects = objects.map(function (model) {
-                        return session.add(model);
-                    });
-                }
-                this._super(idx, amt, objects);
-            },
             objectAtContent: function (index) {
                 var content = get(this, 'content'), model = content.objectAt(index), session = get(this, 'session');
                 if (session && model) {
@@ -3279,28 +3215,13 @@
                 return model;
             },
             arrayContentWillChange: function (index, removed, added) {
-                var owner = get(this, 'owner'), name = get(this, 'name'), session = get(this, 'session');
+                var model = get(this, 'owner'), name = get(this, 'name'), session = get(this, 'session');
                 if (session) {
-                    session.modelWillBecomeDirty(owner);
-                }
-                if (!owner._suspendedRelationships) {
-                    var inverse = owner.constructor.inverseFor(name);
-                    if (inverse) {
+                    session.modelWillBecomeDirty(model);
+                    if (!model._suspendedRelationships) {
                         for (var i = index; i < index + removed; i++) {
-                            var model = this.objectAt(i);
-                            if (!get(model, 'isLoaded'))
-                                continue;
-                            model.suspendRelationshipObservers(function () {
-                                if (inverse.kind === 'hasMany') {
-                                    get(model, inverse.name).removeObject(owner);
-                                } else if (inverse.kind === 'belongsTo') {
-                                    set(model, inverse.name, null);
-                                    if (session) {
-                                        session.modelWillBecomeDirty(model);
-                                        session.belongsToManager.unregister(model, inverse.name, owner);
-                                    }
-                                }
-                            }, this);
+                            var inverseModel = this.objectAt(i);
+                            session.inverseManager.unregisterRelationship(model, name, inverseModel);
                         }
                     }
                 }
@@ -3308,26 +3229,11 @@
             },
             arrayContentDidChange: function (index, removed, added) {
                 this._super.apply(this, arguments);
-                var owner = get(this, 'owner'), name = get(this, 'name');
-                if (!owner._suspendedRelationships) {
-                    var inverse = owner.constructor.inverseFor(name);
-                    if (inverse) {
-                        for (var i = index; i < index + added; i++) {
-                            var model = this.objectAt(i);
-                            if (!get(model, 'isLoaded'))
-                                continue;
-                            model.suspendRelationshipObservers(function () {
-                                if (inverse.kind === 'hasMany') {
-                                    get(model, inverse.name).addObject(owner);
-                                } else if (inverse.kind === 'belongsTo') {
-                                    set(model, inverse.name, owner);
-                                    var session = get(this, 'session');
-                                    if (session) {
-                                        session.belongsToManager.register(model, inverse.name, owner);
-                                    }
-                                }
-                            }, this);
-                        }
+                var model = get(this, 'owner'), name = get(this, 'name'), session = get(this, 'session');
+                if (session && !model._suspendedRelationships) {
+                    for (var i = index; i < index + added; i++) {
+                        var inverseModel = this.objectAt(i);
+                        session.inverseManager.registerRelationship(model, name, inverseModel);
                     }
                 }
             }
@@ -3733,13 +3639,16 @@
 
                 meta.type = typeKey;
             }
-            return new BelongsToDescriptor(function (key, value) {
+            return new BelongsToDescriptor(function (key, value, oldValue) {
                 if (arguments.length === 1) {
                     return null;
                 } else {
                     var session = get(this, 'session');
-                    if (value && session) {
-                        value = session.add(value);
+                    if (session) {
+                        session.modelWillBecomeDirty(this, key, value, oldValue);
+                        if (value) {
+                            value = session.add(value);
+                        }
                     }
                     return value;
                 }
@@ -3754,51 +3663,20 @@
                     }
                 }, this);
             },
-            belongsToWillChange: Ember.beforeObserver(function (model, key) {
-                var oldParent = get(model, key);
+            belongsToWillChange: Ember.beforeObserver(function (model, name) {
+                var inverseModel = get(model, name);
                 var session = get(model, 'session');
                 if (session) {
-                    session.modelWillBecomeDirty(model);
-                }
-                if (oldParent && session) {
-                    session.belongsToManager.unregister(model, key, oldParent);
-                }
-                if (oldParent && get(oldParent, 'isLoaded')) {
-                    var inverse = get(model, 'type').inverseFor(key);
-                    if (inverse) {
-                        oldParent.suspendRelationshipObservers(function () {
-                            if (inverse.kind === 'hasMany' && model) {
-                                get(oldParent, inverse.name).removeObject(model);
-                            } else if (inverse.kind === 'belongsTo') {
-                                set(oldParent, inverse.name, null);
-                                if (session) {
-                                    session.modelWillBecomeDirty(oldParent);
-                                    session.belongsToManager.unregister(oldParent, inverse.name, model);
-                                }
-                            }
-                        });
+                    if (inverseModel) {
+                        session.inverseManager.unregisterRelationship(model, name, inverseModel);
                     }
                 }
             }),
-            belongsToDidChange: Ember.immediateObserver(function (model, key) {
-                var parent = get(model, key);
+            belongsToDidChange: Ember.immediateObserver(function (model, name) {
+                var inverseModel = get(model, name);
                 var session = get(model, 'session');
-                if (parent && session) {
-                    session.belongsToManager.register(model, key, parent);
-                }
-                if (parent && get(parent, 'isLoaded')) {
-                    var inverse = get(model, 'type').inverseFor(key);
-                    if (inverse) {
-                        parent.suspendRelationshipObservers(function () {
-                            if (inverse.kind === 'hasMany' && model) {
-                                get(parent, inverse.name).addObject(model);
-                            } else if (inverse.kind === 'belongsTo') {
-                                set(parent, inverse.name, model);
-                                if (session)
-                                    session.belongsToManager.register(parent, inverse.name, model);
-                            }
-                        });
-                    }
+                if (session && inverseModel) {
+                    session.inverseManager.registerRelationship(model, name, inverseModel);
                 }
             })
         });
@@ -4051,44 +3929,99 @@
             return promise;
         };
     });
-    require.define('/lib/session/belongs_to_manager.js', function (module, exports, __dirname, __filename) {
+    require.define('/lib/session/inverse_manager.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
-        Ep.BelongsToManager = Ember.Object.extend({
+        Ep.InverseManager = Ember.Object.extend({
+            session: null,
             init: function () {
-                this.modelMap = Ember.MapWithDefault.create({
+                this.map = Ember.MapWithDefault.create({
                     defaultValue: function () {
-                        return Ember.A([]);
+                        return Ember.MapWithDefault.create({
+                            defaultValue: function () {
+                                return Ep.ModelSet.create();
+                            }
+                        });
                     }
                 });
             },
-            register: function (parent, key, model) {
-                var paths = this.modelMap.get(get(model, 'clientId'));
-                var path = paths.find(function (p) {
-                        return p.parent.isEqual(parent) && p.key === key;
-                    });
-                if (path)
-                    return;
-                path = {
-                    parent: parent,
-                    key: key
-                };
-                paths.pushObject(path);
+            register: function (model) {
+                var clientId = get(model, 'clientId');
+
+                var session = get(this, 'session');
+                model.eachRelationship(function (name, relationship) {
+                    var existingInverses = this.map.get(clientId).get(name), inversesToClear = existingInverses.copy();
+                    function checkInverse(inverseModel) {
+                        session.reifyClientId(inverseModel);
+                        if (existingInverses.contains(inverseModel)) {
+                        } else {
+                            this.registerRelationship(model, name, inverseModel);
+                        }
+                        inversesToClear.remove(inverseModel);
+                    }
+                    if (relationship.kind === 'belongsTo') {
+                        var inverseModel = get(model, name);
+                        if (inverseModel) {
+                            checkInverse.call(this, inverseModel);
+                        }
+                    } else if (relationship.kind === 'hasMany') {
+                        var inverseModels = get(model, name);
+                        inverseModels.forEach(function (inverseModel) {
+                            checkInverse.call(this, inverseModel);
+                        }, this);
+                    }
+                    inversesToClear.forEach(function (inverseModel) {
+                        this.unregisterRelationship(model, name, inverseModel);
+                    }, this);
+                }, this);
             },
-            unregister: function (parent, key, model) {
-                var paths = this.modelMap.get(get(model, 'clientId'));
-                var path = paths.find(function (p) {
-                        return p.parent.isEqual(parent) && p.key === key;
-                    });
-                paths.removeObject(path);
-                if (paths.length === 0) {
-                    this.modelMap.remove(get(model, 'clientId'));
+            unregister: function (model) {
+                var clientId = get(model, 'clientId'), inverses = this.map.get(clientId);
+                inverses.forEach(function (name, inverseModels) {
+                    inverseModels.forEach(function (inverseModel) {
+                        this.unregisterRelationship(model, name, inverseModel);
+                    }, this);
+                }, this);
+                this.map.remove(clientId);
+            },
+            registerRelationship: function (model, name, inverseModel) {
+                var inverse = model.constructor.inverseFor(name);
+                this.map.get(get(model, 'clientId')).get(name).addObject(inverseModel);
+                if (inverse) {
+                    this.map.get(get(inverseModel, 'clientId')).get(inverse.name).addObject(model);
+                    this._addToInverse(inverseModel, inverse, model);
                 }
             },
-            modelWasDeleted: function (model) {
-                var paths = this.modelMap.get(get(model, 'clientId')).copy();
-                paths.forEach(function (path) {
-                    set(path.parent, path.key, null);
-                });
+            unregisterRelationship: function (model, name, inverseModel) {
+                var inverse = model.constructor.inverseFor(name);
+                this.map.get(get(model, 'clientId')).get(name).removeObject(inverseModel);
+                if (inverse) {
+                    this.map.get(get(inverseModel, 'clientId')).get(inverse.name).removeObject(model);
+                    this._removeFromInverse(inverseModel, inverse, model);
+                }
+            },
+            _addToInverse: function (model, inverse, inverseModel) {
+                model = this.session.getModel(model);
+                if (!model)
+                    return;
+                model.suspendRelationshipObservers(function () {
+                    if (inverse.kind === 'hasMany') {
+                        get(model, inverse.name).addObject(inverseModel);
+                    } else if (inverse.kind === 'belongsTo') {
+                        set(model, inverse.name, inverseModel);
+                    }
+                }, this);
+            },
+            _removeFromInverse: function (model, inverse, inverseModel) {
+                model = this.session.getModel(model);
+                if (!model)
+                    return;
+                model.suspendRelationshipObservers(function () {
+                    if (inverse.kind === 'hasMany') {
+                        get(model, inverse.name).removeObject(inverseModel);
+                    } else if (inverse.kind === 'belongsTo') {
+                        set(model, inverse.name, null);
+                    }
+                }, this);
             }
         });
     });

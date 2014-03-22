@@ -27,7 +27,9 @@ describe 'Ep.PerField', ->
       name: Ep.attr('string')
       posts: Ep.hasMany(App.Post)
 
-    @container.register 'model:post', @Post
+    @container.register 'model:post', App.Post
+    @container.register 'model:user', App.User
+    @container.register 'model:comment', App.Comment
 
     adapter = @container.lookup('adapter:main')
     session = adapter.newSession()
@@ -39,8 +41,8 @@ describe 'Ep.PerField', ->
     session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyB')
     expect(post.title).to.eq('titleB')
     expect(post.body).to.eq('bodyB')
-    post.comments.addObject App.Comment.create()
-    session.merge App.Post.create(id: '1', title: 'titleB', body: 'bodyB', user: App.User.create(id: '2'))
+    post.comments.addObject session.create 'comment'
+    session.merge App.Post.create(id: '1', title: 'titleB', body: 'bodyB', user: App.User.create(id: '2', posts: [Ep.LazyModel.create(type: App.Post, id: '1')]))
     expect(post.comments.length).to.eq(1)
     expect(post.comments.firstObject.id).to.be.null
     expect(post.user.id).to.eq('2')
@@ -62,35 +64,36 @@ describe 'Ep.PerField', ->
 
 
   it 'keeps ours if only modified in ours', ->
-    post = session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyA', user: App.User.create(id: '2'), comments: [App.Comment.create(id: '3')])
+    post = session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyA', user: App.User.create(id: '2', posts: [Ep.LazyModel.create(type: App.Post, id: '1')]), comments: [App.Comment.create(id: '3', user: Ep.LazyModel.create(type: App.User, id: '2'), post: Ep.LazyModel.create(type: App.Post, id: '1'))])
     session.create App.Comment, post: post
     expect(post.comments.length).to.eq(2)
-    newData = App.Post.create(id: '1', title: 'titleA', body: 'bodyA', user: App.User.create(id: '2'), comments: [App.Comment.create(id: '3')])
+    newData = App.Post.create(id: '1', title: 'titleA', body: 'bodyA', user: App.User.create(id: '2', posts: [Ep.LazyModel.create(type: App.Post, id: '1')]), comments: [App.Comment.create(id: '3', user: Ep.LazyModel.create(type: App.User, id: '2'), post: Ep.LazyModel.create(type: App.Post, id: '1'))])
     newData.comments.firstObject.post = newData
     session.merge newData
     expect(post.comments.length).to.eq(2)
 
 
   it 'still merges model if removed from belongsTo in ours', ->
-    post = session.merge App.Post.create(id: '1', title: 'herp', user: App.User.create(id: '2'))
+    post = session.merge App.Post.create(id: '1', title: 'herp', user: App.User.create(id: '2', posts: [Ep.LazyModel.create(type: App.Post, id: '1')]))
     user = post.user
     post.user = null
-    session.merge App.Post.create(id: '1', title: 'herp', user: App.User.create(id: '2', name: 'grodon'))
+    session.merge App.Post.create(id: '1', title: 'herp', user: App.User.create(id: '2', name: 'grodon', posts: [Ep.LazyModel.create(type: App.Post, id: '1')]))
     expect(post.user).to.be.null
     expect(user.name).to.eq('grodon')
 
 
   it 'still merges model if removed from hasMany in ours', ->
-    post = session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'herp')])
+    post = session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'herp', post: Ep.LazyModel.create(type: App.Post, id: '1'))])
     comment = post.comments.firstObject
     post.comments.clear()
-    session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'derp')])
+    expect(post.comments.length).to.eq(0)
+    session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'derp', post: Ep.LazyModel.create(type: App.Post, id: '1'))])
     expect(post.comments.length).to.eq(0)
     expect(comment.body).to.eq('derp')
 
 
   it 'still merges model if sibling added to hasMany', ->
-    post = session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'herp')])
+    post = session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'herp', post: Ep.LazyModel.create(type: App.Post, id: '1'))])
     post.comments.addObject(session.create(App.Comment, body: 'derp'))
     comment = post.comments.firstObject
     session.merge App.Post.create(id: '1', title: 'herp', comments: [App.Comment.create(id: '2', body: 'derp?', post: post)])
