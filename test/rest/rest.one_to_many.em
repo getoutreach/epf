@@ -47,6 +47,7 @@ describe "rest", ->
 
 
     it 'creates', ->
+      debugger
       adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comments: []}
       adapter.r['POST:/comments'] = (url, type, hash) ->
         expect(hash.data.comment.post).to.eq(1)

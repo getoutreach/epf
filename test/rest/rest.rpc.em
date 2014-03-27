@@ -43,7 +43,7 @@ describe "rest", ->
 
     it 'serializes model params', ->
       adapter.r['POST:/posts/1/submit'] = (url, type, hash) ->
-        expect(hash.data.title).to.eq('test')
+        expect(hash.data.post.title).to.eq('test')
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
       session.merge @Post.create(id: "1", title: 'test', submitted: false)
@@ -53,21 +53,6 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
-
-    it 'recursively serializes model params', ->
-      adapter.r['POST:/posts/1/submit'] = (url, type, hash) ->
-        expect(hash.data.post.title).to.eq('test')
-        expect(hash.data.submitted).to.be.true
-        posts: {id: 1, title: 'submitted', submitted: "true"}
-
-      session.merge @Post.create(id: "1", title: 'test', submitted: false)
-
-      session.load('post', 1).then (post) ->
-        session.remoteCall(post, 'submit', {post: post, submitted: true}).then ->
-          expect(adapter.h).to.eql(['POST:/posts/1/submit'])
-          expect(post.title).to.eq('submitted')
-          expect(post.submitted).to.be.true
-
 
 
     it 'can accept model type as context', ->
@@ -143,28 +128,28 @@ describe "rest", ->
           expect(post.submitted).to.be.true
           expect(models.firstObject).to.eq(post)
 
-    it 'returns all models of a type if deserializationContext is a type key', ->
+    it 'returns all models of a type if deserializer context is a type key', ->
       adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
       session.merge @Post.create(id: "1", title: 'test', submitted: false)
 
       session.load('post', 1).then (post) ->
-        session.remoteCall(post, 'submit', {token: 'asd'}, {deserializationContext: 'post'}).then (models) ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, {serializerOptions: {context: 'post'}}).then (models) ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
           expect(models.firstObject).to.eq(post)
 
 
-    it 'returns all models of a type if deserializationContext is a type', ->
+    it 'returns all models of a type if context is a type', ->
       adapter.r['POST:/posts/1/submit'] = ->
         posts: {id: 1, title: 'submitted', submitted: "true"}
 
       session.merge @Post.create(id: "1", title: 'test', submitted: false)
       Post = @Post
       session.load('post', 1).then (post) ->
-        session.remoteCall(post, 'submit', {token: 'asd'}, {deserializationContext: Post}).then (models) ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, {serializerOptions: {context: Post}}).then (models) ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true

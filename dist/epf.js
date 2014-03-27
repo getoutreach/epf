@@ -70,7 +70,7 @@
         require('/lib/active_model/serializers/index.js', module);
         var decamelize = Ember.String.decamelize, underscore = Ember.String.underscore, pluralize = Ember.String.pluralize;
         Ep.ActiveModelAdapter = Ep.RestAdapter.extend({
-            defaultMergeType: 'payload',
+            defaultSerializer: 'payload',
             setupContainer: function (parent) {
                 var container = this._super(parent);
                 container.register('serializer:model', Ep.ActiveModelSerializer);
@@ -111,7 +111,7 @@
         var EmbeddedHelpersMixin = require('/lib/rest/embedded_helpers_mixin.js', module);
         var materializeRelationships = require('/lib/utils/materialize_relationships.js', module);
         Ep.RestAdapter = Ep.Adapter.extend(EmbeddedHelpersMixin, {
-            defaultMergeType: 'payload',
+            defaultSerializer: 'payload',
             init: function () {
                 this._super.apply(this, arguments);
                 this._embeddedManager = Ep.EmbeddedManager.create({
@@ -126,7 +126,7 @@
                 container.register('serializer:payload', Ep.PayloadSerializer);
                 return container;
             },
-            load: function (typeKey, id, session, opts) {
+            load: function (typeKey, id, opts, session) {
                 var context = {
                         typeKey: typeKey,
                         id: id
@@ -146,76 +146,122 @@
                         typeKey: typeKey,
                         id: id
                     };
-                return this._deserializePromise(this.ajax(this.buildUrlFromContext(context), 'GET'), context, opts);
+                opts = Ember.merge({ type: 'GET' }, opts || {});
+                return this._remoteCall(context, null, null, opts);
             },
-            refresh: function (model, session, opts) {
+            refresh: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._refresh(model, opts), session, model, opts);
             },
             _refresh: function (model, opts) {
-                return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'GET'), model, opts);
+                opts = Ember.merge({ type: 'GET' }, opts || {});
+                return this._remoteCall(model, null, null, opts, session);
             },
-            update: function (model, session, opts) {
+            update: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._update(model, opts), session, model, opts);
             },
             _update: function (model, opts) {
-                var typeKey = get(model, 'typeKey');
-                var data = {};
-                data[typeKey] = this.serialize(model);
-                return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'PUT', { data: data }), model, opts);
+                opts = Ember.merge({ type: 'PUT' }, opts || {});
+                return this._remoteCall(model, null, model, opts, session);
             },
-            create: function (model, session, opts) {
+            create: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._create(model, opts), session, model, opts);
             },
             _create: function (model, opts) {
-                var typeKey = get(model, 'typeKey');
-                var data = {};
-                data[typeKey] = this.serialize(model);
-                return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'POST', { data: data }), model, opts);
+                return this._remoteCall(model, null, model, opts, session);
             },
-            deleteModel: function (model, session, opts) {
+            deleteModel: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._deleteModel(model, opts), session, model, opts);
             },
             _deleteModel: function (model, opts) {
-                return this._deserializePromise(this.ajax(this.buildUrlFromContext(model), 'DELETE'), model, opts);
+                opts = Ember.merge({ type: 'DELETE' }, opts || {});
+                return this._remoteCall(model, null, null, opts, session);
             },
-            query: function (typeKey, query, session, opts) {
+            query: function (typeKey, query, opts, session) {
                 return this._mergeAndContextualizePromise(this._query(typeKey, query, opts), session, typeKey, opts);
             },
             _query: function (typeKey, query, opts) {
-                return this._deserializePromise(this.ajax(this.buildUrlFromContext(typeKey), 'GET', { data: query }), typeKey, opts);
+                opts = Ember.merge({
+                    type: 'GET',
+                    serialize: false,
+                    deserializer: 'payload'
+                }, opts || {});
+                return this._remoteCall(typeKey, null, query, opts, session);
             },
-            remoteCall: function (context, name, params, opts, session) {
-                return this._mergeAndContextualizePromise(this._remoteCall(context, name, params, opts), session, context, opts);
+            remoteCall: function (context, name, data, opts, session) {
+                var serialize = data && !!get(data, 'isModel');
+                opts = Ember.merge({
+                    serialize: serialize,
+                    deserializer: 'payload'
+                }, opts || {});
+                return this._mergeAndContextualizePromise(this._remoteCall(context, name, data, opts), session, context, opts);
             },
-            _remoteCall: function (context, name, params, opts) {
-                var adapter = this, url = this.buildUrlFromContext(context);
-                url = url + '/' + name;
-                method = opts && opts.type || 'POST';
-                var data = JSON.stringify(params, function (key, value) {
-                        if (value && get(value, 'isModel')) {
-                            var typeKey = get(value, 'typeKey');
-                            var serializer = adapter.serializerFor(typeKey);
-                            return serializer.serialize(value);
-                        }
-                        return value;
-                    });
+            _remoteCall: function (context, name, data, opts) {
+                var adapter = this, url = this.buildUrlFromContext(context), opts = this._normalizeOptions(opts);
+                url = this.buildUrlFromContext(context, name);
+                method = opts.type || 'POST';
+                if (opts.serialize !== false) {
+                    var serializer = opts.serializer, serializerOptions = opts.serializerOptions;
+                    if (!serializer && context) {
+                        serializer = this.serializerForContext(context);
+                    }
+                    if (serializer && data) {
+                        serializer = this.serializerFor(serializer);
+                        serializerOptions = Ember.merge({ context: context }, serializerOptions || {});
+                        data = serializer.serialize(data, serializerOptions);
+                    }
+                }
+                if (opts.params) {
+                    data = Ember.merge(data, opts.params);
+                }
                 return this._deserializePromise(this.ajax(url, method, { data: data }), context, opts);
             },
-            _deserializePromise: function (promise, context, opts) {
-                var typeKey = opts && opts.typeKey || this.defaultMergeType, adapter = this;
-                if (opts && opts.deserializationContext !== undefined) {
-                    context = opts.deserializationContext;
+            _normalizeOptions: function (opts) {
+                opts = opts || {};
+                if (opts.serializerOptions && typeof opts.serializerOptions.context === 'function') {
+                    opts.serializerOptions.context = get(opts.serializerOptions.context, 'typeKey');
                 }
+                return opts;
+            },
+            serializerForContext: function (context) {
+                return get(this, 'defaultSerializer');
+            },
+            _deserializePromise: function (promise, context, opts) {
+                var adapter = this;
                 return promise.then(function (data) {
-                    if (opts && opts.deserialize === false) {
-                        return data;
+                    if (opts.deserialize !== false) {
+                        var serializer = opts.deserializer || opts.serializer, serializerOptions = opts.serializerOptions;
+                        if (!serializer && context) {
+                            serializer = adapter.serializerForContext(context);
+                        }
+                        if (serializer) {
+                            serializer = adapter.serializerFor(serializer);
+                            serializerOptions = Ember.merge({ context: context }, serializerOptions || {});
+                        }
+                        return serializer.deserialize(data, serializerOptions);
                     }
-                    return adapter.deserialize(typeKey, data, { context: context });
+                    return data;
                 }, function (xhr) {
-                    if (opts && opts.deserialize === false) {
-                        throw xhr;
+                    if (opts.deserialize !== false) {
+                        var data;
+                        if (xhr.responseText) {
+                            data = JSON.parse(xhr.responseText);
+                        } else {
+                            data = {};
+                        }
+                        var serializer = opts.errorSerializer || opts.deserializer || opts.serializer, serializerOptions = opts.serializerOptions;
+                        if (!serializer && context) {
+                            serializer = adapter.serializerForContext(context);
+                        }
+                        if (serializer) {
+                            serializer = adapter.serializerFor(serializer);
+                            serializerOptions = Ember.merge({
+                                context: context,
+                                xhr: xhr
+                            }, serializerOptions || {});
+                        }
+                        throw serializer.deserialize(data, serializerOptions);
                     }
-                    throw adapter.deserializeError(typeKey, xhr, { context: context });
+                    throw xhr;
                 });
             },
             _mergePromise: function (promise, session, opts) {
@@ -278,23 +324,6 @@
                     return;
                 }
                 this._embeddedManager.updateParents(model);
-            },
-            deserializeError: function (typeKey, xhr, opts) {
-                var data;
-                if (xhr.responseText) {
-                    data = JSON.parse(xhr.responseText);
-                } else {
-                    data = {};
-                }
-                var result = this.deserialize(typeKey, data, opts);
-                var errors = get(result, 'errors');
-                if (!errors) {
-                    errors = Ep.RestErrors.create();
-                    set(result, 'errors', errors);
-                }
-                set(errors, 'status', xhr.status);
-                set(errors, 'xhr', xhr);
-                return result;
             },
             flush: function (session) {
                 var models = get(session, 'dirtyModels').copy(true);
@@ -446,7 +475,7 @@
                     this.eachEmbeddedRelative(parent, callback, binding, visited);
                 }
             },
-            buildUrlFromContext: function (context) {
+            buildUrlFromContext: function (context, action) {
                 var typeKey, id;
                 if (typeof context === 'string') {
                     typeKey = context;
@@ -454,7 +483,11 @@
                     typeKey = get(context, 'typeKey');
                     id = get(context, 'id');
                 }
-                return this.buildUrl(typeKey, id);
+                var url = this.buildUrl(typeKey, id);
+                if (action) {
+                    url = url + '/' + action;
+                }
+                return url;
             },
             buildUrl: function (typeKey, id) {
                 var url = [], host = get(this, 'host'), prefix = this.urlPrefix();
@@ -528,9 +561,7 @@
                 hash.context = this;
                 if (hash.data && type !== 'GET') {
                     hash.contentType = 'application/json; charset=utf-8';
-                    if (typeof hash.data !== 'string') {
-                        hash.data = JSON.stringify(hash.data);
-                    }
+                    hash.data = JSON.stringify(hash.data);
                 }
                 var headers = get(this, 'headers');
                 if (headers !== undefined) {
@@ -672,11 +703,13 @@
                 return typeKey;
             },
             serialize: function (model) {
-                var root = this.rootForTypeKey(model.typeKey), res = {}, serializer = this.serializerFor(model.typeKey);
+                var typeKey = get(model, 'typeKey'), root = this.rootForTypeKey(typeKey), res = {}, serializer = this.serializerFor(typeKey);
                 res[root] = serializer.serialize(model);
+                return res;
             },
             deserialize: function (hash, opts) {
-                var result = Ep.Payload.create(), metaKey = get(this, 'metaKey'), errorsKey = get(this, 'errorsKey'), context = opts && opts.context;
+                opts = opts || {};
+                var result = Ep.Payload.create(), metaKey = get(this, 'metaKey'), errorsKey = get(this, 'errorsKey'), context = opts.context, xhr = opts.xhr;
                 if (context && typeof context === 'string') {
                     set(result, 'context', []);
                 }
@@ -690,7 +723,7 @@
                     }
                     var value = hash[prop];
                     if (prop === errorsKey) {
-                        var serializer = this.serializerFor('errors'), errors = serializer.deserialize(value);
+                        var serializer = this.serializerFor('errors', opts), errors = serializer.deserialize(value, opts);
                         result.errors = errors;
                         continue;
                     }
@@ -718,18 +751,31 @@
                         result.add(model);
                     }
                 }
+                if (xhr) {
+                    var errors = get(result, 'errors');
+                    if (!errors) {
+                        var serializer = this.serializerFor('errors'), errors = serializer.deserialize({}, opts);
+                        set(result, 'errors', errors);
+                    }
+                }
                 materializeRelationships(result);
                 return result;
             }
         });
     });
     require.define('/lib/rest/serializers/errors.js', function (module, exports, __dirname, __filename) {
-        var isEmpty = Ember.isEmpty;
+        var get = Ember.get, set = Ember.set, isEmpty = Ember.isEmpty;
         Ep.RestErrorsSerializer = Ep.Serializer.extend({
-            deserialize: function (serialized) {
-                if (isEmpty(serialized) || isEmptyObject(serialized))
+            deserialize: function (serialized, opts) {
+                var xhr = opts && opts.xhr;
+                if (!xhr && (isEmpty(serialized) || isEmptyObject(serialized)))
                     return;
-                return Ep.RestErrors.create({ content: serialized });
+                res = Ep.RestErrors.create({ content: serialized });
+                if (xhr) {
+                    set(res, 'status', xhr.status);
+                    set(res, 'xhr', xhr);
+                }
+                return res;
             },
             serialize: function (id) {
                 throw new Ember.Error('Errors are not currently serialized down to the server.');
@@ -1092,7 +1138,7 @@
             },
             mergeData: function (data, typeKey, session) {
                 if (!typeKey) {
-                    typeKey = this.defaultMergeType;
+                    typeKey = this.defaultSerializer;
                 }
                 var serializer = this.serializerFor(typeKey), deserialized = serializer.deserialize(data);
                 if (get(deserialized, 'isModel')) {
@@ -1966,7 +2012,7 @@
                 this.collectionManager.modelWasDeleted(model);
                 this.inverseManager.unregister(model);
             },
-            load: function (type, id) {
+            load: function (type, id, opts) {
                 type = this.typeFor(type);
                 var typeKey = get(type, 'typeKey');
                 id = id + '';
@@ -1974,26 +2020,26 @@
                 if (cached && get(cached, 'isLoaded')) {
                     return Ep.resolveModel(cached);
                 }
-                return Ep.resolveModel(this.adapter.load(typeKey, id, this), type, id, this);
+                return Ep.resolveModel(this.adapter.load(typeKey, id, opts, this), type, id, this);
             },
-            find: function (type, query) {
+            find: function (type, query, opts) {
                 if (Ember.typeOf(query) === 'object') {
-                    return this.query(type, query);
+                    return this.query(type, query, opts);
                 }
-                return this.load(type, query);
+                return this.load(type, query, opts);
             },
             fetch: function (model) {
                 return this.getModel(model);
             },
-            query: function (type, query) {
+            query: function (type, query, opts) {
                 type = this.typeFor(type);
                 var typeKey = get(type, 'typeKey');
-                var prom = this.adapter.query(typeKey, query, this);
+                var prom = this.adapter.query(typeKey, query, opts, this);
                 return Ep.PromiseArray.create({ promise: prom });
             },
-            refresh: function (model) {
+            refresh: function (model, opts) {
                 var session = this;
-                return this.adapter.refresh(model, this);
+                return this.adapter.refresh(model, opts, this);
             },
             flush: function () {
                 var session = this, dirtyModels = get(this, 'dirtyModels'), newModels = get(this, 'newModels'), shadows = get(this, 'shadows');
