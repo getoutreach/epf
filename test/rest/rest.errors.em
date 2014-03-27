@@ -14,6 +14,7 @@ describe "rest", ->
       class @Post extends Ep.Model
         title: Ep.attr('string')
         category: Ep.attr('string')
+        createdAt: Ep.attr('date')
       @App.Post = @Post
 
       @container.register 'model:post', @Post
@@ -22,7 +23,7 @@ describe "rest", ->
     context 'on create', ->
       it 'handles validation errors', ->
         adapter.r['PUT:/posts/1'] = ->
-          throw status: 422, responseText: JSON.stringify(errors: {title: 'title is too short'})
+          throw status: 422, responseText: JSON.stringify(errors: {title: 'is too short', created_at: 'cannot be in the past'})
 
         session.merge @Post.create(id: "1", title: 'test')
         session.load('post', 1).then (post) ->
@@ -31,12 +32,13 @@ describe "rest", ->
           session.flush().then null, ->
             expect(post.hasErrors).to.be.true
             expect(post.title).to.eq('')
-            expect(post.errors.title).to.eq('title is too short')
+            expect(post.errors.title).to.eq('is too short')
+            expect(post.errors.createdAt).to.eq('cannot be in the past')
             expect(adapter.h).to.eql(['PUT:/posts/1'])
 
       it 'handles payload with error properties', ->
         adapter.r['PUT:/posts/1'] = ->
-          throw status: 422, responseText: JSON.stringify(post: {id: 1, title: 'test', errors: {title: 'title is too short'}})
+          throw status: 422, responseText: JSON.stringify(post: {id: 1, title: 'test', errors: {title: 'is too short'}})
 
         session.merge @Post.create(id: "1", title: 'test')
         session.load('post', 1).then (post) ->
@@ -45,12 +47,12 @@ describe "rest", ->
           session.flush().then null, ->
             expect(post.hasErrors).to.be.true
             expect(post.title).to.eq('')
-            expect(post.errors.title).to.eq('title is too short')
+            expect(post.errors.title).to.eq('is too short')
             expect(adapter.h).to.eql(['PUT:/posts/1'])
 
       it 'merges payload with error properties and higher rev', ->
         adapter.r['PUT:/posts/1'] = ->
-          throw status: 422, responseText: JSON.stringify(post: {id: 1, title: '', category: 'new', rev: 10, errors: {title: 'title is too short'}})
+          throw status: 422, responseText: JSON.stringify(post: {id: 1, title: '', category: 'new', rev: 10, errors: {title: 'is too short'}})
 
         session.merge @Post.create(id: "1", title: 'test')
         session.load('post', 1).then (post) ->
@@ -60,7 +62,7 @@ describe "rest", ->
             expect(post.hasErrors).to.be.true
             expect(post.title).to.eq('')
             expect(post.category).to.eq('new')
-            expect(post.errors.title).to.eq('title is too short')
+            expect(post.errors.title).to.eq('is too short')
             expect(adapter.h).to.eql(['PUT:/posts/1'])
 
       it 'merges payload with error and latest client changes against latest client version', ->

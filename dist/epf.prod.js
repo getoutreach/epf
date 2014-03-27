@@ -770,12 +770,19 @@
                 var xhr = opts && opts.xhr;
                 if (!xhr && (isEmpty(serialized) || isEmptyObject(serialized)))
                     return;
-                res = Ep.RestErrors.create({ content: serialized });
+                var content = {};
+                for (var key in serialized) {
+                    content[this.transformPropertyKey(key)] = serialized[key];
+                }
+                res = Ep.RestErrors.create({ content: content });
                 if (xhr) {
                     set(res, 'status', xhr.status);
                     set(res, 'xhr', xhr);
                 }
                 return res;
+            },
+            transformPropertyKey: function (name) {
+                return Ember.String.camelize(name);
             },
             serialize: function (id) {
                 throw new Ember.Error('Errors are not currently serialized down to the server.');
