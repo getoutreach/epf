@@ -1228,7 +1228,7 @@
         require('/lib/merge_strategies/per_field.js', module);
     });
     require.define('/lib/merge_strategies/per_field.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set, isEqual = Ember.isEqual;
+        var get = Ember.get, set = Ember.set, isEqual = require('/lib/utils/isEqual.js', module);
         Ep.PerField = Ep.MergeStrategy.extend({
             merge: function (ours, ancestor, theirs) {
                 ours.beginPropertyChanges();
@@ -1279,6 +1279,16 @@
                 }, this);
             }
         });
+    });
+    require.define('/lib/utils/isEqual.js', function (module, exports, __dirname, __filename) {
+        module.exports = function (a, b) {
+            if (a && 'function' === typeof a.isEqual)
+                return a.isEqual(b);
+            if (a instanceof Date && b instanceof Date) {
+                return a.getTime() === b.getTime();
+            }
+            return a === b;
+        };
     });
     require.define('/lib/merge_strategies/base.js', function (module, exports, __dirname, __filename) {
         Ep.MergeStrategy = Ember.Object.extend({ merge: Ember.required() });

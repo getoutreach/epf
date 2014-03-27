@@ -18,6 +18,7 @@ describe 'Ep.PerField', ->
       body: Ep.attr('string')
       comments: Ep.hasMany(App.Comment)
       user: Ep.belongsTo(App.User)
+      createdAt: Ep.attr('date')
 
     App.Comment.reopen
       body: Ep.attr('string')
@@ -36,11 +37,12 @@ describe 'Ep.PerField', ->
 
 
   it 'keeps modified fields from both versions', ->
-    post = session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyA')
+    post = session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyA', createdAt: new Date(1985, 7, 22))
     post.title = 'titleB'
-    session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyB')
+    session.merge App.Post.create(id: '1', title: 'titleA', body: 'bodyB', createdAt: null)
     expect(post.title).to.eq('titleB')
     expect(post.body).to.eq('bodyB')
+    expect(post.createdAt).to.be.null
     post.comments.addObject session.create 'comment'
     session.merge App.Post.create(id: '1', title: 'titleB', body: 'bodyB', user: App.User.create(id: '2', posts: [Ep.LazyModel.create(type: App.Post, id: '1')]))
     expect(post.comments.length).to.eq(1)
