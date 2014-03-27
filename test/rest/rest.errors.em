@@ -130,12 +130,14 @@ describe "rest", ->
         post = session.create 'post', title: 'errorz'
         session.flush().then null, ->
           expect(post.title).to.eq('Something')
+          expect(post.errors.title).to.eq('is lamerz')
           adapter.r['POST:/posts'] = (url, type, hash) ->
             post: {title: 'linkbait', id: 1, client_id: hash.data.post.client_id, client_rev: hash.data.post.client_rev}
           session.title = 'linkbait'
           session.flush().then ->
             expect(post.title).to.eq('linkbait')
             expect(adapter.h).to.eql(['POST:/posts', 'POST:/posts'])
+            expect(post.errors.title).to.be.undefined
 
 
       context 'in child session', ->

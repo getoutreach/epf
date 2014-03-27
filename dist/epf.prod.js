@@ -1825,6 +1825,7 @@
                     }
                 } else {
                 }
+                set(merged, 'errors', null);
                 return merged;
             },
             _mergeError: function (model) {
