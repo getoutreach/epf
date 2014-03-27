@@ -154,27 +154,27 @@
             },
             _refresh: function (model, opts) {
                 opts = Ember.merge({ type: 'GET' }, opts || {});
-                return this._remoteCall(model, null, null, opts, session);
+                return this._remoteCall(model, null, null, opts);
             },
             update: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._update(model, opts), session, model, opts);
             },
             _update: function (model, opts) {
                 opts = Ember.merge({ type: 'PUT' }, opts || {});
-                return this._remoteCall(model, null, model, opts, session);
+                return this._remoteCall(model, null, model, opts);
             },
             create: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._create(model, opts), session, model, opts);
             },
             _create: function (model, opts) {
-                return this._remoteCall(model, null, model, opts, session);
+                return this._remoteCall(model, null, model, opts);
             },
             deleteModel: function (model, opts, session) {
                 return this._mergeAndContextualizePromise(this._deleteModel(model, opts), session, model, opts);
             },
             _deleteModel: function (model, opts) {
                 opts = Ember.merge({ type: 'DELETE' }, opts || {});
-                return this._remoteCall(model, null, null, opts, session);
+                return this._remoteCall(model, null, null, opts);
             },
             query: function (typeKey, query, opts, session) {
                 return this._mergeAndContextualizePromise(this._query(typeKey, query, opts), session, typeKey, opts);
@@ -185,7 +185,7 @@
                     serialize: false,
                     deserializer: 'payload'
                 }, opts || {});
-                return this._remoteCall(typeKey, null, query, opts, session);
+                return this._remoteCall(typeKey, null, query, opts);
             },
             remoteCall: function (context, name, data, opts, session) {
                 var serialize = data && !!get(data, 'isModel');
