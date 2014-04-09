@@ -3676,7 +3676,15 @@
         function BelongsToDescriptor(func, opts) {
             Ember.ComputedProperty.apply(this, arguments);
         }
-        BelongsToDescriptor.prototype = new Ember.ComputedProperty();
+        function inherit(o) {
+            function F() {
+            }
+            ;
+            F.prototype = o;
+            return new F();
+        }
+        BelongsToDescriptor.prototype = inherit(Ember.ComputedProperty.prototype);
+        BelongsToDescriptor.prototype.constructor = BelongsToDescriptor;
         BelongsToDescriptor.prototype.get = function (obj, keyName) {
             if (!get(obj, 'isDetached') && this._suspended !== obj) {
                 var ret, cache, cached, meta, session, existing;
