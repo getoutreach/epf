@@ -196,7 +196,7 @@
                 return this._mergeAndContextualizePromise(this._remoteCall(context, name, data, opts), session, context, opts);
             },
             _remoteCall: function (context, name, data, opts) {
-                var adapter = this, url = this.buildUrlFromContext(context), opts = this._normalizeOptions(opts), url;
+                var adapter = this, opts = this._normalizeOptions(opts), url;
                 if (opts.url) {
                     url = opts.url;
                 } else {
