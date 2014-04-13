@@ -100,6 +100,18 @@ describe "rest", ->
           expect(adapter.h).to.eql(['PUT:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
+          
+    it 'when url option set, a custom url is used', ->
+      adapter.r['POST:/greener_pastures'] = ->
+        posts: {id: 1, title: 'submitted', submitted: "true"}
+
+      session.merge @Post.create(id: "1", title: 'test', submitted: false)
+
+      session.load('post', 1).then (post) ->
+        session.remoteCall(post, 'submit', {token: 'asd'}, {url: '/greener_pastures'}).then ->
+          expect(adapter.h).to.eql(['POST:/greener_pastures'])
+          expect(post.title).to.eq('submitted')
+          expect(post.submitted).to.be.true
 
     it 'results in raw json when deserialize=false', ->
       adapter.r['POST:/posts/1/submit'] = ->

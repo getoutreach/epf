@@ -196,8 +196,12 @@
                 return this._mergeAndContextualizePromise(this._remoteCall(context, name, data, opts), session, context, opts);
             },
             _remoteCall: function (context, name, data, opts) {
-                var adapter = this, url = this.buildUrlFromContext(context), opts = this._normalizeOptions(opts);
-                url = this.buildUrlFromContext(context, name);
+                var adapter = this, url = this.buildUrlFromContext(context), opts = this._normalizeOptions(opts), url;
+                if (opts.url) {
+                    url = opts.url;
+                } else {
+                    url = this.buildUrlFromContext(context, name);
+                }
                 method = opts.type || 'POST';
                 if (opts.serialize !== false) {
                     var serializer = opts.serializer, serializerOptions = opts.serializerOptions;
