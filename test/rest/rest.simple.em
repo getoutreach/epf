@@ -109,6 +109,40 @@ describe "rest", ->
         session.flush().then ->
           expect(post1.isDeleted).to.be.true
           expect(post2.isDeleted).to.be.true
+          
+    it 'creates, deletes, creates, deletes', ->
+      post1 = session.create('post')
+      post1.title = 'thing 1'
+      
+      adapter.r['POST:/posts'] = -> posts: {client_id: post1.clientId, id: 1, title: 'thing 1'}
+      session.flush().then ->
+        expect(post1.id).to.eq('1')
+        expect(post1.title).to.eq('thing 1')
+        session.deleteModel(post1)
+        
+        adapter.r['DELETE:/posts/1'] = {}
+          
+        session.flush().then ->
+          expect(post1.isDeleted).to.be.true
+          post2 = session.create('post')
+          post2.title = 'thing 2'
+          
+          adapter.r['POST:/posts'] = -> posts: {client_id: post2.clientId, id: 2, title: 'thing 2'}
+          
+          session.flush().then ->
+          
+            adapter.r['DELETE:/posts/1'] = -> throw 'not found'
+            adapter.r['DELETE:/posts/2'] = {}
+          
+            expect(post2.id).to.eq('2')
+            expect(post2.title).to.eq('thing 2')
+            session.deleteModel(post2)
+            
+            session.flush().then ->
+              expect(post2.isDeleted).to.be.true
+              expect(adapter.h).to.eql(['POST:/posts', 'DELETE:/posts/1', 'POST:/posts', 'DELETE:/posts/2'])
+        
+        
 
 
     it 'refreshes', ->
