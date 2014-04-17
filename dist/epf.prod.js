@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.25',
+                version: 'v0.10.17',
                 browser: true,
                 env: {},
                 argv: [],
@@ -4053,7 +4053,8 @@
             unregister: function (model) {
                 var clientId = get(model, 'clientId'), inverses = this.map.get(clientId);
                 inverses.forEach(function (name, inverseModels) {
-                    inverseModels.forEach(function (inverseModel) {
+                    var copiedInverseModels = Ember.copy(inverseModels);
+                    copiedInverseModels.forEach(function (inverseModel) {
                         this.unregisterRelationship(model, name, inverseModel);
                     }, this);
                 }, this);
