@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.17',
+                version: 'v0.10.25',
                 browser: true,
                 env: {},
                 argv: [],
@@ -215,6 +215,7 @@
                     }
                 }
                 if (opts.params) {
+                    data = data || {};
                     data = Ember.merge(data, opts.params);
                 }
                 return this._deserializePromise(this.ajax(url, method, { data: data }), context, opts);

@@ -147,3 +147,13 @@ describe "rest", ->
         session.flush().then ->
           expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
           expect(post.title).to.eq('no more fsm')
+          
+    it 'loads with parameter', ->
+      adapter.r['GET:/posts/1'] = (url, type, hash) ->
+        expect(hash.data.invite_token).to.eq('fdsavcxz')
+        posts: {id: 1, title: 'mvcc ftw'}
+      session.load(@Post, 1, params: {invite_token: 'fdsavcxz'}).then (post) ->
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('mvcc ftw')
+        expect(adapter.h).to.eql(['GET:/posts/1'])
+      
