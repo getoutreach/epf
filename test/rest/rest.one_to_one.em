@@ -107,7 +107,21 @@ describe "rest", ->
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('herp')
         expect(post.user).to.not.be.null
+        
+    
+    it 'creates on server and returns sideloaded', ->
+      adapter.r['POST:/posts'] = ->
+        users: {id: 2, name: 'derp', post: 1}
+        posts: {client_id: post.clientId, id: 1, title: 'herp', user: 2}
 
+      post = session.create 'post', title: 'herp'
+
+      session.flush().then ->
+        expect(adapter.h).to.eql ['POST:/posts']
+        expect(post.id).to.eq("1")
+        expect(post.title).to.eq('herp')
+        expect(post.user).to.not.be.null
+        expect(post.user.name).to.eq('derp')
 
   context "one->one embedded", ->
 

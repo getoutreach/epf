@@ -66,7 +66,6 @@ describe "Ep.Session", ->
 
     it '.flushIntoParent flushes updates immediately', ->
       parent.merge @Post.create(id: "1", title: 'original')
-      debugger
 
       child.load('post', 1).then (childPost) ->
 

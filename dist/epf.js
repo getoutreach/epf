@@ -582,7 +582,7 @@
     });
     require.define('/lib/utils/materialize_relationships.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
-        module.exports = function (models) {
+        module.exports = function (models, idManager) {
             if (!(models instanceof Ep.ModelSet)) {
                 models = Ep.ModelSet.fromArray(models);
             }
@@ -591,6 +591,8 @@
                     if (relationship.kind === 'belongsTo') {
                         var child = get(model, name);
                         if (child) {
+                            if (idManager)
+                                idManager.reifyClientId(child);
                             child = models.getModel(child) || child;
                             set(model, name, child);
                         }
@@ -600,6 +602,8 @@
                         lazyChildren.addObjects(children);
                         children.clear();
                         lazyChildren.forEach(function (child) {
+                            if (idManager)
+                                idManager.reifyClientId(child);
                             child = models.getModel(child) || child;
                             children.addObject(child);
                         });
@@ -763,7 +767,7 @@
                         set(result, 'errors', errors);
                     }
                 }
-                materializeRelationships(result);
+                materializeRelationships(result, get(this, 'idManager'));
                 return result;
             }
         });
@@ -1328,7 +1332,6 @@
                         id: idSerializer.deserialize(serialized),
                         type: this.typeFor(opts.typeKey)
                     });
-                this.idManager.reifyClientId(res);
                 return res;
             },
             deserializeEmbedded: function (serialized, opts) {
@@ -1369,7 +1372,6 @@
                             id: idSerializer.deserialize(id),
                             type: type
                         });
-                    this.idManager.reifyClientId(res);
                     return res;
                 }, this);
             },

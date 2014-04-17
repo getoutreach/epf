@@ -47,7 +47,6 @@ describe "rest", ->
 
 
     it 'creates', ->
-      debugger
       adapter.r['POST:/posts'] = -> posts: {client_id: post.clientId, id: 1, title: 'topological sort', comments: []}
       adapter.r['POST:/comments'] = (url, type, hash) ->
         expect(hash.data.comment.post).to.eq(1)
@@ -72,7 +71,27 @@ describe "rest", ->
         expect(comment.post.id).to.eq("1")
         expect(post.comments.firstObject).to.eq(comment)
         expect(adapter.h).to.eql(['POST:/posts', 'POST:/comments'])
+        
+    
+    it 'creates and server can return additional children', ->
+      adapter.r['POST:/posts'] = ->
+        comments: [{id: 2, post: 1, message: 'seems good'}]
+        posts: {client_id: post.clientId, id: 1, title: 'topological sort', comments: [2]}
 
+      post = session.create('post')
+      post.title = 'topological sort'
+
+      session.flush().then ->
+        comment = post.comments.firstObject
+        expect(post.id).to.not.be.null
+        expect(post.isNew).to.be.false
+        expect(post.title).to.eq('topological sort')
+        expect(comment.id).to.not.be.null
+        expect(comment.message).to.eq('seems good')
+        expect(comment.post).to.eq(post)
+        expect(comment.post.id).to.eq("1")
+        expect(adapter.h).to.eql(['POST:/posts'])
+      
 
     it 'creates child', ->
       adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post: 1}

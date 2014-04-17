@@ -86,7 +86,6 @@ describe "Ep.Session", ->
 
     it 'handles merging detached model with belongsTo child already in session', ->
       post = session.merge @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")])
-      debugger
       comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")]))
       expect(comment.post).to.eq(post)
       

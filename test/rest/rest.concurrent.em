@@ -80,7 +80,6 @@ describe "rest", ->
 
 
     it 'cascades failures', ->
-      debugger
       calls = 0
       # interleave requests
       adapter.runLater = (callback) ->
