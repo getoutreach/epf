@@ -1,9 +1,8 @@
-TestContainer = require('../test_container');
-
 describe "relationships", ->
   beforeEach ->
     @App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
     @adapter = @container.lookup('adapter:main')
     @session = @adapter.newSession()
 

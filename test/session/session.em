@@ -1,12 +1,11 @@
-TestContainer = require('../test_container')
-
 describe "Ep.Session", ->
 
   session = null
 
   beforeEach ->
     @App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
 
     class @Post extends Ep.Model
       title: Ep.attr('string')
@@ -24,6 +23,7 @@ describe "Ep.Session", ->
     @container.register 'model:comment', @Comment
 
     adapter = @container.lookup('adapter:main')
+    @container = adapter.container
     session = adapter.newSession()
 
   afterEach ->

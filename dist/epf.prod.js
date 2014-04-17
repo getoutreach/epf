@@ -625,7 +625,7 @@
                 this.eachEmbeddedHasManyRecord(record, callback, binding);
             },
             eachEmbeddedBelongsToRecord: function (record, callback, binding) {
-                this.eachEmbeddedBelongsTo(record.constructor, function (name, relationship, embeddedType) {
+                this.eachEmbeddedBelongsTo(get(record, 'type'), function (name, relationship, embeddedType) {
                     var embeddedRecord = get(record, name);
                     if (embeddedRecord) {
                         callback.call(binding, embeddedRecord, embeddedType);
@@ -633,7 +633,7 @@
                 });
             },
             eachEmbeddedHasManyRecord: function (record, callback, binding) {
-                this.eachEmbeddedHasMany(record.constructor, function (name, relationship, embeddedType) {
+                this.eachEmbeddedHasMany(get(record, 'type'), function (name, relationship, embeddedType) {
                     var array = get(record, name);
                     for (var i = 0, l = get(array, 'length'); i < l; i++) {
                         callback.call(binding, array.objectAt(i), embeddedType);
@@ -4136,63 +4136,67 @@
     });
     require.define('/lib/initializers.js', function (module, exports, __dirname, __filename) {
         var set = Ember.set;
-        require('/lib/serializers/index.js', module);
-        require('/lib/debug/index.js', module);
-        require('/lib/id_manager.js', module);
+        require('/lib/setup_container.js', module);
         Ember.onLoad('Ember.Application', function (Application) {
             Application.initializer({
                 name: 'epf.container',
                 initialize: function (container, application) {
                     Ep.__container__ = container;
-                    application.register('adapter:main', application.Adapter || Ep.RestAdapter);
-                    application.register('session:base', application.Session || Ep.Session);
-                    application.register('session:child', application.ChildSession || Ep.ChildSession);
-                    application.register('session:main', application.DefaultSession || Ep.Session);
-                    application.register('id-manager:main', Ep.IdManager);
-                }
-            });
-            Application.initializer({
-                name: 'epf.injections',
-                initialize: function (container, application) {
-                    application.inject('session', 'adapter', 'adapter:main');
-                    application.inject('serializer', 'idManager', 'id-manager:main');
-                    application.inject('session', 'idManager', 'id-manager:main');
-                    application.inject('adapter', 'idManager', 'id-manager:main');
-                    application.inject('controller', 'adapter', 'adapter:main');
-                    application.inject('controller', 'session', 'session:main');
-                    application.inject('route', 'adapter', 'adapter:main');
-                    application.inject('route', 'session', 'session:main');
-                    application.inject('data-adapter', 'session', 'session:main');
-                }
-            });
-            Application.initializer({
-                name: 'epf.serializers',
-                initialize: function (container, application) {
-                    application.register('serializer:belongs-to', Ep.BelongsToSerializer);
-                    application.register('serializer:boolean', Ep.BooleanSerializer);
-                    application.register('serializer:date', Ep.DateSerializer);
-                    application.register('serializer:has-many', Ep.HasManySerializer);
-                    application.register('serializer:id', Ep.IdSerializer);
-                    application.register('serializer:number', Ep.NumberSerializer);
-                    application.register('serializer:model', Ep.ModelSerializer);
-                    application.register('serializer:revision', Ep.RevisionSerializer);
-                    application.register('serializer:string', Ep.StringSerializer);
-                }
-            });
-            Application.initializer({
-                name: 'epf.mergeStrategies',
-                initialize: function (container, application) {
-                    application.register('merge-strategy:per-field', Ep.PerField);
-                    application.register('merge-strategy:default', Ep.PerField);
-                }
-            });
-            Application.initializer({
-                name: 'data-adapter',
-                initialize: function (container, application) {
-                    application.register('data-adapter:main', Ep.DebugAdapter);
+                    Ep.setupContainer(container);
                 }
             });
         });
+    });
+    require.define('/lib/setup_container.js', function (module, exports, __dirname, __filename) {
+        require('/lib/serializers/index.js', module);
+        require('/lib/merge_strategies/index.js', module);
+        require('/lib/debug/index.js', module);
+        require('/lib/id_manager.js', module);
+        Ep.setupContainer = function (container, application) {
+            Ep.setupSession(container, application);
+            Ep.setupInjections(container, application);
+            Ep.setupSerializers(container, application);
+            Ep.setupMergeStrategies(container, application);
+            if (Ember.DataAdapter) {
+                Ep.setupDataAdapter(container, application);
+            }
+        };
+        Ep.setupSession = function (container, application) {
+            container.register('adapter:main', container.lookupFactory('adapter:application') || application && application.Adapter || Ep.RestAdapter);
+            container.register('session:base', Ep.Session);
+            container.register('session:child', Ep.ChildSession);
+            container.register('session:main', container.lookupFactory('session:application') || application && application.Session || Ep.Session);
+            container.register('id-manager:main', Ep.IdManager);
+        };
+        Ep.setupInjections = function (container, application) {
+            container.typeInjection('session', 'adapter', 'adapter:main');
+            container.typeInjection('serializer', 'idManager', 'id-manager:main');
+            container.typeInjection('session', 'idManager', 'id-manager:main');
+            container.typeInjection('adapter', 'idManager', 'id-manager:main');
+            container.typeInjection('controller', 'adapter', 'adapter:main');
+            container.typeInjection('controller', 'session', 'session:main');
+            container.typeInjection('route', 'adapter', 'adapter:main');
+            container.typeInjection('route', 'session', 'session:main');
+            container.typeInjection('data-adapter', 'session', 'session:main');
+        };
+        Ep.setupSerializers = function (container, application) {
+            container.register('serializer:belongs-to', Ep.BelongsToSerializer);
+            container.register('serializer:boolean', Ep.BooleanSerializer);
+            container.register('serializer:date', Ep.DateSerializer);
+            container.register('serializer:has-many', Ep.HasManySerializer);
+            container.register('serializer:id', Ep.IdSerializer);
+            container.register('serializer:number', Ep.NumberSerializer);
+            container.register('serializer:model', Ep.ModelSerializer);
+            container.register('serializer:revision', Ep.RevisionSerializer);
+            container.register('serializer:string', Ep.StringSerializer);
+        };
+        Ep.setupMergeStrategies = function (container, application) {
+            container.register('merge-strategy:per-field', Ep.PerField);
+            container.register('merge-strategy:default', Ep.PerField);
+        };
+        Ep.setupDataAdapter = function (container, application) {
+            container.register('data-adapter:main', Ep.DebugAdapter);
+        };
     });
     require.define('/lib/id_manager.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set, merge = Ember.merge;

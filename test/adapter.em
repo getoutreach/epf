@@ -1,9 +1,8 @@
-TestContainer = require('./test_container');
-
 describe 'Ep.Adapter', ->
 
   beforeEach ->
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
     class @Post extends Ep.Model
       title: Ep.attr('string')
     @adapter = @container.lookup('adapter:main')

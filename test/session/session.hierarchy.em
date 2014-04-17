@@ -1,11 +1,10 @@
-
-TestContainer = require('../test_container')
-
 describe "Ep.Session", ->
 
   beforeEach ->
     @App = Ember.Namespace.create()
-    @container = new TestContainer();
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
+    @container.register('adapter:main', Ep.LocalAdapter)
 
     class @Post extends Ep.Model
       title: Ep.attr('string')
@@ -19,10 +18,11 @@ describe "Ep.Session", ->
     @Post.reopen
       comments: Ep.hasMany(@Comment)
 
-
     @container.register 'model:post', @Post
+    @container.register 'model:comment', @Comment
 
     @adapter = @container.lookup('adapter:main')
+    @container = @adapter.container
 
 
   describe 'sibling sessions', ->
@@ -66,6 +66,7 @@ describe "Ep.Session", ->
 
     it '.flushIntoParent flushes updates immediately', ->
       parent.merge @Post.create(id: "1", title: 'original')
+      debugger
 
       child.load('post', 1).then (childPost) ->
 

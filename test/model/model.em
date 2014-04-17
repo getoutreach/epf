@@ -1,5 +1,3 @@
-TestContainer = require('../test_container');
-
 describe 'Ep.Model', ->
 
   App = null
@@ -11,7 +9,8 @@ describe 'Ep.Model', ->
       name: Ep.attr('string')
       raw: Ep.attr()
       createdAt: Ep.attr('date')
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
     @container.register 'model:user', App.User
     session = @container.lookup('session:main')
 

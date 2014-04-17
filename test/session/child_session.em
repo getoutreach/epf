@@ -1,5 +1,3 @@
-TestContainer = require('../test_container')
-
 describe "Ep.ChildSession", ->
 
   parent = null
@@ -9,7 +7,8 @@ describe "Ep.ChildSession", ->
 
   beforeEach ->
     @App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
 
     class Post extends Ep.Model
       title: Ep.attr('string')
@@ -41,10 +40,3 @@ describe "Ep.ChildSession", ->
       expect(post.isProxy).to.be.true
       expect(post.isLoaded).to.be.true
       expect(post.title).to.eq('flash gordon')
-
-
-
-
-
-
-

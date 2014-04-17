@@ -1,5 +1,3 @@
-TestContainer = require('../test_container')
-
 describe 'Ep.PerField', ->
 
   session = null
@@ -7,7 +5,8 @@ describe 'Ep.PerField', ->
 
   beforeEach ->
     App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
 
     class App.Comment extends Ep.Model
 

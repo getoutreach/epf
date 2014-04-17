@@ -1,5 +1,3 @@
-TestContainer = require('../test_container');
-
 describe 'rest serialization', ->
 
   beforeEach ->

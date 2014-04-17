@@ -1,12 +1,12 @@
-TestContainer = require('../test_container')
-
 describe "Ep.Session", ->
 
   session = null
 
   beforeEach ->
     @App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
+    @container.register('adapter:main', Ep.LocalAdapter)
 
     class @Post extends Ep.Model
       title: Ep.attr('string')
@@ -33,11 +33,3 @@ describe "Ep.Session", ->
         post.title = 'update 3'
         session.flush().then ->
           expect(post.title).to.eq('update 3')
-
-
-
-
-
-
-
-

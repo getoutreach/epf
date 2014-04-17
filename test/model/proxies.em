@@ -1,5 +1,3 @@
-TestContainer = require('../test_container');
-
 describe 'Ep.LazyModel', ->
 
   App = null
@@ -7,7 +5,8 @@ describe 'Ep.LazyModel', ->
 
   beforeEach ->
     App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
 
     class App.Post extends Ep.Model
       title: Ep.attr('string')
@@ -53,4 +52,3 @@ describe 'Ep.LazyModel', ->
     lazyModel.then (outerResolution) ->
       lazyModel.then (innerResolution) ->
         expect(outerResolution).to.eq(innerResolution)
-

@@ -1,5 +1,3 @@
-TestContainer = require('../test_container');
-
 exports.setupRest = ->
   class TestRestAdapter extends Ep.RestAdapter
     h: null
@@ -23,7 +21,8 @@ exports.setupRest = ->
       Ember.run.later callback, 0
 
   @App = Ember.Namespace.create()
-  @container = new TestContainer();
+  @container = new Ember.Container()
+  Ep.setupContainer(@container)
 
   # TestAdapter already is a subclass
   @RestAdapter = TestRestAdapter.extend()

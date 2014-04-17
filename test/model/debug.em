@@ -1,5 +1,3 @@
-TestContainer = require('../test_container')
-
 describe 'Debug', ->
 
   App = null
@@ -7,7 +5,8 @@ describe 'Debug', ->
 
   beforeEach ->
     App = Ember.Namespace.create()
-    @container = new TestContainer()
+    @container = new Ember.Container()
+    Ep.setupContainer(@container)
 
     class App.User extends Ep.Model
       name: Ep.attr('string')
