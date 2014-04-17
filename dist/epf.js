@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.25',
+                version: 'v0.10.17',
                 browser: true,
                 env: {},
                 argv: [],
@@ -1204,6 +1204,7 @@
                 var result = Ep.Payload.fromArray(merged);
                 result.context = context;
                 result.meta = this.meta;
+                result.errors = this.errors;
                 return result;
             }
         });
