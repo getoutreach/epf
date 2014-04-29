@@ -70,6 +70,18 @@ describe 'Ep.Model', ->
     App.User.find(1).then (user) ->
       expect(user.id).to.eq("1")
 
+  describe 'typeKey class var', ->
+    it 'works with global Ember', ->
+      class App.SomeThing extends Ep.Model
+      typeKey = Ember.get(App.SomeThing, 'typeKey')
+      expect(typeKey).to.eq('some_thing')
+
+    it 'works with modular Ember', ->
+      class SomeThing extends Ep.Model
+      SomeThing._toString = "my-app@model:some-thing:"
+      typeKey = Ember.get(SomeThing, 'typeKey')
+      expect(typeKey).to.eq('some_thing')
+
   describe '.diff', ->
 
     it 'detects differences in complex object attributes', ->
