@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/getoutreach/epf.png)](https://travis-ci.org/getoutreach/epf)
 
-Ember.js Persistence Foundation (epf) is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection. Defining characteristic of epf include:
+Ember.js Persistence Foundation (epf) is a robust and stable framework for syncing client state with a persistent backend such as a REST API or socket connection. Defining characteristics of epf include:
 
 * Correctness is paramount. All other features, including performance, are important, but secondary.
 * Built around synchronization. Models are never locked and framework semantics assume updates are always coming in from a backend.
