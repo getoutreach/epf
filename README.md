@@ -153,7 +153,7 @@ To build epf, follow the instructions below:
 * To build a browser distributable, run the `build-browser` command in the repository root with `ember-script build-browser` (make sure to install [ember-script](https://github.com/ghempton/ember-script) globally).
 
 
-## Discusson list
+## Discussion list
 
 You can [join the email discussion
 group](https://groups.google.com/forum/#!forum/ember-persistence-foundation) to get
