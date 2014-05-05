@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.17',
+                version: 'v0.10.25',
                 browser: true,
                 env: {},
                 argv: [],
@@ -540,7 +540,7 @@
                 return Ember.String.pluralize(camelized);
             },
             ajaxError: function (jqXHR) {
-                if (jqXHR) {
+                if (jqXHR && typeof jqXHR === 'object') {
                     jqXHR.then = null;
                 }
                 return jqXHR;
@@ -3509,7 +3509,7 @@
                 return session.find(this, id);
             },
             typeKey: Ember.computed(function () {
-                return Ember.String.underscore(this.toString().split('.')[1]);
+                return Ember.String.underscore(this.toString().split(/[:.]/)[1]);
             })
         });
     });
