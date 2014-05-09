@@ -30,10 +30,26 @@ describe "Ep.Session", ->
     session.destroy()
 
 
+  describe '.build', ->
+  
+    it 'instantiates a model', ->
+      post = session.build('post')
+      expect(post).to.not.be.null
+      expect(session.getModel(post)).to.not.eq(post)
+      
+    it 'instantiates a model with attributes', ->
+      post = session.create('post', title: 'test')
+      expect(post.title).to.eq('test')
+      
+
   describe '.create', ->
 
+    it 'creates a model', ->
+      post = session.create('post')
+      expect(post).to.not.be.null
+      expect(session.getModel(post)).to.eq(post)
 
-    it 'works with hash', ->
+    it 'creates a model with attributes', ->
       post = session.create('post', title: 'test')
       expect(post.title).to.eq('test')
 

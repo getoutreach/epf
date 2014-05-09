@@ -1943,11 +1943,14 @@
                 this.originals = Ep.ModelSet.create();
                 this.newModels = Ep.ModelSet.create();
             },
-            create: function (type, hash) {
+            build: function (type, hash) {
                 type = this.typeFor(type);
                 var model = type.create(hash || {});
-                model = this.add(model);
                 return model;
+            },
+            create: function (type, hash) {
+                var model = this.build(type, hash);
+                return this.add(model);
             },
             adopt: function (model) {
 
