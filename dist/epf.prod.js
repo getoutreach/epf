@@ -1976,6 +1976,8 @@
                         return this.add(content);
                     }
                 }
+                if (get(model, 'session') === this)
+                    return model;
                 if (get(model, 'isNew') && get(model, 'isDetached')) {
                     dest = model;
                 } else if (get(model, 'isNew')) {
@@ -3702,7 +3704,7 @@
                 meta = Ember.meta(obj);
                 cache = meta.cache;
                 session = get(obj, 'session');
-                if ((cached = cache[keyName]) && (existing = session.fetch(cached)) && existing !== cached) {
+                if ((cached = cache[keyName]) && (existing = session.add(cached)) && existing !== cached) {
                     cache[keyName] = existing;
                 }
             }

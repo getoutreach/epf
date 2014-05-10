@@ -57,6 +57,7 @@ describe "rest", ->
         user = post.user
         expect(user.id).to.eq("2")
         expect(user.name).to.be.undefined
+        debugger
 
         post.user.then ->
           expect(adapter.h).to.eql(['GET:/posts/1', 'GET:/users/2'])
