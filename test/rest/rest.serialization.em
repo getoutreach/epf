@@ -12,6 +12,17 @@ describe 'rest serialization', ->
         longTitle: Ep.attr('string')
       @container.register 'model:post', @Post
 
+    describe "overriding a serializer's typeKey", ->
+
+      it 'returns a model of that type', ->
+        SpecialPostSerializer = Ep.ModelSerializer.extend
+          typeKey: 'post'
+
+        @container.register 'serializer:special-post', SpecialPostSerializer
+        data = {special_posts: [{id: 1, title: 'wat', user: null}] }
+        models = @serializer.deserialize(data)
+        post = models[0]
+        expect(post).to.be.an.instanceof(@Post)
 
     describe 'deserialize', ->
 
