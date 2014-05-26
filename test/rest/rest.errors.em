@@ -35,6 +35,20 @@ describe "rest", ->
             expect(post.errors.title).to.eq('is too short')
             expect(post.errors.createdAt).to.eq('cannot be in the past')
             expect(adapter.h).to.eql(['PUT:/posts/1'])
+            
+      it 'overwrites existing errors when error-only payload returned', ->
+        adapter.r['PUT:/posts/1'] = ->
+          throw status: 422, responseText: JSON.stringify(errors: {title: 'is too short'})
+
+        post = session.merge @Post.create(id: "1", title: 'test')
+        post.title = ''
+        post.errors = Ep.Errors.create(content: {title: 'is not good'})
+        expect(post.errors.title).to.eq('is not good')
+        session.flush().then null, ->
+          expect(post.hasErrors).to.be.true
+          expect(post.title).to.eq('')
+          expect(post.errors.title).to.eq('is too short')
+          expect(adapter.h).to.eql(['PUT:/posts/1'])
 
       it 'handles payload with error properties', ->
         adapter.r['PUT:/posts/1'] = ->

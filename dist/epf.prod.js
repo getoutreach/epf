@@ -297,7 +297,7 @@
                             result = context;
                         }
                         set(result, 'meta', get(merged, 'meta'));
-                        if (get(merged, 'errors') && !get(result, 'errors')) {
+                        if (get(merged, 'errors') && (!get(result, 'errors') || result === context)) {
                             set(result, 'errors', get(merged, 'errors'));
                         }
                         return result;
@@ -677,7 +677,9 @@
                     this.container.register('serializer:' + lookupKey, Serializer);
                     serializer = this.container.lookup('serializer:' + lookupKey);
                 }
-                serializer.typeKey = typeKey;
+                if (!serializer.typeKey) {
+                    serializer.typeKey = typeKey;
+                }
                 return serializer;
             },
             serializerForType: function (type) {
