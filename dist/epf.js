@@ -3687,7 +3687,7 @@
         });
     });
     require.define('/lib/model/relationships/belongs_to.js', function (module, exports, __dirname, __filename) {
-        var get = Ember.get, set = Ember.set, isNone = Ember.isNone;
+        var get = Ember.get, set = Ember.set, cacheFor = Ember.cacheFor, cacheGet = cacheFor.get, cacheSet = cacheFor.set, metaFor = Ember.meta;
         function BelongsToDescriptor(func, opts) {
             Ember.ComputedProperty.apply(this, arguments);
         }
@@ -3702,12 +3702,9 @@
         BelongsToDescriptor.prototype.constructor = BelongsToDescriptor;
         BelongsToDescriptor.prototype.get = function (obj, keyName) {
             if (!get(obj, 'isDetached') && this._suspended !== obj) {
-                var ret, cache, cached, meta, session, existing;
-                meta = Ember.meta(obj);
-                cache = meta.cache;
-                session = get(obj, 'session');
-                if ((cached = cache[keyName]) && (existing = session.add(cached)) && existing !== cached) {
-                    cache[keyName] = existing;
+                var meta = metaFor(obj), cache = meta.cache, session = get(obj, 'session'), cached, existing;
+                if ((cached = cacheGet(cache, keyName)) && (existing = session.add(cached)) && existing !== cached) {
+                    cacheSet(cache, keyName, existing);
                 }
             }
             return Ember.ComputedProperty.prototype.get.apply(this, arguments);
