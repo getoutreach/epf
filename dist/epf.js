@@ -34,7 +34,7 @@
             var cwd = '/';
             return {
                 title: 'browser',
-                version: 'v0.10.17',
+                version: 'v0.10.25',
                 browser: true,
                 env: {},
                 argv: [],
@@ -3101,7 +3101,8 @@
                     var relationships = relationshipMap.get(type);
                     var typeKey = Ember.get(type, 'typeKey');
                     if (relationships.length > 0 && typeKey) {
-                        var inverse = relationships.findProperty('name', typeKey) || relationships.findProperty('name', Ember.String.pluralize(typeKey));
+                        var propertyName = Ember.String.camelize(typeKey);
+                        var inverse = relationships.findProperty('name', propertyName) || relationships.findProperty('name', Ember.String.pluralize(propertyName));
                         if (inverse) {
                             possibleRelationships.push.apply(possibleRelationships, [inverse]);
                         }
