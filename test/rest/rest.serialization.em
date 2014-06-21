@@ -18,7 +18,7 @@ describe 'rest serialization', ->
         SpecialPostSerializer = Ep.ModelSerializer.extend
           typeKey: 'post'
 
-        @container.register 'serializer:special-post', SpecialPostSerializer
+        @container.register 'serializer:special_post', SpecialPostSerializer
         data = {special_posts: [{id: 1, title: 'wat', user: null}] }
         models = @serializer.deserialize(data)
         post = models[0]

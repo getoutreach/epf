@@ -275,3 +275,82 @@ describe "rest", ->
         expect(foo.baz).to.not.be.null
         expect(bar.foos.length).to.eq 1
         expect(baz.foos.length).to.eq 1
+
+
+  describe 'deep embedded relationship with leaf referencing a model without an inverse', ->
+
+    beforeEach ->
+      class @Template extends Ep.Model
+        subject: Ep.attr 'string'
+      @App.Template = @Template
+
+      class @Campaign extends Ep.Model
+        campaignSteps: Ep.hasMany 'campaign_step'
+      @App.Campaign = @Campaign
+
+      class @CampaignStep extends Ep.Model
+        campaign: Ep.belongsTo 'campaign'
+        campaignTemplates: Ep.hasMany 'campaign_template'
+      @App.CampaignStep = @CampaignStep
+
+      class @CampaignTemplate extends Ep.Model
+        campaignStep: Ep.belongsTo 'campaign_step'
+        template: Ep.belongsTo 'template'
+      @App.CampaignTemplate = @CampaignTemplate
+
+      @container.register 'model:template', @Template
+      @container.register 'model:campaign', @Campaign
+      @container.register 'model:campaign_template', @CampaignTemplate
+      @container.register 'model:campaign_step', @CampaignStep
+
+      CampaignSerializer = Ep.ModelSerializer.extend
+        properties:
+          campaignSteps:
+            embedded: 'always'
+
+      CampaignStepSerializer = Ep.ModelSerializer.extend
+        properties:
+          campaignTemplates:
+            embedded: 'always'
+
+      @container.register 'serializer:campaign', CampaignSerializer
+      @container.register 'serializer:campaign_step', CampaignStepSerializer
+
+
+    it 'creates new embedded child with reference to new hasMany', ->
+      adapter.r['POST:/templates'] = -> templates: {client_id: template.clientId, id: 2, subject: 'topological sort'}
+      adapter.r['PUT:/campaigns/1'] = (url, type, hash) ->
+        expect(hash.data.campaign.campaign_steps[0].campaign_templates[0].template).to.eq(2)
+        return campaigns:
+          id: 1
+          client_id: campaign.clientId
+          campaign_steps: [
+            client_id: campaignStep.clientId
+            id: 3
+            campaign_templates: [
+              {id: 4, client_id: campaignTemplate.clientId, template: 2, campaign_step: 3}
+            ]
+          ]
+
+      campaign = session.merge @session.build('campaign', id: 1)
+
+      session = session.newSession()
+      campaign = session.add campaign
+      campaignStep = session.create('campaign_step', campaign: campaign)
+
+      campaignTemplate = session.create 'campaign_template'
+      campaignStep.campaignTemplates.pushObject(campaignTemplate)
+
+      template = session.create 'template'
+      template.subject = 'topological sort'
+
+      campaignTemplate.template = template
+
+      session.flush().then ->
+        expect(template.id).to.not.be.null
+        expect(template.isNew).to.be.false
+        expect(template.subject).to.eq('topological sort')
+        expect(campaignTemplate.id).to.not.be.null
+        expect(campaignTemplate.template).to.eq(template)
+        expect(campaignTemplate.template.id).to.eq("2")
+        expect(adapter.h).to.eql(['POST:/templates', 'PUT:/campaigns/1'])

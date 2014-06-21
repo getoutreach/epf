@@ -5,8 +5,6 @@ Ember.__loader.require('ember-runtime');
 
 require('../lib/index');
 
-require("mocha-as-promised")();
-
 global.chai = require('chai');
 global.expect = chai.expect;
 
