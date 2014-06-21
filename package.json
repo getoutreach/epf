@@ -21,7 +21,6 @@
     "mocha": "*",
     "ember-script": "git://github.com/ghempton/ember-script.git#master",
     "jquery": "*",
-    "mocha-as-promised": "*",
     "commonjs-everywhere": "*",
     "escodegen": "*"
   },

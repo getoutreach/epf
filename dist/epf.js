@@ -91,9 +91,9 @@
             keyForType: function (name, type, opts) {
                 var key = this._super(name, type);
                 if (!opts || !opts.embedded) {
-                    if (type === 'belongsTo') {
+                    if (type === 'belongs-to') {
                         return key + '_id';
-                    } else if (type === 'hasMany') {
+                    } else if (type === 'has-many') {
                         return Ember.String.singularize(key) + '_ids';
                     }
                 }
@@ -667,15 +667,14 @@
         module.exports = Ember.Mixin.create({
             serializerFor: function (typeKey) {
                 Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
-                var lookupKey = Ember.String.dasherize(typeKey);
-                var serializer = this.container.lookup('serializer:' + lookupKey);
+                var serializer = this.container.lookup('serializer:' + typeKey);
                 if (!serializer) {
                     var modelExists = !!this.container.lookupFactory('model:' + typeKey);
                     if (!modelExists)
                         return;
                     var Serializer = this.container.lookupFactory('serializer:model');
-                    this.container.register('serializer:' + lookupKey, Serializer);
-                    serializer = this.container.lookup('serializer:' + lookupKey);
+                    this.container.register('serializer:' + typeKey, Serializer);
+                    serializer = this.container.lookup('serializer:' + typeKey);
                 }
                 if (!serializer.typeKey) {
                     serializer.typeKey = typeKey;
@@ -857,15 +856,6 @@
                     Ember.assert('Shadow does not exist for non-new model', shadow || get(model, 'isNew'));
                     var op = ops.get(model);
                     set(op, 'shadow', shadow);
-                    var isEmbedded = adapter.isEmbedded(model);
-                    if (get(op, 'isDirty') && isEmbedded) {
-                        var rootModel = adapter.findEmbeddedRoot(model, models);
-                        var rootOp = this.getOp(rootModel);
-                        set(rootOp, 'force', true);
-                        var parentModel = adapter._embeddedManager.findParent(model);
-                        var parentOp = this.getOp(parentModel);
-                        parentOp.addChild(op);
-                    }
                     var rels = get(op, 'dirtyRelationships');
                     for (var i = 0; i < rels.length; i++) {
                         var d = rels[i];
@@ -877,6 +867,22 @@
                             var parentOp = this.getOp(parentModel);
                             parentOp.addChild(op);
                         }
+                    }
+                    var isEmbedded = adapter.isEmbedded(model);
+                    if (get(op, 'isDirty') && isEmbedded) {
+                        var rootModel = adapter.findEmbeddedRoot(model, models);
+                        var rootOp = this.getOp(rootModel);
+                        set(rootOp, 'force', true);
+                        var parentModel = adapter._embeddedManager.findParent(model);
+                        var parentOp = this.getOp(parentModel);
+                        op.parents.forEach(function (parent) {
+                            if (parent === rootOp)
+                                return;
+                            if (adapter.findEmbeddedRoot(parent.model, models) === rootModel)
+                                return;
+                            parent.addChild(rootOp);
+                        });
+                        parentOp.addChild(op);
                     }
                 }, this);
                 ops.forEach(function (model, op) {
@@ -1486,8 +1492,8 @@
                     var config = this.configFor(name), opts = {
                             typeKey: relationship.typeKey,
                             embedded: config.embedded
-                        };
-                    this.addProperty(serialized, model, name, relationship.kind, opts);
+                        }, kindKey = Ember.String.dasherize(relationship.kind);
+                    this.addProperty(serialized, model, name, kindKey, opts);
                 }, this);
             },
             addProperty: function (serialized, model, name, type, opts) {
@@ -1527,8 +1533,8 @@
                     var config = this.configFor(name), opts = {
                             typeKey: relationship.typeKey,
                             embedded: config.embedded
-                        };
-                    this.extractProperty(model, hash, name, relationship.kind, opts);
+                        }, kindKey = Ember.String.dasherize(relationship.kind);
+                    this.extractProperty(model, hash, name, kindKey, opts);
                 }, this);
             },
             extractProperty: function (model, hash, name, type, opts) {
@@ -1753,12 +1759,11 @@
         Ep.Session.reopen({
             mergeStrategyFor: function (typeKey) {
                 Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
-                var lookupKey = Ember.String.dasherize(typeKey);
-                var mergeStrategy = this.container.lookup('merge-strategy:' + lookupKey);
+                var mergeStrategy = this.container.lookup('merge-strategy:' + typeKey);
                 if (!mergeStrategy) {
                     var Strategy = this.container.lookupFactory('merge-strategy:default');
-                    this.container.register('merge-strategy:' + lookupKey, Strategy);
-                    mergeStrategy = this.container.lookup('merge-strategy:' + lookupKey);
+                    this.container.register('merge-strategy:' + typeKey, Strategy);
+                    mergeStrategy = this.container.lookup('merge-strategy:' + typeKey);
                 }
                 mergeStrategy.typeKey = typeKey;
                 return mergeStrategy;
@@ -4154,7 +4159,7 @@
                 name: 'epf.container',
                 initialize: function (container, application) {
                     Ep.__container__ = container;
-                    Ep.setupContainer(container);
+                    Ep.setupContainer(container, application);
                 }
             });
         });
