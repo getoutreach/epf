@@ -275,3 +275,28 @@ describe "rest", ->
         expect(foo.baz).to.not.be.null
         expect(bar.foos.length).to.eq 1
         expect(baz.foos.length).to.eq 1
+
+  describe 'custom deserialization', ->
+    beforeEach ->
+      class @User extends Ep.Model
+        name: Ep.attr('string')
+        city: Ep.attr('string')
+      @App.User = @User
+
+      @container.register 'model:user', @User, instantiate: false
+
+      UserSerializer = Ep.RestSerializer.extend
+        properties:
+          city:
+            key: "location"
+
+      @container.register 'serializer:user', UserSerializer
+
+    it 'uses custom property key', ->
+      adapter.r['GET:/users/1'] = -> user: {id: "1", name: "John",
+      location: "Los Angeles"}
+
+      session.load("user", 1).then (user) ->
+        expect(user.id).to.eq("1")
+        expect(user.name).to.eq("John")
+        expect(user.city).to.eq("Los Angeles")
