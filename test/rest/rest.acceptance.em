@@ -285,6 +285,7 @@ describe "rest", ->
       @App.Template = @Template
 
       class @Campaign extends Ep.Model
+        name: Ep.attr 'string'
         campaignSteps: Ep.hasMany 'campaign_step'
       @App.Campaign = @Campaign
 
@@ -354,3 +355,33 @@ describe "rest", ->
         expect(campaignTemplate.template).to.eq(template)
         expect(campaignTemplate.template.id).to.eq("2")
         expect(adapter.h).to.eql(['POST:/templates', 'PUT:/campaigns/1'])
+
+
+    it 'save changes to parent when children not loaded in child session', ->
+      adapter.r['PUT:/campaigns/1'] = (url, type, hash) ->
+        hash.data
+
+      campaign = session.merge @session.build 'campaign',
+        name: 'old name'
+        id: 1
+
+      step = session.merge @session.build 'campaign_step',
+        id: 2
+        campaign: campaign
+
+      step2 = session.merge @session.build 'campaign_step',
+        id: 4
+        campaign: campaign
+
+      session.merge @session.build 'campaign_template',
+        id: 3
+        campaignStep: step 
+
+      expect(campaign.campaignSteps.firstObject).to.eq(step)
+      session = session.newSession()
+      campaign = session.add campaign
+      campaign.name = 'new name'
+
+      session.flush().then ->
+        expect(campaign.name).to.eq('new name')
+        expect(adapter.h).to.eql(['PUT:/campaigns/1'])

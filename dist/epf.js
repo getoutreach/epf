@@ -331,11 +331,10 @@
                 this._embeddedManager.updateParents(model);
             },
             flush: function (session) {
-                var models = get(session, 'dirtyModels').copy(true);
+                var models = this.buildDirtySet(session);
                 var shadows = Ep.ModelSet.fromArray(models.map(function (model) {
-                        return session.shadows.getModel(model);
+                        return session.shadows.getModel(model) || model.copy();
                     }));
-                this.dirtyEmbedded(models, shadows, session);
                 this.removeEmbeddedOrphans(models, shadows, session);
                 materializeRelationships(models);
                 var op = Ep.OperationGraph.create({
@@ -439,21 +438,22 @@
                 models.removeObjects(orphans);
                 shadows.removeObjects(orphans);
             },
-            dirtyEmbedded: function (models, shadows, session) {
-                models.forEach(function (model) {
+            buildDirtySet: function (session) {
+                var result = Ep.ModelSet.create();
+                get(session, 'dirtyModels').forEach(function (model) {
+                    result.add(model.copy());
                     this.eachEmbeddedRelative(model, function (embeddedModel) {
                         if (get(embeddedModel, 'isLoaded')) {
                             this._embeddedManager.updateParents(embeddedModel);
                         }
-                        if (models.contains(embeddedModel)) {
+                        if (result.contains(embeddedModel)) {
                             return;
                         }
-                        embeddedModel = session.getModel(embeddedModel);
                         var copy = embeddedModel.copy();
-                        models.add(copy);
-                        shadows.add(copy);
+                        result.add(copy);
                     }, this);
                 }, this);
+                return result;
             },
             findEmbeddedRoot: function (model, models) {
                 var parent = model;
