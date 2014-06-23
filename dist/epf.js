@@ -999,7 +999,7 @@
                 } else if (get(this, 'isDirtyFromUpdates') || get(this, 'force')) {
                     return 'updated';
                 }
-            }),
+            }).property('force'),
             perform: function () {
                 if (this._promise)
                     return this._promise;
