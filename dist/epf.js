@@ -3413,6 +3413,8 @@
             errors: null,
             isModel: true,
             isEqual: function (model) {
+                if (!model)
+                    return false;
                 var clientId = get(this, 'clientId');
                 var otherClientId = get(model, 'clientId');
                 if (clientId && otherClientId) {
@@ -3712,12 +3714,15 @@
         BelongsToDescriptor.prototype.constructor = BelongsToDescriptor;
         BelongsToDescriptor.prototype.get = function (obj, keyName) {
             if (!get(obj, 'isDetached') && this._suspended !== obj) {
-                var meta = metaFor(obj), cache = meta.cache, session = get(obj, 'session'), cached, existing;
-                if ((cached = cacheGet(cache, keyName)) && (existing = session.add(cached)) && existing !== cached) {
-                    cacheSet(cache, keyName, existing);
-                }
+                this.materialize(obj, keyName);
             }
             return Ember.ComputedProperty.prototype.get.apply(this, arguments);
+        };
+        BelongsToDescriptor.prototype.materialize = function (obj, keyName) {
+            var meta = metaFor(obj), cache = meta.cache, session = get(obj, 'session'), cached, existing;
+            if ((cached = cacheGet(cache, keyName)) && (existing = session.add(cached)) && existing !== cached) {
+                cacheSet(cache, keyName, existing);
+            }
         };
         Ep.belongsTo = function (typeKey, options) {
             Ember.assert('The type passed to Ep.belongsTo must be defined', !!typeKey);
@@ -3742,6 +3747,18 @@
                         session.modelWillBecomeDirty(this, key, value, oldValue);
                         if (value) {
                             value = session.add(value);
+                        }
+                    } else if (value && get(value, 'isProxy')) {
+                        if (get(value, 'isLoaded')) {
+                            value = get(value, 'content');
+                        } else {
+                            value = Ep.LazyModel.create({
+                                id: get(value, 'id'),
+                                clientId: get(value, 'clientId'),
+                                type: get(value, 'type'),
+                                _parent: this,
+                                session: get(value, 'session')
+                            });
                         }
                     }
                     return value;
@@ -3874,7 +3891,7 @@
             return function () {
                 if (!get(this, 'content') && !get(this, 'isLoading')) {
                     if (async) {
-                        Ember.run.later(this, 'load', 0);
+                        Ember.run.scheduleOnce('actions', this, this.load);
                     } else {
                         this.load();
                     }
@@ -3960,6 +3977,7 @@
             unknownProperty: triggerLoad(),
             setUnknownProperty: triggerLoad(),
             then: triggerLoad(true),
+            _parent: null,
             resolve: function () {
                 set(this, 'isLoading', false);
                 return this._super.apply(this, arguments);
@@ -3967,13 +3985,14 @@
             load: function () {
                 if (get(this, 'isLoading'))
                     return this;
-                var session = get(this, 'session');
-                var type = get(this, 'type');
-                var id = get(this, 'id');
+                var session = get(this, 'session'), type = get(this, 'type'), id = get(this, 'id');
                 set(this, 'isLoading', true);
-                Ember.assert('Must be attached to a session.', get(this, 'session'));
+                if (!session && get(this, '_parent')) {
+                    session = get(this, '_parent.session');
+                }
+                Ember.assert('Must be attached to a session.', session);
                 Ember.assert('Must have an id to load.', id);
-                var promise = this.session.load(type, id);
+                var promise = session.load(type, id);
                 if (get(promise, 'isLoaded')) {
                     this.resolve(Ep.unwrap(promise));
                 } else {

@@ -17,6 +17,7 @@ describe "relationships", ->
       class @Comment extends Ep.Model
         text: Ep.attr('string')
         post: Ep.belongsTo(@Post)
+
       @App.Comment = @Comment
 
       @Post.reopen
@@ -99,6 +100,15 @@ describe "relationships", ->
       post = @session.create 'post', comments: [@Comment.create(id: '2')]
       expect(post.comments.length).to.eq(1)
       expect(post.comments.firstObject.id).to.eq('2')
+
+
+    it 'supports watching belongsTo properties that have a detached cached value', ->
+      comment = @session.adopt @session.build 'comment', id: 2, post: Ep.LazyModel.create(type: @Post, id: 1)
+
+      Ember.run ->
+        Ember.watchPath comment, 'post.title'
+
+      Ember.unwatchPath comment, 'post.title'
 
 
   context 'one->one', ->
