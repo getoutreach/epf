@@ -1484,6 +1484,8 @@
             },
             addAttributes: function (serialized, model) {
                 model.eachAttribute(function (name, attribute) {
+                    if (attribute.options.transient)
+                        return;
                     this.addProperty(serialized, model, name, attribute.type);
                 }, this);
             },
