@@ -822,7 +822,6 @@
         Ep.OperationGraph = Ember.Object.extend({
             models: null,
             shadows: null,
-            rootOps: null,
             adapter: null,
             init: function () {
                 var graph = this, adapter = get(this, 'adapter'), session = get(this, 'session');
@@ -836,7 +835,6 @@
                         });
                     }
                 });
-                this.rootOps = Ember.Set.create();
                 this.build();
             },
             perform: function () {
@@ -846,7 +844,6 @@
                 var adapter = get(this, 'adapter');
                 var models = get(this, 'models');
                 var shadows = get(this, 'shadows');
-                var rootOps = get(this, 'rootOps');
                 var ops = get(this, 'ops');
                 models.forEach(function (model) {
                     if (!get(model, 'isLoaded')) {
@@ -885,11 +882,6 @@
                         parentOp.addChild(op);
                     }
                 }, this);
-                ops.forEach(function (model, op) {
-                    if (get(op, 'isDirty') && get(op, 'isRoot')) {
-                        rootOps.add(op);
-                    }
-                }, this);
             },
             getOp: function (model) {
                 var models = get(this, 'models');
@@ -899,9 +891,16 @@
                 return this.ops.get(model);
             },
             createPromise: function () {
-                var rootOps = get(this, 'rootOps'), adapter = get(this, 'adapter'), cumulative = [];
+                var adapter = get(this, 'adapter'), cumulative = [];
                 function createNestedPromise(op) {
-                    var promise = op.perform();
+                    var promise;
+                    if (op.parents.length > 0) {
+                        promise = Ember.RSVP.all(op.parents.toArray()).then(function () {
+                            return op.perform();
+                        });
+                    } else {
+                        promise = op.perform();
+                    }
                     promise = promise.then(function (model) {
                         cumulative.push(model);
                         return model;
@@ -911,38 +910,34 @@
                     });
                     if (op.children.length > 0) {
                         promise = promise.then(function (model) {
-                            var childPromises = op.children.map(createNestedPromise);
-                            return Ember.RSVP.all(childPromises).then(function (models) {
+                            return Ember.RSVP.all(op.children.toArray()).then(function (models) {
                                 adapter.rebuildRelationships(models, model);
                                 return model;
+                            }, function (models) {
+                                throw model;
                             });
                         });
                     }
                     return promise;
                 }
-                return Ember.RSVP.all(rootOps.map(createNestedPromise)).then(function () {
+                promises = [];
+                get(this, 'ops').forEach(function (model, op) {
+                    promises.push(createNestedPromise(op));
+                });
+                return Ember.RSVP.all(promises).then(function () {
                     return cumulative;
                 }, function (err) {
                     throw cumulative;
                 });
-            },
-            toStringExtension: function () {
-                var result = '';
-                var rootOps = get(this, 'rootOps');
-                rootOps.forEach(function (op) {
-                    result += '\n' + op.toString(1);
-                });
-                return result + '\n';
             }
         });
     });
     require.define('/lib/rest/operation.js', function (module, exports, __dirname, __filename) {
         var get = Ember.get, set = Ember.set;
-        Ep.Operation = Ember.Object.extend({
+        Ep.Operation = Ember.Object.extend(Ember.DeferredMixin, {
             model: null,
             shadow: null,
             adapter: null,
-            _promise: null,
             force: false,
             init: function () {
                 this.children = Ember.Set.create();
@@ -1000,9 +995,11 @@
                     return 'updated';
                 }
             }).property('force'),
+            _hasPerformed: false,
             perform: function () {
-                if (this._promise)
-                    return this._promise;
+                if (this._hasPerformed)
+                    return this;
+                this._hasPerformed = true;
                 var adapter = get(this, 'adapter'), session = get(this, 'session'), dirtyType = get(this, 'dirtyType'), model = get(this, 'model'), shadow = get(this, 'shadow'), promise;
                 if (!dirtyType || !adapter.shouldSave(model)) {
                     if (adapter.isEmbedded(model)) {
@@ -1040,7 +1037,8 @@
                     }
                     throw serverModel;
                 });
-                return this._promise = promise;
+                this.resolve(promise);
+                return this;
             },
             _embeddedParent: Ember.computed(function () {
                 var model = get(this, 'model'), parentModel = get(this, 'adapter')._embeddedManager.findParent(model), graph = get(this, 'graph');

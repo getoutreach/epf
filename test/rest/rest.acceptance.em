@@ -326,6 +326,7 @@ describe "rest", ->
           {templates: {client_id: template2.clientId, id: 5, subject: 'do you speak it?'}}
       adapter.r['PUT:/campaigns/1'] = (url, type, hash) ->
         expect(hash.data.campaign.campaign_steps[0].campaign_templates[0].template).to.eq(2)
+        expect(hash.data.campaign.campaign_steps[1].campaign_templates[0].template).to.eq(5)
         return campaigns:
           id: 1
           client_id: campaign.clientId
@@ -345,6 +346,12 @@ describe "rest", ->
               ]
             }
           ]
+
+      calls = 0
+      # Don't have the requests run at the same time
+      adapter.runLater = (callback) ->
+        calls++
+        Ember.run.later callback, calls * 100
 
       campaign = session.merge @session.build('campaign', id: 1)
 
