@@ -318,43 +318,65 @@ describe "rest", ->
       @container.register 'serializer:campaign_step', CampaignStepSerializer
 
 
-    it 'creates new embedded child with reference to new hasMany', ->
-      adapter.r['POST:/templates'] = -> templates: {client_id: template.clientId, id: 2, subject: 'topological sort'}
+    it 'creates new embedded children with reference to new hasMany', ->
+      adapter.r['POST:/templates'] = (url, type, hash) ->
+        if hash.data.template.client_id == template.clientId
+          {templates: {client_id: template.clientId, id: 2, subject: 'topological sort'}}
+        else
+          {templates: {client_id: template2.clientId, id: 5, subject: 'do you speak it?'}}
       adapter.r['PUT:/campaigns/1'] = (url, type, hash) ->
         expect(hash.data.campaign.campaign_steps[0].campaign_templates[0].template).to.eq(2)
         return campaigns:
           id: 1
           client_id: campaign.clientId
           campaign_steps: [
-            client_id: campaignStep.clientId
-            id: 3
-            campaign_templates: [
-              {id: 4, client_id: campaignTemplate.clientId, template: 2, campaign_step: 3}
-            ]
+            {
+              client_id: campaignStep.clientId
+              id: 3
+              campaign_templates: [
+                {id: 4, client_id: campaignTemplate.clientId, template: 2, campaign_step: 3}
+              ]
+            },
+            {
+              client_id: campaignStep2.clientId
+              id: 6
+              campaign_templates: [
+                {id: 7, client_id: campaignTemplate2.clientId, template: 5, campaign_step: 6}
+              ]
+            }
           ]
 
       campaign = session.merge @session.build('campaign', id: 1)
 
       session = session.newSession()
       campaign = session.add campaign
-      campaignStep = session.create('campaign_step', campaign: campaign)
 
+      campaignStep = session.create('campaign_step', campaign: campaign)
       campaignTemplate = session.create 'campaign_template'
       campaignStep.campaignTemplates.pushObject(campaignTemplate)
-
       template = session.create 'template'
       template.subject = 'topological sort'
-
       campaignTemplate.template = template
 
+      campaignStep2 = session.create('campaign_step', campaign: campaign)
+      campaignTemplate2 = session.create 'campaign_template'
+      campaignStep2.campaignTemplates.pushObject(campaignTemplate2)
+      template2 = session.create 'template'
+      template2.subject = 'do you speak it?'
+      campaignTemplate2.template = template2
+
       session.flush().then ->
-        expect(template.id).to.not.be.null
+        expect(template.id).to.eq("2")
         expect(template.isNew).to.be.false
         expect(template.subject).to.eq('topological sort')
         expect(campaignTemplate.id).to.not.be.null
         expect(campaignTemplate.template).to.eq(template)
-        expect(campaignTemplate.template.id).to.eq("2")
-        expect(adapter.h).to.eql(['POST:/templates', 'PUT:/campaigns/1'])
+        expect(template2.id).to.eq("5")
+        expect(template2.isNew).to.be.false
+        expect(template2.subject).to.eq('do you speak it?')
+        expect(campaignTemplate2.id).to.not.be.null
+        expect(campaignTemplate2.template).to.eq(template2)
+        expect(adapter.h).to.eql(['POST:/templates', 'POST:/templates', 'PUT:/campaigns/1'])
 
 
     it 'save changes to parent when children not loaded in child session', ->
