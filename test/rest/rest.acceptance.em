@@ -378,11 +378,13 @@ describe "rest", ->
         expect(template.subject).to.eq('topological sort')
         expect(campaignTemplate.id).to.not.be.null
         expect(campaignTemplate.template).to.eq(template)
+        expect(campaignTemplate.campaignStep).to.eq(campaignStep)
         expect(template2.id).to.eq("5")
         expect(template2.isNew).to.be.false
         expect(template2.subject).to.eq('do you speak it?')
         expect(campaignTemplate2.id).to.not.be.null
         expect(campaignTemplate2.template).to.eq(template2)
+        expect(campaignTemplate2.campaignStep).to.eq(campaignStep2)
         expect(adapter.h).to.eql(['POST:/templates', 'POST:/templates', 'PUT:/campaigns/1'])
 
 

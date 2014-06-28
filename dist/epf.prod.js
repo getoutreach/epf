@@ -838,7 +838,48 @@
                 this.build();
             },
             perform: function () {
-                return this.createPromise();
+                var adapter = get(this, 'adapter'), cumulative = [];
+                function createNestedPromise(op) {
+                    var promise;
+                    if (op.parents.length > 0) {
+                        promise = Ember.RSVP.all(op.parents.toArray()).then(function () {
+                            return op.perform();
+                        });
+                    } else {
+                        promise = op.perform();
+                    }
+                    promise = promise.then(function (model) {
+                        cumulative.push(model);
+                        return model;
+                    }, function (model) {
+                        cumulative.push(model);
+                        throw model;
+                    });
+                    if (op.children.length > 0) {
+                        promise = promise.then(function (model) {
+                            return Ember.RSVP.all(op.children.toArray()).then(function (models) {
+                                adapter.rebuildRelationships(models, model);
+                                return model;
+                            }, function (models) {
+                                throw model;
+                            });
+                        });
+                    }
+                    return promise;
+                }
+                promises = [];
+                get(this, 'ops').forEach(function (model, op) {
+                    if (!get(op, 'model.isLoaded')) {
+                        op.resolve();
+                    } else {
+                        promises.push(createNestedPromise(op));
+                    }
+                });
+                return Ember.RSVP.all(promises).then(function () {
+                    return cumulative;
+                }, function (err) {
+                    throw cumulative;
+                });
             },
             build: function () {
                 var adapter = get(this, 'adapter');
@@ -889,46 +930,6 @@
                 if (materializedModel)
                     model = materializedModel;
                 return this.ops.get(model);
-            },
-            createPromise: function () {
-                var adapter = get(this, 'adapter'), cumulative = [];
-                function createNestedPromise(op) {
-                    var promise;
-                    if (op.parents.length > 0) {
-                        promise = Ember.RSVP.all(op.parents.toArray()).then(function () {
-                            return op.perform();
-                        });
-                    } else {
-                        promise = op.perform();
-                    }
-                    promise = promise.then(function (model) {
-                        cumulative.push(model);
-                        return model;
-                    }, function (model) {
-                        cumulative.push(model);
-                        throw model;
-                    });
-                    if (op.children.length > 0) {
-                        promise = promise.then(function (model) {
-                            return Ember.RSVP.all(op.children.toArray()).then(function (models) {
-                                adapter.rebuildRelationships(models, model);
-                                return model;
-                            }, function (models) {
-                                throw model;
-                            });
-                        });
-                    }
-                    return promise;
-                }
-                promises = [];
-                get(this, 'ops').forEach(function (model, op) {
-                    promises.push(createNestedPromise(op));
-                });
-                return Ember.RSVP.all(promises).then(function () {
-                    return cumulative;
-                }, function (err) {
-                    throw cumulative;
-                });
             }
         });
     });
@@ -995,11 +996,7 @@
                     return 'updated';
                 }
             }).property('force'),
-            _hasPerformed: false,
             perform: function () {
-                if (this._hasPerformed)
-                    return this;
-                this._hasPerformed = true;
                 var adapter = get(this, 'adapter'), session = get(this, 'session'), dirtyType = get(this, 'dirtyType'), model = get(this, 'model'), shadow = get(this, 'shadow'), promise;
                 if (!dirtyType || !adapter.shouldSave(model)) {
                     if (adapter.isEmbedded(model)) {
@@ -1057,7 +1054,7 @@
                     });
                     return res;
                 }
-                return get(this, '_embeddedParent').perform().then(function (parent) {
+                return get(this, '_embeddedParent').then(function (parent) {
                     return findInParent(parent);
                 }, function (parent) {
                     throw findInParent(parent);
@@ -1069,12 +1066,7 @@
             addChild: function (child) {
                 this.children.add(child);
                 child.parents.add(this);
-            },
-            isRoot: Ember.computed(function () {
-                return this.parents.every(function (parent) {
-                    return !get(parent, 'isDirty') && get(parent, 'isRoot');
-                });
-            }).volatile()
+            }
         });
     });
     require.define('/lib/rest/embedded_manager.js', function (module, exports, __dirname, __filename) {

@@ -110,6 +110,19 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/comments'])
 
 
+    it 'creates child with lazy reference to parent', ->
+      adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post: 1}
+
+      post = Ep.LazyModel.create(id: 1, type: @Post)
+
+      comment = session.create('comment', message: 'new child')
+      comment.post = post
+      session.flush().then ->
+        expect(comment.message).to.eq('new child')
+        expect(adapter.h).to.eql(['POST:/comments'])
+        expect(post.isLoaded).to.be.false
+
+
     it 'create followed by delete does not hit server', ->
       session.merge @Post.create(id: "1", title: 'parent');
 
