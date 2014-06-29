@@ -45,6 +45,16 @@ describe "relationships", ->
       expect(post.comments.toArray()).to.eql([])
 
 
+    it 'belongsTo updates inverse on delete when initially added as proxy', ->
+      post = @session.merge @session.build 'post', id: 1, comments: [Ep.LazyModel.create(type: @Comment, id: 2)]
+      lazyComment = post.comments.firstObject
+      comment = @session.merge @session.build 'comment', id: 2, post: Ep.LazyModel.create(type: @Post, id: 1)
+      lazyComment.post = post
+      expect(post.comments.toArray()).to.eql([lazyComment.content])
+      @session.deleteModel lazyComment
+      expect(post.comments.toArray()).to.eql([])
+
+
     it 'belongsTo updates inverse when set during create', ->
       comment = @session.create('comment', post: @session.create('post'))
       post = comment.post

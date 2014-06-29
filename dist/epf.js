@@ -1724,11 +1724,11 @@
                 type = this.typeFor(type);
                 var typeKey = get(type, 'typeKey');
                 id = id + '';
-                var cached = this.getForId(type, id);
+                var cached = this.getForId(typeKey, id);
                 if (cached && get(cached, 'isLoaded')) {
                     return Ep.resolveModel(cached);
                 }
-                var parentModel = get(this, 'parent').getForId(type, id);
+                var parentModel = get(this, 'parent').getForId(typeKey, id);
                 if (parentModel && get(parentModel, 'isLoaded')) {
                     return Ep.resolveModel(this.merge(parentModel));
                 }
@@ -2046,7 +2046,7 @@
                 type = this.typeFor(type);
                 var typeKey = get(type, 'typeKey');
                 id = id + '';
-                var cached = this.getForId(type, id);
+                var cached = this.getForId(typeKey, id);
                 if (cached && get(cached, 'isLoaded')) {
                     return Ep.resolveModel(cached);
                 }
@@ -2091,8 +2091,8 @@
             getModel: function (model) {
                 return this.models.getModel(model);
             },
-            getForId: function (type, id) {
-                var clientId = this.idManager.getClientId(type, id);
+            getForId: function (typeKey, id) {
+                var clientId = this.idManager.getClientId(typeKey, id);
                 return this.models.getForClientId(clientId);
             },
             reifyClientId: function (model) {
@@ -4233,13 +4233,16 @@
             init: function () {
                 this._super.apply(this, arguments);
                 this.idMaps = Ember.MapWithDefault.create({
-                    defaultValue: function (type) {
+                    defaultValue: function (typeKey) {
                         return Ember.Map.create();
                     }
                 });
             },
             reifyClientId: function (model) {
-                var id = get(model, 'id'), clientId = get(model, 'clientId'), type = get(model, 'type'), idMap = this.idMaps.get(type);
+                var id = get(model, 'id'), clientId = get(model, 'clientId'), typeKey = get(model, 'typeKey'), idMap = this.idMaps.get(typeKey);
+                if (id) {
+                    id = id + '';
+                }
                 if (id && clientId) {
                     var existingClientId = idMap.get(id);
                     Ember.assert('clientId has changed for ' + model.toString(), !existingClientId || existingClientId === clientId);
@@ -4251,19 +4254,19 @@
                         clientId = idMap.get(id);
                     }
                     if (!clientId) {
-                        clientId = this._generateClientId(type);
+                        clientId = this._generateClientId(typeKey);
                     }
                     set(model, 'clientId', clientId);
                     idMap.set(id, clientId);
                 }
                 return clientId;
             },
-            getClientId: function (type, id) {
-                var idMap = this.idMaps.get(type);
-                return idMap.get(id);
+            getClientId: function (typeKey, id) {
+                var idMap = this.idMaps.get(typeKey);
+                return idMap.get(id + '');
             },
-            _generateClientId: function (type) {
-                return get(type, 'typeKey') + uuid++;
+            _generateClientId: function (typeKey) {
+                return typeKey + uuid++;
             }
         });
     });
