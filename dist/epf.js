@@ -4090,7 +4090,7 @@
                 this.map.remove(clientId);
             },
             registerRelationship: function (model, name, inverseModel) {
-                var inverse = model.constructor.inverseFor(name);
+                var inverse = get(model, 'type').inverseFor(name);
                 this.map.get(get(model, 'clientId')).get(name).addObject(inverseModel);
                 if (inverse) {
                     this.map.get(get(inverseModel, 'clientId')).get(inverse.name).addObject(model);
@@ -4098,7 +4098,7 @@
                 }
             },
             unregisterRelationship: function (model, name, inverseModel) {
-                var inverse = model.constructor.inverseFor(name);
+                var inverse = get(model, 'type').inverseFor(name);
                 this.map.get(get(model, 'clientId')).get(name).removeObject(inverseModel);
                 if (inverse) {
                     this.map.get(get(inverseModel, 'clientId')).get(inverse.name).removeObject(model);

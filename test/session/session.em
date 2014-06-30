@@ -54,6 +54,21 @@ describe "Ep.Session", ->
       expect(post.title).to.eq('test')
 
 
+  describe '.deleteModel', ->
+
+    it 'deletes a model', ->
+      post = session.merge session.build 'post', id: 1
+      session.deleteModel post
+      expect(post.isDeleted).to.be.true
+
+    it 'deletes a model via lazy reference', ->
+      post = session.merge session.build 'post', id: 1
+      lazyPost = Ep.LazyModel.create type: @Post, id: 1, session: session
+      lazyPost.load()
+      session.deleteModel lazyPost
+      expect(post.isDeleted).to.be.true
+
+
   describe '.add', ->
 
     it 'works with lazy models', ->
