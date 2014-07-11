@@ -1,4 +1,4 @@
-exports.setupRest = ->
+setup = ->
   class TestRestAdapter extends Ep.RestAdapter
     h: null
     r: null
@@ -33,3 +33,6 @@ exports.setupRest = ->
   @session = @adapter.newSession()
 
   @container = @adapter.container
+
+
+`export default setup`

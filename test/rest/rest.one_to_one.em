@@ -1,10 +1,12 @@
+`import setup from './_shared'`
+
 describe "rest", ->
 
   adapter = null
   session = null
 
   beforeEach ->
-    require('./_shared').setupRest.apply(this)
+    setup.apply(this)
 
   context "one->one", ->
 

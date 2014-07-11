@@ -1,5 +1,9 @@
 language: node_js
 node_js:
   - "0.10"
+install:
+  - npm install
 before_script:
-  ./build-browser
+  - npm run-script build
+script:
+  - npm run-script test 

@@ -1,10 +1,12 @@
+`import setup from './_shared'`
+
 describe "Ep.ActiveModelAdapter", ->
 
   adapter = null
   session = null
 
   beforeEach ->
-    require('./_shared').setup.apply(this)
+    setup.apply(this)
     adapter = @adapter
     session = @session
     Ep.__container__ = @container

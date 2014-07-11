@@ -1,7 +1,9 @@
+`import setup from './_shared'`
+
 describe 'rest serialization', ->
 
   beforeEach ->
-    require('./_shared').setupRest.apply(this)
+    setup.apply(this)
     @serializer = @adapter.serializerFor('payload')
 
 

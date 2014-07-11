@@ -1,0 +1,18 @@
+{
+  "name": "epf",
+  "main": "dist/epf.js",
+  "license": "MIT",
+  "devDependencies": {
+    "ember": "~1.6.0",
+    "loader": "stefanpenner/loader.js#1.0.0",
+    "jsondiffpatch": "~0.1.8",
+    "mocha": "~1.20.1",
+    "chai": "~1.9.1"
+  },
+  "keywords": [
+    "ember.js",
+    "orm",
+    "persistence",
+    "sync"
+  ]
+}

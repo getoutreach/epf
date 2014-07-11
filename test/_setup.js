@@ -1,13 +1,3 @@
-global.jQuery = require('jquery');
-global.window = global.window || {};
-require('../vendor/ember-runtime');
-Ember.__loader.require('ember-runtime');
-
-require('../lib/index');
-
-global.chai = require('chai');
-global.expect = chai.expect;
-
 Ember.LOG_STACKTRACE_ON_DEPRECATION = false;
 
 var syncForTest = function(fn) {

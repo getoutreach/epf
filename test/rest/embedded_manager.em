@@ -1,3 +1,5 @@
+`import setup from './_shared'`
+
 describe 'Ep.EmbeddedManager', ->
 
   adapter = null
@@ -5,7 +7,7 @@ describe 'Ep.EmbeddedManager', ->
   manager = null
 
   beforeEach ->
-    require('./_shared').setupRest.apply(this)
+    setup.apply(this)
     adapter = @adapter
     session = @session
     Ep.__container__ = @container

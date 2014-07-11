@@ -1,10 +1,12 @@
 {
   "name": "epf",
-  "version": "0.1.4",
+  "version": "0.2.0+dev",
   "description": "A framework to keep you Ember.js apps in sync.",
   "main": "./lib/index.js",
   "scripts": {
-    "test": "mocha"
+    "build": "rm -rf dist; broccoli build dist",
+    "test": "testem ci",
+    "postinstall": "bower install"
   },
   "repository": "https://github.com/getoutreach/epf.git",
   "keywords": [
@@ -16,13 +18,24 @@
   "author": "Gordon L. Hempton <ghempton@gmail.com> (http://codebrief.com)",
   "license": "MIT",
   "devDependencies": {
-    "mkdirp": "*",
-    "chai": "*",
-    "mocha": "*",
     "ember-script": "git://github.com/ghempton/ember-script.git#master",
-    "jquery": "*",
-    "commonjs-everywhere": "*",
-    "escodegen": "*"
+    "testem": "~0.6.17",
+    "defeatureify": "~0.2.0",
+    "bower": "^1.3.7",
+    "broccoli": "~0.12.3",
+    "broccoli-cli": "0.0.1",
+    "broccoli-static-compiler": "~0.1.4",
+    "broccoli-merge-trees": "~0.1.4",
+    "broccoli-uglify-js": "~0.1.3",
+    "broccoli-bower": "~0.2.1",
+    "broccoli-replace": "~0.1.7",
+    "broccoli-defeatureify": "~0.3.0",
+    "broccoli-file-creator": "~0.1.0",
+    "broccoli-concat": "0.0.7",
+    "broccoli-es6-module-transpiler": "~0.1.1",
+    "broccoli-file-mover": "~0.4.0",
+    "broccoli-file-remover": "~0.2.2",
+    "broccoli-ember-script": "~0.1.1"
   },
   "dependencies": {
     "jsondiffpatch": "0.0.11"

@@ -1,4 +1,4 @@
-exports.setup = ->
+setup = ->
   class TestActiveModelAdapter extends Ep.ActiveModelAdapter
     h: null
     r: null
@@ -33,3 +33,5 @@ exports.setup = ->
   @session = @adapter.newSession()
 
   @container = @adapter.container
+
+`export default setup`

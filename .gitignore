@@ -4,3 +4,7 @@ pkg
 
 .DS_Store
 Gemfile.lock
+tmp
+bower_components
+
+dist

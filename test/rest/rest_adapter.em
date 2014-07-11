@@ -1,10 +1,12 @@
+`import setup from './_shared'`
+
 describe "Ep.RestAdapter", ->
 
   adapter = null
   session = null
 
   beforeEach ->
-    require('./_shared').setupRest.apply(this)
+    setup.apply(this)
     adapter = @adapter
     session = @session
     Ep.__container__ = @container
