@@ -122,7 +122,20 @@ var minDist = (function() {
 
 })();
 
-distTree = mergeTrees([es6Modules, es6TestModules, devDist, prodDist, minDist]);
+var bowerJSON = writeFile('bower.json', JSON.stringify({
+  name: 'epf',
+  version: 'VERSION_STRING_PLACEHOLDER',
+  license: "MIT",
+  main: 'epf.js',
+  keywords: [
+    "ember.js",
+    "orm",
+    "persistence",
+    "sync"
+  ]
+}, null, 2));
+
+distTree = mergeTrees([bowerJSON, es6Modules, es6TestModules, devDist, prodDist, minDist]);
 distTree = replace(distTree, {
   files: [ '**/*.js' ],
   patterns: [
@@ -130,7 +143,7 @@ distTree = replace(distTree, {
   ]
 });
 distTree = replace(distTree, {
-  files: [ '**/*.js' ],
+  files: [ '**/*' ],
   patterns: [
     { match: /VERSION_STRING_PLACEHOLDER/g, replacement: calculateVersion }
   ]
