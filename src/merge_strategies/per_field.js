@@ -1,4 +1,4 @@
-var get = Ember.get, set = Ember.set;
+var get = Ember.get, set = Ember.set, copy = Ember.copy;
 
 import MergeStrategy from './base';
 import ModelSet from '../collections/model_set';
@@ -22,53 +22,50 @@ export default MergeStrategy.extend({
 
   mergeAttributes: function(ours, ancestor, theirs) {
     ours.eachAttribute(function(name, meta) {
-      var oursValue = get(ours, name),
-          ancestorValue = get(ancestor, name),
-          theirsValue = get(theirs, name);
-      set(ours, name, this.mergeAttribute(name, oursValue, ancestorValue, theirsValue));
+      this.mergeProperty(ours, ancestor, theirs, name);
     }, this);
-  },
-
-  mergeAttribute: function(name, ours, ancestor, theirs) {
-    if(isEqual(ours, ancestor)) {
-      return theirs;
-    }
-    return ours;
   },
 
   mergeRelationships: function(ours, ancestor, theirs) {
     var session = get(this, 'session');
     ours.eachRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
-        var oursValue = get(ours, name);
-        var theirsValue = get(theirs, name);
-        var originalValue = get(ancestor, name);
-        // keep "ours", only merge if ours hasn't changed
-        if(isEqual(oursValue, originalValue)) {
-          set(ours, name, theirsValue);
-        }
+        this.mergeBelongsTo(ours, ancestor, theirs, name);
       } else if(relationship.kind === 'hasMany') {
-        var theirChildren = get(theirs, name);
-        var ourChildren = get(ours, name);
-        var originalChildren = get(ancestor, name);
-        if(isEqual(ourChildren, originalChildren)) {
-          // if we haven't modified the collection locally then
-          // we replace
-          var existing = ModelSet.create();
-          existing.addObjects(ourChildren);
-
-          theirChildren.forEach(function(model) {
-            if(existing.contains(model)) {
-              existing.remove(model);
-            } else {
-              ourChildren.pushObject(model);
-            }
-          }, this);
-
-          ourChildren.removeObjects(existing);
-        }
+        this.mergeHasMany(ours, ancestor, theirs, name);
       }
     }, this);
+  },
+
+  mergeBelongsTo: function(ours, ancestor, theirs, name) {
+    this.mergeProperty(ours, ancestor, theirs, name);
+  },
+
+  mergeHasMany: function(ours, ancestor, theirs, name) {
+    this.mergeProperty(ours, ancestor, theirs, name);
+  },
+
+  mergeProperty: function(ours, ancestor, theirs, name) {
+    var oursValue = get(ours, name),
+        ancestorValue = get(ancestor, name),
+        theirsValue = get(theirs, name);
+
+    if(!ours.isPropertyLoaded(name)) {
+      if(theirs.isPropertyLoaded(name)) {
+        set(ours, name, copy(theirsValue));
+      }
+      return;
+    }
+    if(!theirs.isPropertyLoaded(name) || isEqual(oursValue, theirsValue)) {
+      return;
+    }
+    // if the ancestor does not have the property loaded we are
+    // performing a two-way merge and we just pick theirs
+    if(!ancestor.isPropertyLoaded(name) || isEqual(oursValue, ancestorValue)) {
+      set(ours, name, copy(theirsValue));
+    } else {
+      // NO-OP
+    }
   }
 
 });

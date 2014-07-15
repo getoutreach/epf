@@ -12,9 +12,6 @@ import RestErrorsSerializer from './serializers/errors';
 
 import materializeRelationships from '../utils/materialize_relationships';
 
-import {ModelProxy} from '../model/proxies';
-var LoadError = ModelProxy.extend({});
-
 /**
   The REST adapter allows your store to communicate with an HTTP server by
   transmitting JSON via XHR. Most Ember.js apps that consume a JSON API
@@ -130,11 +127,11 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
   },
 
   // TODO: keep track of loads and prevent concurrent (return same promise)
+  // XXX: refactor to take a model?
   load: function(typeKey, id, opts, session) {
     var context = {typeKey: typeKey, id: id};
     var promise = this._load(typeKey, id, opts).then(null, function(payload) {
-      var type = session.typeFor(typeKey);
-      throw LoadError.create({
+      throw session.build(typeKey, {
         type: type,
         id: id,
         errors: get(payload, 'errors')
@@ -438,9 +435,6 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     The logic inside this hook is for this purpose.
   */
   willMergeModel: function(model) {
-    if(!get(model, 'isLoaded')) {
-      return;
-    }
     this._embeddedManager.updateParents(model);
   },
 
@@ -655,6 +649,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     visited.add(model);
     callback.call(binding, model);
     
+    // XXX: 
     if(!get(model, 'isLoaded')) return;
 
     this.serializerForModel(model).eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {

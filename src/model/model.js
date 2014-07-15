@@ -1,10 +1,11 @@
-var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Ember.computed;
+var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Ember.computed,
+    cacheFor = Ember.cacheFor,
+    cacheGet = cacheFor.get,
+    metaFor = Ember.meta;
 
 import ModelSet from '../collections/model_set';
 
-var LazyModel;
-
-var ModelMixin = Ember.Mixin.create({
+var Model = Ember.Object.extend(Copyable, {
 
   id: null,
   clientId: null,
@@ -13,6 +14,9 @@ var ModelMixin = Ember.Mixin.create({
   session: null,
   errors: null,
   isModel: true,
+  isDeleted: false,
+  
+  hasData: false,
 
   /**
     Two models are "equal" when they correspond to the same
@@ -57,12 +61,10 @@ var ModelMixin = Ember.Mixin.create({
   },
 
   lazyCopy: function() {
-    // ES6TODO: circular
-    if(!LazyModel) LazyModel = requireModule('epf/model/proxies')['LazyModel'];
-    return LazyModel.create({
+    var type = get(this, 'type');
+    return type.create({
       id: get(this, 'id'),
       clientId: get(this, 'clientId'),
-      type: get(this, 'type'),
       isDeleted: get(this, 'isDeleted'),
       errors: get(this, 'errors')
     });
@@ -80,16 +82,7 @@ var ModelMixin = Ember.Mixin.create({
 
   isManaged: computed(function() {
     return !!get(this, 'session');
-  }).volatile()
-
-});
-
-var Model = Ember.Object.extend(Copyable, ModelMixin, {
-
-  isPromise: false,
-  isProxy: false,
-  isDeleted: false,
-  isLoaded: true,
+  }).volatile(),
 
   isNew: computed(function() {
     return !get(this, 'id');
@@ -112,10 +105,15 @@ var Model = Ember.Object.extend(Copyable, ModelMixin, {
   // TODO: we should not lazily copy detached children
   copy: function() {
     var dest = this.constructor.create();
+    this.copyTo(dest);
+    return dest;
+  },
+
+  copyTo: function(dest) {
     dest.beginPropertyChanges();
     this.copyAttributes(dest);
     this.copyMeta(dest);
-    this.eachRelationship(function(name, relationship) {
+    this.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         var child = get(this, name);
         if(child) {
@@ -123,10 +121,11 @@ var Model = Ember.Object.extend(Copyable, ModelMixin, {
         }
       } else if(relationship.kind === 'hasMany') {
         var children = get(this, name);
-        var destChildren = get(dest, name);
+        var destChildren = [];
         children.forEach(function(child) {
           destChildren.pushObject(child.lazyCopy());
         });
+        set(dest, name, destChildren);
       }
     }, this);
     dest.endPropertyChanges();
@@ -136,7 +135,7 @@ var Model = Ember.Object.extend(Copyable, ModelMixin, {
   copyAttributes: function(dest) {
     dest.beginPropertyChanges();
     
-    this.eachAttribute(function(name, meta) {
+    this.eachLoadedAttribute(function(name, meta) {
       var left = get(this, name);
       var right = get(dest, name);
       var copy;
@@ -158,7 +157,35 @@ var Model = Ember.Object.extend(Copyable, ModelMixin, {
     set(dest, 'clientRev', get(this, 'clientRev'));
     set(dest, 'errors', Ember.copy(get(this, 'errors')));
     set(dest, 'isDeleted', get(this, 'isDeleted'));
-  }
+  },
+
+  willWatchProperty: function(key) {
+    if(get(this, 'isManaged') && !this.isPropertyLoaded(key) && !this.isPropertyLoading(key)) {
+      Ember.run.scheduleOnce('actions', this, this.load);
+    }
+  },
+
+  isPropertyLoaded: function(key) {
+    if(get(this, 'isNew')) {
+      return true;
+    }
+
+    var meta = metaFor(this),
+        cache = meta.cache,
+        cached = cacheGet(cache, key);
+
+    return typeof cached !== 'undefined';
+  },
+
+  isPropertyLoading: function(key) {
+    // XXX
+    return get(this, 'isLoading');
+  },
+
+  load: sessionAlias('loadModel'),
+  refresh: sessionAlias('refresh'),
+  deleteModel: sessionAlias('deleteModel'),
+  remoteCall: sessionAlias('remoteCall')
 
 });
 
@@ -190,5 +217,13 @@ Model.reopenClass({
 
 });
 
-export {ModelMixin};
+function sessionAlias(name) {
+  return function () {
+    var session = get(this, 'session');
+    Ember.assert("Cannot call " + name + " on a detached model", session);
+    var args = [this].concat(arguments);
+    return session[name].apply(session, args);
+  };
+}
+
 export default Model;

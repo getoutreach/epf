@@ -1,7 +1,6 @@
 var get = Ember.get, set = Ember.set;
 
-import Model from '../model';
-import {ModelMixin} from '../model';
+import Model from '../model/model';
 
 /**
   @private
@@ -428,10 +427,14 @@ Model.reopen({
   eachRelationship: function(callback, binding) {
     this.constructor.eachRelationship(callback, binding);
   },
-});
 
-
-ModelMixin.reopen({
+  eachLoadedRelationship: function(callback, binding) {
+    this.eachRelationship(function(name, relationship) {
+      if(this.isPropertyLoaded(name)) {
+        callback.apply(binding, arguments);
+      }
+    }, this);
+  },
 
   /**
     Traverses the object graph rooted at this model, invoking the callback.
@@ -441,9 +444,8 @@ ModelMixin.reopen({
     if(cache.contains(this)) return;
     cache.add(this);
     callback.call(binding || this, this);
-    if(!get(this, 'isLoaded')) return;
 
-    this.eachRelationship(function(name, relationship) {
+    this.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         var child = get(this, name);
         if(!child) return;
@@ -464,7 +466,7 @@ ModelMixin.reopen({
     @param {any} binding the value to which the callback's `this` should be bound
   */
   eachChild: function(callback, binding) {
-    this.eachRelationship(function(name, relationship) {
+    this.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         var child = get(this, name);
         if(child) {

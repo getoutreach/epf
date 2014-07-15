@@ -1,8 +1,8 @@
-var get = Ember.get, set = Ember.set;
+var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable;
 
 import ModelSet from './model_set';
 
-export default Ember.ArrayProxy.extend({
+export default Ember.ArrayProxy.extend(Copyable, {
 
   session: null,
   meta: null,
@@ -48,6 +48,10 @@ export default Ember.ArrayProxy.extend({
       if(obj.isEqual(m)) return true;
     }
     return false;
+  },
+
+  copy: function() {
+    return this.content.copy();
   },
 
   /**

@@ -90,9 +90,10 @@ export default Ember.Object.extend({
     models.forEach(function(model) {
       // skip any promises that aren't loaded
       // TODO: think through edge cases in depth
-      if(!get(model, 'isLoaded')) {
-        return;
-      }
+      // XXX:
+      // if(!get(model, 'isLoaded')) {
+      //   return;
+      // }
 
       var shadow = shadows.getModel(model);
 

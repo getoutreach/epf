@@ -18,10 +18,9 @@ export default Ember.Object.extend({
   
   register: function(model) {
     var clientId = get(model, 'clientId');
-    Ember.assert("Cannot register an unloaded model", get(model, 'isLoaded'));
     var session = get(this, 'session');
     
-    model.eachRelationship(function(name, relationship) {
+    model.eachLoadedRelationship(function(name, relationship) {
       // this is a copy that we mutate
       var existingInverses = this.map.get(clientId).get(name),
           inversesToClear = existingInverses.copy();
@@ -86,9 +85,9 @@ export default Ember.Object.extend({
   },
 
   _addToInverse: function(model, inverse, inverseModel) {
-    // the model could have been registered when it was lazy
     model = this.session.getModel(model);
-    if(!model) return;
+    // make sure the inverse is loaded
+    if(!model || !model.isPropertyLoaded(inverse.name)) return;
     model.suspendRelationshipObservers(function() {
       if(inverse.kind === 'hasMany') {
         get(model, inverse.name).addObject(inverseModel)
@@ -99,9 +98,9 @@ export default Ember.Object.extend({
   },
   
   _removeFromInverse: function(model, inverse, inverseModel) {
-    // the model could have been registered when it was lazy
     model = this.session.getModel(model);
-    if(!model) return;
+    // make sure the inverse is loaded
+    if(!model || !model.isPropertyLoaded(inverse.name)) return;
     model.suspendRelationshipObservers(function() {
       if(inverse.kind === 'hasMany') {
         get(model, inverse.name).removeObject(inverseModel)

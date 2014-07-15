@@ -1,6 +1,5 @@
 var get = Ember.get, set = Ember.set;
 
-import {LazyModel} from '../model/proxies';
 import Serializer from './base';
 
 export default Serializer.extend({
@@ -13,18 +12,16 @@ export default Serializer.extend({
     if(!serialized) {
       return null;
     }
-    if(opts.embedded) {
-      return this.deserializeEmbedded(serialized, opts);
+    if(!opts.embedded) {
+      var idSerializer = this.serializerFor('id');
+      var serialized = {
+        id: idSerializer.deserialize(serialized)
+      };
     }
-    var idSerializer = this.serializerFor('id');
-    var res = LazyModel.create({
-      id: idSerializer.deserialize(serialized),
-      type: this.typeFor(opts.typeKey)
-    });
-    return res;
+    return this.deserializeModel(serialized, opts);
   },
 
-  deserializeEmbedded: function(serialized, opts) {
+  deserializeModel: function(serialized, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return serializer.deserialize(serialized);
   },
@@ -34,13 +31,13 @@ export default Serializer.extend({
       return null;
     }
     if(opts.embedded) {
-      return this.serializeEmbedded(model, opts);
+      return this.serializeModel(model, opts);
     }
     var idSerializer = this.serializerFor('id');
     return idSerializer.serialize(get(model, 'id'));
   },
 
-  serializeEmbedded: function(model, opts) {
+  serializeModel: function(model, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return serializer.serialize(model);
   }

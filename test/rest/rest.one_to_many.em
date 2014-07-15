@@ -1,4 +1,8 @@
 `import setup from './_shared'`
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
+`import belongsTo from 'epf/relationships/belongs_to'`
+`import hasMany from 'epf/relationships/has_many'`
 
 describe "rest", ->
 
@@ -14,23 +18,23 @@ describe "rest", ->
   context 'one->many', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
+      class @Post extends Model
+        title: attr('string')
       @App.Post = @Post
 
-      class @Comment extends Ep.Model
-        message: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
+      class @Comment extends Model
+        message: attr('string')
+        post: belongsTo(@Post)
       @App.Comment = @Comment
 
       @Post.reopen
-        comments: Ep.hasMany(@Comment)
+        comments: hasMany(@Comment)
 
       @container.register 'model:post', @Post
       @container.register 'model:comment', @Comment
 
 
-    it 'loads lazily', ->
+    it.only 'loads lazily', ->
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [2]}
       adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post: 1}
 
@@ -115,7 +119,7 @@ describe "rest", ->
     it 'creates child with lazy reference to parent', ->
       adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post: 1}
 
-      post = Ep.LazyModel.create(id: 1, type: @Post)
+      post = @Post.create(id: 1)
 
       comment = session.create('comment', message: 'new child')
       comment.post = post
@@ -233,7 +237,7 @@ describe "rest", ->
     context 'embedded', ->
 
       beforeEach ->
-        PostSerializer = Ep.ModelSerializer.extend
+        PostSerializer = ModelSerializer.extend
           properties:
             comments:
               embedded: 'always'

@@ -192,6 +192,7 @@ Session.reopen({
     // TODO: we need to do a proper merge here
     set(merged, 'errors', Ember.copy(get(model, 'errors')));
 
+    // XXX:   
     if(get(model, 'isLoaded') && !get(model, 'isNew')) {
       // "rollback" the shadow to have what was returned by the server
       shadows.add(model);
@@ -207,18 +208,7 @@ Session.reopen({
   _mergeModel: function(dest, ancestor, model) {
     //Ember.assert("Cannot merge a model into it's own session", dest !== model);
 
-    if(get(model, 'isPromise')) {
-      return this._mergePromise(dest, ancestor, model);
-    }
-
     var promise;
-
-    if(dest && get(dest, 'isPromise')) {
-      // if the destination is a promise we want to
-      // merge it's content
-      promise = dest;
-      dest = dest.content;
-    }
 
     // if the model does not exist, no "merging"
     // is required
@@ -265,25 +255,6 @@ Session.reopen({
     var strategy = this.mergeStrategyFor(get(model, 'type.typeKey'));
     strategy.merge(dest, ancestor, model);
 
-    return dest;
-  },
-
-  // Delegate to the content of the promise
-  _mergePromise: function(dest, ancestor, promise) {
-    var content = get(promise, 'content');
-    if(content) {
-      return this._mergeModel(dest, ancestor, content);
-    }
-
-    // otherwise keep it lazy
-    if(!dest) {
-      if(get(promise, 'isDetached')) {
-        dest = promise;
-      } else {
-        dest = promise.lazyCopy();
-      }
-      this.adopt(dest);
-    }
     return dest;
   },
 

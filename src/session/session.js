@@ -3,7 +3,7 @@ import ModelSet from '../collections/model_set';
 import CollectionManager from './collection_manager';
 import InverseManager from './inverse_manager';
 import Model from '../model/model';
-import {resolveModel} from '../model/proxies';
+import ModelPromise from '../model/promise';
 
 var get = Ember.get, set = Ember.set;
 
@@ -58,7 +58,7 @@ export default Ember.Object.extend({
       this.newModels.add(model);
     }
     // Only loaded models are stored on the session
-    if(!get(model, 'isProxy') && !get(model, 'session')) {
+    if(!get(model, 'session')) {
       this.models.add(model);
       // Need to register with the inverse manager before being added to the
       // session. Otherwise, in a child session, the entire graph will be
@@ -92,15 +92,8 @@ export default Ember.Object.extend({
   add: function(model) {
     this.reifyClientId(model);
 
-    var dest = this.fetch(model);
+    var dest = this.getModel(model);
     if(dest && get(dest, 'isLoaded')) return dest;
-
-    if(get(model, 'isProxy')) {
-      var content = get(model, 'content');
-      if(content) {
-        return this.add(content);
-      }
-    }
     
     if(get(model, 'session') === this) return model;
 
@@ -151,14 +144,7 @@ export default Ember.Object.extend({
   */
   update: function(model) {
     this.reifyClientId(model);
-    if(get(model, 'isProxy')) {
-      var content = get(model, 'content');
-      if(content) {
-        return this.update(content);
-      }
-      throw new Ember.Error("Cannot update with an unloaded model: " + model.toString());
-    }
-    var dest = this.fetch(model);
+    var dest = this.getModel(model);
 
     if(get(model, 'isNew') && !dest) {
       dest = get(model, 'type').create();
@@ -186,7 +172,7 @@ export default Ember.Object.extend({
     model.copyAttributes(dest);
     model.copyMeta(dest);
 
-    model.eachRelationship(function(name, relationship) {
+    model.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         var child = get(model, name);
         if(child) {
@@ -216,18 +202,62 @@ export default Ember.Object.extend({
     this.inverseManager.unregister(model);
   },
 
-  load: function(type, id, opts) {
+  /**
+    Returns the model corresponding to the given typeKey and id
+    or instantiates a new model if one does not exist.
+
+    @returns {Model}
+  */
+  fetch: function(type, id) {
     type = this.typeFor(type);
     var typeKey = get(type, 'typeKey');
     // Always coerce to string
     id = id+'';
 
-    var cached = this.getForId(typeKey, id);
-    if(cached && get(cached, 'isLoaded')) {
-      return resolveModel(cached);
+    var model = this.getForId(typeKey, id);
+    // XXX: add isLoaded flag to model
+    if(!model) {
+      model = this.build(typeKey, {id: id});
+      this.adopt(model);
     }
 
-    return resolveModel(this.adapter.load(typeKey, id, opts, this), type, id, this);
+    return model;
+  },
+
+  /**
+    Loads the model corresponding to the given typeKey and id.
+
+    @returns {Promise}
+  */
+  load: function(type, id, opts) {
+    var model = this.fetch(type, id);
+    return this.loadModel(model, opts);
+  },
+
+  /**
+    Ensures data is loaded for a model.
+
+    @returns {Promise}
+  */
+  loadModel: function(model, opts) {
+    var promise;
+    if(get(model, 'isLoaded')) {
+      promise = Ember.RSVP.resolve(model);
+    } else {
+      // XXX: refactor adapter api to use model
+      promise = this.adapter.load(get(model, 'typeKey'), get(model, 'id'), opts, this);
+    }
+
+    // XXX: do we need to ensure that the promise resolves to the model?
+
+    return ModelPromise.create({
+      content: model,
+      promise: promise
+    });
+  },
+
+  isLoaded: function(model) {
+    newModels.contains(model) || originals.contains(model);
   },
 
   find: function(type, query, opts) {
@@ -235,10 +265,6 @@ export default Ember.Object.extend({
       return this.query(type, query, opts);
     }
     return this.load(type, query, opts);
-  },
-
-  fetch: function(model) {
-    return this.getModel(model);
   },
 
   query: function(type, query, opts) {
@@ -296,6 +322,10 @@ export default Ember.Object.extend({
 
   getForId: function(typeKey, id) {
     var clientId = this.idManager.getClientId(typeKey, id);
+    return this.getForClientId(clientId);
+  },
+
+  getForClientId: function(clientId) {
     return this.models.getForClientId(clientId);
   },
 

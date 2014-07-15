@@ -1,6 +1,5 @@
 var empty = Ember.isEmpty;
 
-import {LazyModel} from '../model/proxies';
 import Serializer from './base';
 
 export default Serializer.extend({
@@ -11,21 +10,19 @@ export default Serializer.extend({
 
   deserialize: function(serialized, opts) {
     if(!serialized) return [];
-    if(opts.embedded) {
-      return this.deserializeEmbedded(serialized, opts);
+    if(!opts.embedded) {
+      var idSerializer = this.serializerFor('id');
+
+      serialized = serialized.map(function(id) {
+        return {
+          id: id
+        };
+      }, this);
     }
-    var idSerializer = this.serializerFor('id'),
-        type = this.typeFor(opts.typeKey);
-    return serialized.map(function(id) {
-      var res = LazyModel.create({
-        id: idSerializer.deserialize(id),
-        type: type
-      });
-      return res;
-    }, this);
+    return this.deserializeModels(serialized, opts);
   },
 
-  deserializeEmbedded: function(serialized, opts) {
+  deserializeModels: function(serialized, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return serialized.map(function(hash) {
       return serializer.deserialize(hash);
@@ -34,12 +31,12 @@ export default Serializer.extend({
 
   serialize: function(models, opts) {
     if(opts.embedded) {
-      return this.serializeEmbedded(models, opts);
+      return this.serializeModels(models, opts);
     }
     return undefined;
   },
 
-  serializeEmbedded: function(models, opts) {
+  serializeModels: function(models, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return models.map(function(model) {
       return serializer.serialize(model);

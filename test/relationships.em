@@ -1,8 +1,14 @@
+`import setupContainer from 'epf/setup_container'`
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
+`import belongsTo from 'epf/relationships/belongs_to'`
+`import hasMany from 'epf/relationships/has_many'`
+
 describe "relationships", ->
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
-    Ep.setupContainer(@container)
+    setupContainer(@container)
     @adapter = @container.lookup('adapter:main')
     @session = @adapter.newSession()
 
@@ -10,18 +16,18 @@ describe "relationships", ->
   context 'one->many', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
+      class @Post extends Model
+        title: attr('string')
       @App.Post = @Post
 
-      class @Comment extends Ep.Model
-        text: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
+      class @Comment extends Model
+        text: attr('string')
+        post: belongsTo(@Post)
 
       @App.Comment = @Comment
 
       @Post.reopen
-        comments: Ep.hasMany(@Comment)
+        comments: hasMany(@Comment)
 
       @container.register 'model:post', @Post
       @container.register 'model:comment', @Comment
@@ -45,13 +51,13 @@ describe "relationships", ->
       expect(post.comments.toArray()).to.eql([])
 
 
-    it 'belongsTo updates inverse on delete when initially added as proxy', ->
-      post = @session.merge @session.build 'post', id: 1, comments: [Ep.LazyModel.create(type: @Comment, id: 2)]
-      lazyComment = post.comments.firstObject
-      comment = @session.merge @session.build 'comment', id: 2, post: Ep.LazyModel.create(type: @Post, id: 1)
-      lazyComment.post = post
-      expect(post.comments.toArray()).to.eql([lazyComment.content])
-      @session.deleteModel lazyComment
+    it 'belongsTo updates inverse on delete when initially added unloaded', ->
+      post = @session.merge @session.build 'post', id: 1, comments: [@Comment.create(id: 2)]
+      unloadedComment = post.comments.firstObject
+      comment = @session.merge @session.build 'comment', id: 2, post: @Post.create(id: 1)
+      unloadedComment.post = post
+      expect(post.comments.toArray()).to.eql([unloadedComment])
+      @session.deleteModel unloadedComment
       expect(post.comments.toArray()).to.eql([])
 
 
@@ -99,8 +105,8 @@ describe "relationships", ->
 
 
     it 'hasMany adds to session', ->
-      post = @session.merge(@Post.create(id: '1'))
-      comment = @session.merge(@Comment.create(id: '2'))
+      post = @session.merge(@Post.create(id: '1', comments: []))
+      comment = @session.merge(@Comment.create(id: '2', post: null))
 
       post.comments.addObject @Comment.create(id: '2')
       expect(post.comments.firstObject).to.eq(comment)
@@ -113,7 +119,7 @@ describe "relationships", ->
 
 
     it 'supports watching belongsTo properties that have a detached cached value', ->
-      comment = @session.adopt @session.build 'comment', id: 2, post: Ep.LazyModel.create(type: @Post, id: 1)
+      comment = @session.adopt @session.build 'comment', id: 2, post: @Post.create(id: 1)
 
       Ember.run ->
         Ember.watchPath comment, 'post.title'
@@ -123,17 +129,17 @@ describe "relationships", ->
 
   context 'one->one', ->
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
+      class @Post extends Model
+        title: attr('string')
       @App.Post = @Post
 
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
+      class @User extends Model
+        name: attr('string')
+        post: belongsTo(@Post)
       @App.User = @User
 
       @Post.reopen
-        user: Ep.belongsTo(@User)
+        user: belongsTo(@User)
 
       @container.register 'model:post', @Post
       @container.register 'model:user', @User
@@ -159,27 +165,27 @@ describe "relationships", ->
 
   context 'multiple one->many', ->
     beforeEach ->
-      class @Group extends Ep.Model
-        name: Ep.attr('string')
+      class @Group extends Model
+        name: attr('string')
       @App.Group = @Group
 
-      class @Member extends Ep.Model
-        role: Ep.attr('string')
-        group: Ep.belongsTo(@Group)
+      class @Member extends Model
+        role: attr('string')
+        group: belongsTo(@Group)
       @App.Member = @Member
 
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        groups: Ep.hasMany(@Group)
-        members: Ep.hasMany(@Member)
+      class @User extends Model
+        name: attr('string')
+        groups: hasMany(@Group)
+        members: hasMany(@Member)
       @App.User = @User
 
       @Group.reopen
-        members: Ep.hasMany(@Member)
-        user: Ep.belongsTo(@User)
+        members: hasMany(@Member)
+        user: belongsTo(@User)
 
       @Member.reopen
-        user: Ep.belongsTo(@User)
+        user: belongsTo(@User)
 
       @container.register 'model:group', @Group
       @container.register 'model:member', @Member

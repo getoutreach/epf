@@ -24,6 +24,14 @@ Model.reopen({
     get(this.constructor, 'attributes').forEach(function(name, meta) {
       callback.call(binding, name, meta);
     }, binding);
+  },
+
+  eachLoadedAttribute: function(callback, binding) {
+    this.eachAttribute(function(name, meta) {
+      if(this.isPropertyLoaded(name)) {
+        callback.apply(binding, arguments);
+      }
+    }, this);
   }
 });
 
@@ -36,14 +44,21 @@ export default function(type, options) {
     options: options
   };
 
-  return Ember.computed(function(key, value, oldValue) {
+  return Ember.computed(function(key, value) {
+    var session = get(this, 'session');
+
     if (arguments.length > 1) {
       Ember.assert("You may not set `id` as an attribute on your model. Please remove any lines that look like: `id: Ep.attr('<type>')` from " + this.constructor.toString(), key !== 'id');
+    } else {
+      if(session) {
+        // XXX: prevent this from happening many times?
+        this.load();
+      }
+      return;
     }
 
-    var session = get(this, 'session');
-    if(session && value !== oldValue) {
-      session.modelWillBecomeDirty(this, key, value, oldValue);
+    if(session) {
+      session.modelWillBecomeDirty(this);
     }
 
     return value;

@@ -15,16 +15,16 @@ import LocalAdapter from './local/local_adapter';
 import MergeStrategy from './merge_strategies/base';
 import PerField from './merge_strategies/per_field';
 
-import belongsTo from './model/relationships/belongs_to';
-import './model/relationships/ext';
-import hasMany from './model/relationships/has_many';
-import {HasManyArray} from './model/relationships/has_many';
 import attr from './model/attribute';
 import Model from './model/model';
-import {ModelMixin} from './model/model';
 import './model/diff';
 import Errors from './model/errors';
-import {ModelProxy, ModelPromise, LazyModel, unwrap, resolveModel} from './model/proxies';
+import ModelPromise from './model/promise';
+
+import belongsTo from './relationships/belongs_to';
+import './relationships/ext';
+import hasMany from './relationships/has_many';
+import {HasManyArray} from './relationships/has_many';
 
 import RestErrorsSerializer from './rest/serializers/errors';
 import PayloadSerializer from './rest/serializers/payload';
@@ -76,13 +76,9 @@ Ep.belongsTo = belongsTo;
 Ep.hasMany = hasMany;
 Ep.attr = attr;
 Ep.Model = Model;
-Ep.ModelMixin = ModelMixin;
 Ep.Errors = Errors;
-Ep.ModelProxy = ModelProxy;
+
 Ep.ModelPromise = ModelPromise;
-Ep.LazyModel = LazyModel;
-Ep.unwrap = unwrap;
-Ep.resolveModel = resolveModel;
 
 Ep.RestErrorsSerializer = RestErrorsSerializer;
 Ep.PayloadSerializer = PayloadSerializer;

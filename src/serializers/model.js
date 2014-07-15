@@ -106,7 +106,6 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
 
   serialize: function(model) {
     var serialized = {};
-    Ember.assert('Cannot serialize an unloaded model.', get(model, 'isLoaded'));
 
     this.addMeta(serialized, model);
     this.addAttributes(serialized, model);
@@ -123,7 +122,7 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
   },
 
   addAttributes: function(serialized, model) {
-    model.eachAttribute(function(name, attribute) {
+    model.eachLoadedAttribute(function(name, attribute) {
       // do not include transient properties
       if(attribute.options.transient) return;
       this.addProperty(serialized, model, name, attribute.type);
@@ -131,7 +130,7 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
   },
 
   addRelationships: function(serialized, model) {
-    model.eachRelationship(function(name, relationship) {
+    model.eachLoadedRelationship(function(name, relationship) {
       var config = this.configFor(name),
           opts = {typeKey: relationship.typeKey, embedded: config.embedded},
           // we dasherize the kind for lookups for consistency
@@ -201,7 +200,7 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     if(serializer) {
       value = serializer.deserialize(value, opts);
     }
-    if(value !== undefined) {
+    if(typeof value !== 'undefined') {
       set(model, name, value);
     }
   },

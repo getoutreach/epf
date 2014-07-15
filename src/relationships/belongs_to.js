@@ -4,8 +4,7 @@ var get = Ember.get, set = Ember.set,
     cacheSet = cacheFor.set,
     metaFor = Ember.meta;
 
-import Model from '../model';
-import {LazyModel} from '../proxies';
+import Model from '../model/model';
 
 /**
   @private
@@ -67,33 +66,41 @@ export default function(typeKey, options) {
     meta.type = typeKey;
   }
 
-  return new BelongsToDescriptor(function(key, value, oldValue) {
+  return new BelongsToDescriptor(function(key, value) {
     if(arguments.length === 1) {
-      return null;
+      return undefined;
     } else {
       var session = get(this, 'session');
+      set(this, 'hasData', true);
       if(session) {
-        session.modelWillBecomeDirty(this, key, value, oldValue);
+        session.modelWillBecomeDirty(this);
         if(value) {
           value = session.add(value);
         }
-      } else if(value && get(value, 'isProxy')) {
-        if(get(value, 'isLoaded')) {
-          value = get(value, 'content');
-        } else {
-          value = LazyModel.create({
-            id: get(value, 'id'),
-            clientId: get(value, 'clientId'),
-            type: get(value, 'type'),
-            _parent: this,
-            session: get(value, 'session')
-          });
-        }
+      } else if(value) {
+        value = BelongsToReference(this, value);
       }
       return value;
     }
   }).meta(meta);
 };
+
+/**
+  @private
+
+  We need a custom wrapper around related models with a session
+  that points to the parent model's session. This is due to
+  the way belongsTo CP's are lazily materialized and how
+  Ember's internal chain watchers behave.
+*/
+function BelongsToReference(parent, value) {
+  var res = get(value, 'type').createWithMixins({
+    session: Ember.computed.alias('_parent.session')
+  });
+  value.copyTo(res);
+  set(res, '_parent', parent);
+  return res;
+}
 
 /**
   These observers observe all `belongsTo` relationships on the model. See
@@ -104,7 +111,7 @@ Model.reopen({
   init: function() {
     this._super();
     // manually trigger change events to updated inverses
-    this.eachRelationship(function(name, relationship) {
+    this.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         this.belongsToDidChange(this, name);
       }

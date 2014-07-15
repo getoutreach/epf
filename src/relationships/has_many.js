@@ -1,7 +1,7 @@
 var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
 
-import Model from '../model';
-import ModelArray from '../../collections/model_array';
+import Model from '../model/model';
+import ModelArray from '../collections/model_array';
 
 export default function(typeKey, options) {
   Ember.assert("The type passed to Ep.hasMany must be defined", !!typeKey);
@@ -16,16 +16,15 @@ export default function(typeKey, options) {
     meta.type = typeKey;
   }
 
-  return Ember.computed(function(key, value, cached) {
+  return Ember.computed(function(key, value) {
     var content;
     if(arguments.length === 1) {
+      if(!get(this, 'isNew')) {
+        return;
+      }
       content = [];
     } else {
       content = value;
-    }
-    if(cached) {
-      set(cached, 'content', content);
-      return cached;
     }
     return HasManyArray.create({
       owner: this,

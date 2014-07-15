@@ -1,6 +1,6 @@
-import {ModelMixin} from '../model/model';
+import Model from '../model/model';
 
-ModelMixin.reopen({
+Model.reopen({
 
   /**
     Provides info about the model for debugging purposes
@@ -50,7 +50,7 @@ ModelMixin.reopen({
       },
       {
         name: 'Flags',
-        properties: ['isLoaded', 'isDirty', 'isDeleted', 'hasErrors', 'isProxy']
+        properties: ['isLoaded', 'isDirty', 'isDeleted', 'hasErrors']
       }
     ];
 

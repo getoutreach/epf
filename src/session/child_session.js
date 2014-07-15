@@ -2,7 +2,6 @@ var get = Ember.get, set = Ember.set;
 
 import Session from './session';
 
-import {resolveModel} from '../model/proxies';
 
 /**
   Child sessions are useful to keep changes isolated
@@ -15,10 +14,15 @@ export default Session.extend({
     return this._super(parentModel, visited);
   },
 
-  fetch: function(model) {
+  /**
+    @private
+
+    Child sessions dynamically copy down data from parent.
+  */
+  getModel: function(model) {
     var res = this._super(model);
     if(!res) {
-      res = get(this, 'parent').fetch(model);
+      res = get(this, 'parent').getModel(model);
       if(res) {
         res = this.adopt(res.copy());
       }
@@ -26,24 +30,20 @@ export default Session.extend({
     return res;
   },
 
-  load: function(type, id) {
-    type = this.typeFor(type);
-    var typeKey = get(type, 'typeKey');
-    // Always coerce to string
-    id = id+'';
+  /**
+    @private
 
-    var cached = this.getForId(typeKey, id);
-    if(cached && get(cached, 'isLoaded')) {
-      return resolveModel(cached);
+    Child sessions dynamically copy down data from parent.
+  */
+  getForClientId: function(clientId) {
+    var res = this._super(clientId);
+    if(!res) {
+      res = get(this, 'parent').getForClientId(clientId);
+      if(res) {
+        res = this.adopt(res.copy());
+      }
     }
-
-    // load and resolve immediately if the parent already has it loaded
-    var parentModel = get(this, 'parent').getForId(typeKey, id);
-    if(parentModel && get(parentModel, 'isLoaded')) {
-      return resolveModel(this.merge(parentModel));
-    }
-
-    return this._super(type, id);
+    return res;
   },
 
   /**
