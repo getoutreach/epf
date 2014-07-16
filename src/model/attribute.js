@@ -50,10 +50,6 @@ export default function(type, options) {
     if (arguments.length > 1) {
       Ember.assert("You may not set `id` as an attribute on your model. Please remove any lines that look like: `id: Ep.attr('<type>')` from " + this.constructor.toString(), key !== 'id');
     } else {
-      if(session) {
-        // XXX: prevent this from happening many times?
-        this.load();
-      }
       return;
     }
 

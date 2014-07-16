@@ -15,8 +15,8 @@ var Model = Ember.Object.extend(Copyable, {
   errors: null,
   isModel: true,
   isDeleted: false,
-  
-  hasData: false,
+
+  _loadPromise: null,
 
   /**
     Two models are "equal" when they correspond to the same
@@ -116,9 +116,7 @@ var Model = Ember.Object.extend(Copyable, {
     this.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         var child = get(this, name);
-        if(child) {
-          set(dest, name, child.lazyCopy());
-        }
+        set(dest, name, child && child.lazyCopy());
       } else if(relationship.kind === 'hasMany') {
         var children = get(this, name);
         var destChildren = [];
@@ -160,9 +158,22 @@ var Model = Ember.Object.extend(Copyable, {
   },
 
   willWatchProperty: function(key) {
-    if(get(this, 'isManaged') && !this.isPropertyLoaded(key) && !this.isPropertyLoading(key)) {
+    if(get(this, 'isManaged') && this.shouldTriggerLoad(key)) {
       Ember.run.scheduleOnce('actions', this, this.load);
     }
+  },
+
+  shouldTriggerLoad: function(key) {
+    return this.isAttributeOrRelationship(key) && !this.isPropertyLoaded(key);
+  },
+
+  isAttributeOrRelationship: function(key) {
+    var proto = this.constructor.proto(),
+        descs = Ember.meta(proto).descs,
+        desc = descs[key],
+        meta = desc && desc._meta;
+
+    return meta && (meta.isAttribute || meta.isRelationship);
   },
 
   isPropertyLoaded: function(key) {
@@ -177,15 +188,11 @@ var Model = Ember.Object.extend(Copyable, {
     return typeof cached !== 'undefined';
   },
 
-  isPropertyLoading: function(key) {
-    // XXX
-    return get(this, 'isLoading');
-  },
-
   load: sessionAlias('loadModel'),
   refresh: sessionAlias('refresh'),
   deleteModel: sessionAlias('deleteModel'),
-  remoteCall: sessionAlias('remoteCall')
+  remoteCall: sessionAlias('remoteCall'),
+  markClean: sessionAlias('markClean')
 
 });
 
@@ -221,7 +228,8 @@ function sessionAlias(name) {
   return function () {
     var session = get(this, 'session');
     Ember.assert("Cannot call " + name + " on a detached model", session);
-    var args = [this].concat(arguments);
+    var args = [].splice.call(arguments,0);
+    args.unshift(this);
     return session[name].apply(session, args);
   };
 }

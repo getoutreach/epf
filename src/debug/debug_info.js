@@ -50,7 +50,7 @@ Model.reopen({
       },
       {
         name: 'Flags',
-        properties: ['isLoaded', 'isDirty', 'isDeleted', 'hasErrors']
+        properties: ['isDirty', 'isDeleted', 'hasErrors']
       }
     ];
 

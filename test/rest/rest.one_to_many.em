@@ -34,7 +34,7 @@ describe "rest", ->
       @container.register 'model:comment', @Comment
 
 
-    it.only 'loads lazily', ->
+    it 'loads lazily', ->
       adapter.r['GET:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [2]}
       adapter.r['GET:/comments/2'] = comments: {id: 2, message: 'first', post: 1}
 
@@ -46,7 +46,7 @@ describe "rest", ->
         comment = post.comments.firstObject
         expect(comment.message).to.be.undefined
 
-        post.comments.firstObject.then ->
+        post.comments.firstObject.load().then ->
           expect(adapter.h).to.eql(['GET:/posts/1', 'GET:/comments/2'])
           expect(comment.message).to.eq('first')
           expect(comment.post.isEqual(post)).to.be.true
@@ -102,7 +102,7 @@ describe "rest", ->
     it 'creates child', ->
       adapter.r['POST:/comments'] = -> comments: {client_id: comment.clientId, id: 2, message: 'new child', post: 1}
 
-      session.merge @Post.create(id: "1", title: 'parent');
+      session.merge @Post.create(id: "1", title: 'parent', comments: []);
 
       comment = null
 
@@ -126,7 +126,7 @@ describe "rest", ->
       session.flush().then ->
         expect(comment.message).to.eq('new child')
         expect(adapter.h).to.eql(['POST:/comments'])
-        expect(post.isLoaded).to.be.false
+        expect(post.isPropertyLoaded('comments')).to.be.false
 
 
     it 'create followed by delete does not hit server', ->
@@ -148,7 +148,7 @@ describe "rest", ->
       adapter.r['PUT:/comments/2'] = -> comments: {id: 2, title: 'original sibling', post: 1}
       adapter.r['POST:/comments'] = -> comments: {client_id: sibling.clientId, id: 3, message: 'sibling', post: 1}
 
-      post = @Post.create(id: "1", title: 'parent');
+      post = @Post.create(id: "1", title: 'parent', comments: []);
       post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
@@ -183,7 +183,7 @@ describe "rest", ->
       adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'mvcc ftw', comments: [2]}
       adapter.r['DELETE:/comments/2'] = {}
 
-      post = @Post.create(id: "1", title: 'parent');
+      post = @Post.create(id: "1", title: 'parent', comments: []);
       post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
@@ -200,7 +200,7 @@ describe "rest", ->
       adapter.r['PUT:/posts/1'] = posts: {id: 1, title: 'childless', comments: []}
       adapter.r['DELETE:/comments/2'] = {}
 
-      post = @Post.create(id: "1", title: 'parent');
+      post = @Post.create(id: "1", title: 'parent', comments: []);
       post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
@@ -210,16 +210,16 @@ describe "rest", ->
         expect(post.comments.length).to.eq(0)
         post.title = 'childless'
         session.flush().then ->
-          expect(adapter.h).to.eql(['DELETE:/comments/2', 'PUT:/posts/1'])
           expect(post.comments.length).to.eq(0)
           expect(post.title).to.eq('childless')
+          expect(adapter.h).to.eql(['PUT:/posts/1', 'DELETE:/comments/2'])
 
 
     it 'deletes parent and child', ->
       adapter.r['DELETE:/posts/1'] = {}
       adapter.r['DELETE:/comments/2'] = {}
 
-      post = @Post.create(id: "1", title: 'parent');
+      post = @Post.create(id: "1", title: 'parent', comments: [])
       post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
       session.merge post
 
@@ -229,7 +229,7 @@ describe "rest", ->
         expect(post.comments.length).to.eq(0)
         session.deleteModel(post)
         session.flush().then ->
-          expect(adapter.h).to.eql(['DELETE:/comments/2', 'DELETE:/posts/1'])
+          expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/comments/2'])
           expect(post.isDeleted).to.be.true
           expect(comment.isDeleted).to.be.true
 

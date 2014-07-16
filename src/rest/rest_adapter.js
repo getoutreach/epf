@@ -526,7 +526,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       for(var i = 0; i < children.length; i++) {
         var child = children[i];
 
-        child.eachRelationship(function(name, relationship) {
+        child.eachLoadedRelationship(function(name, relationship) {
           // TODO: handle hasMany's for non-relational databases...
           if(relationship.kind === 'belongsTo') {
             var value = get(child, name);
@@ -537,7 +537,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
                 return;
               }
 
-              if(inverse.kind === 'hasMany') {
+              if(inverse.kind === 'hasMany' && parent.isPropertyLoaded(inverse.name)) {
                 var parentCollection = get(parent, inverse.name);
                 if(child.get('isDeleted')) {
                   parentCollection.removeObject(child);

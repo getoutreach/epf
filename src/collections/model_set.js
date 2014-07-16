@@ -468,6 +468,24 @@ var ModelSet = Ember.CoreObject.extend(Ember.MutableEnumerable, Ember.Copyable, 
     var idx = this[clientId];
     if(idx === undefined) return;
     return this[idx];
+  },
+
+  /**
+    Adds the model to the set or overwrites the existing
+    model.
+  */
+  addData: function(model) {
+    var existing = this.getModel(model);
+    var dest;
+    if(existing) {
+      dest = existing.copy();
+      model.copyTo(dest);
+    } else {
+      // copy since the dest could be the model in the session
+      dest = model.copy();
+    }
+    this.add(dest);
+    return dest;
   }
 
 });

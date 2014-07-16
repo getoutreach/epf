@@ -9,7 +9,7 @@ Model.reopen({
   diff: function(model) {
     var diffs = [];
 
-    this.eachAttribute(function(name, meta) {
+    this.eachLoadedAttribute(function(name, meta) {
       var left = get(this, name);
       var right = get(model, name);
 
@@ -41,7 +41,7 @@ Model.reopen({
       }
     }, this);
 
-    this.eachRelationship(function(name, relationship) {
+    this.eachLoadedRelationship(function(name, relationship) {
       var left = get(this, name);
       var right = get(model, name);
       if(relationship.kind === 'belongsTo') {

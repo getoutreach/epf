@@ -35,10 +35,11 @@ Session.reopen({
     @param {Ember.Set} [visited] Cache used to break recursion. This is required for non-version-aware backends.
   */
   merge: function(model, visited) {
+    this.reifyClientId(model);
+
     var adapter = get(this, 'adapter');
     adapter.willMergeModel(model);
-    
-    this.reifyClientId(model);
+
     if(!visited) visited = new Ember.Set();
 
     if(visited.contains(model)) {
@@ -122,10 +123,10 @@ Session.reopen({
         // After a successful merge we update the shadow to the
         // last known value from the server. As an optimization,
         // we only create shadows if the model has been dirtied.
-        if(shadows.contains(model) && get(model, 'isLoaded')) {
+        //if(shadows.contains(model)) {
           // TODO: should remove unless client has unflushed changes
-          shadows.add(model);
-        }
+          this.updateShadow(model);
+        //}
 
         // Once the server has seen our local changes, the original
         // is no longer needed
@@ -191,24 +192,21 @@ Session.reopen({
     // set the errors on the merged model
     // TODO: we need to do a proper merge here
     set(merged, 'errors', Ember.copy(get(model, 'errors')));
-
-    // XXX:   
-    if(get(model, 'isLoaded') && !get(model, 'isNew')) {
+ 
+    //if(!get(model, 'isNew')) {
       // "rollback" the shadow to have what was returned by the server
-      shadows.add(model);
+      shadows.addData(model);
 
       // the shadow is now the server version, so no reason to
       // keep the original around
       originals.remove(model);
-    }
+    //}
 
     return merged;
   },
 
   _mergeModel: function(dest, ancestor, model) {
     //Ember.assert("Cannot merge a model into it's own session", dest !== model);
-
-    var promise;
 
     // if the model does not exist, no "merging"
     // is required
@@ -220,12 +218,6 @@ Session.reopen({
       }
 
       this.adopt(dest);
-      
-      if(promise) {
-        // update the content of the promise so any lingering
-        // references will still function
-        promise.resolve(dest);
-      }
       return dest;
     }
 

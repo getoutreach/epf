@@ -14,16 +14,17 @@ export default Serializer.extend({
     }
     if(!opts.embedded) {
       var idSerializer = this.serializerFor('id');
-      var serialized = {
+      serialized = {
         id: idSerializer.deserialize(serialized)
       };
+      opts.reifyClientId = false;
     }
     return this.deserializeModel(serialized, opts);
   },
 
   deserializeModel: function(serialized, opts) {
     var serializer = this.serializerFor(opts.typeKey);
-    return serializer.deserialize(serialized);
+    return serializer.deserialize(serialized, opts);
   },
 
   serialize: function(model, opts) {

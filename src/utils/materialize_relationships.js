@@ -16,7 +16,7 @@ export default function(models, idManager) {
   models.forEach(function(model) {
 
     // TODO: does this overwrite non-lazy embedded children?
-    model.eachRelationship(function(name, relationship) {
+    model.eachLoadedRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
         var child = get(model, name);
         if(child) {

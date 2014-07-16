@@ -29,7 +29,12 @@ BelongsToDescriptor.prototype.get = function(obj, keyName) {
     this.materialize(obj, keyName);
   }
 
-  return Ember.ComputedProperty.prototype.get.apply(this, arguments);
+  var res = Ember.ComputedProperty.prototype.get.apply(this, arguments);
+
+  if(res instanceof BelongsToProxy) {
+    res = res.content;
+  }
+  return res;
 };
 
 /**
@@ -71,14 +76,16 @@ export default function(typeKey, options) {
       return undefined;
     } else {
       var session = get(this, 'session');
-      set(this, 'hasData', true);
       if(session) {
         session.modelWillBecomeDirty(this);
         if(value) {
           value = session.add(value);
         }
       } else if(value) {
-        value = BelongsToReference(this, value);
+        value = BelongsToProxy.create({
+          _parent: this,
+          content: value
+        });
       }
       return value;
     }
@@ -93,14 +100,21 @@ export default function(typeKey, options) {
   the way belongsTo CP's are lazily materialized and how
   Ember's internal chain watchers behave.
 */
-function BelongsToReference(parent, value) {
-  var res = get(value, 'type').createWithMixins({
-    session: Ember.computed.alias('_parent.session')
-  });
-  value.copyTo(res);
-  set(res, '_parent', parent);
-  return res;
-}
+var BelongsToProxy = Ember.ObjectProxy.extend({
+  session: Ember.computed.alias('_parent.session'),
+  _parent: null,
+  willWatchProperty: function(key) {
+    if(get(this, 'session') && this.content.shouldTriggerLoad(key)) {
+      Ember.run.scheduleOnce('actions', this, this.load);
+    }
+  },
+  load: function() {
+    var session = get(this, 'session');
+    var args = [].splice.call(arguments,0);
+    args.unshift(this.content);
+    return session.loadModel.apply(session, args);
+  }
+});
 
 /**
   These observers observe all `belongsTo` relationships on the model. See

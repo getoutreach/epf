@@ -12,12 +12,12 @@ export default Serializer.extend({
     if(!serialized) return [];
     if(!opts.embedded) {
       var idSerializer = this.serializerFor('id');
-
       serialized = serialized.map(function(id) {
         return {
           id: id
         };
       }, this);
+      opts.reifyClientId = false;
     }
     return this.deserializeModels(serialized, opts);
   },
@@ -25,7 +25,7 @@ export default Serializer.extend({
   deserializeModels: function(serialized, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return serialized.map(function(hash) {
-      return serializer.deserialize(hash);
+      return serializer.deserialize(hash, opts);
     });
   },
 

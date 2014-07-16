@@ -66,12 +66,7 @@ export default Ember.Object.extend({
 
     var promises = [];
     get(this, 'ops').forEach(function(model, op) {
-      if(!get(op, 'model.isLoaded')) {
-        // skip but still resolve for children
-        op.resolve();
-      } else {
-        promises.push(createNestedPromise(op));
-      }
+      promises.push(createNestedPromise(op));
     }); 
 
     return Ember.RSVP.all(promises).then(function() {

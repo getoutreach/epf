@@ -4,6 +4,7 @@ import CollectionManager from './collection_manager';
 import InverseManager from './inverse_manager';
 import Model from '../model/model';
 import ModelPromise from '../model/promise';
+import Cache from './cache';
 
 var get = Ember.get, set = Ember.set;
 
@@ -20,6 +21,7 @@ export default Ember.Object.extend({
     this.shadows = ModelSet.create();
     this.originals = ModelSet.create();
     this.newModels = ModelSet.create();
+    this.cache = Cache.create();
   },
 
   /**
@@ -51,6 +53,7 @@ export default Ember.Object.extend({
   },
 
   adopt: function(model) {
+    this.reifyClientId(model);
     Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !get(model, 'session') || get(model, 'session') === this);
     Ember.assert("An equivalent model already exists in the session!", !this.getModel(model) || this.getModel(model) === model);
 
@@ -93,7 +96,7 @@ export default Ember.Object.extend({
     this.reifyClientId(model);
 
     var dest = this.getModel(model);
-    if(dest && get(dest, 'isLoaded')) return dest;
+    if(dest) return dest;
     
     if(get(model, 'session') === this) return model;
 
@@ -240,24 +243,22 @@ export default Ember.Object.extend({
     @returns {Promise}
   */
   loadModel: function(model, opts) {
-    var promise;
-    if(get(model, 'isLoaded')) {
-      promise = Ember.RSVP.resolve(model);
-    } else {
+    Ember.assert("Cannot load a model with an id", get(model, 'id'));
+    // TODO: this should be done on a per-attribute bases
+    var promise = this.cache.getPromise(model);
+
+    if(!promise) {
       // XXX: refactor adapter api to use model
       promise = this.adapter.load(get(model, 'typeKey'), get(model, 'id'), opts, this);
+      this.cache.addPromise(model, promise);
     }
 
-    // XXX: do we need to ensure that the promise resolves to the model?
-
-    return ModelPromise.create({
+    promise = ModelPromise.create({
       content: model,
       promise: promise
     });
-  },
 
-  isLoaded: function(model) {
-    newModels.contains(model) || originals.contains(model);
+    return promise;
   },
 
   find: function(type, query, opts) {
@@ -431,6 +432,19 @@ export default Ember.Object.extend({
     // if no model exists in the `shadows` property then
     // it is safe to assume the model has not been modified
     return shadows.getModel(model) || models.getModel(model);
+  },
+
+  /**
+    @private
+
+    Updates the shadow based on the corresponding model.
+  */
+  updateShadow: function(model) {
+    var shadow = this.shadows.addData(model);
+    var model = this.getModel(model);
+    this.cache.addModel(model);
+    // TODO: move removing from originals here?
+    return shadow;
   },
 
   /**

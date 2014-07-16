@@ -155,23 +155,25 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     }
   },
 
-  deserialize: function(hash) {
+  deserialize: function(hash, opts) {
     var model = this.createModel();
 
-    this.extractMeta(model, hash);
+    this.extractMeta(model, hash, opts);
     this.extractAttributes(model, hash);
     this.extractRelationships(model, hash);
 
     return model;
   },
 
-  extractMeta: function(model, hash) {
+  extractMeta: function(model, hash, opts) {
     this.extractProperty(model, hash, 'id', 'id');
     this.extractProperty(model, hash, 'clientId', 'string');
     this.extractProperty(model, hash, 'rev', 'revision');
     this.extractProperty(model, hash, 'clientRev', 'revision');
     this.extractProperty(model, hash, 'errors', 'errors');
-    this.idManager.reifyClientId(model);
+    if(!opts || opts.reifyClientId !== false) {
+      this.idManager.reifyClientId(model);
+    }
   },
 
   extractAttributes: function(model, hash) {
@@ -194,6 +196,9 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     var key = this.keyFor(name, type, opts),
         value = hash[key],
         serializer;
+    if(typeof value === 'undefined') {
+      return;
+    }
     if(type) {
       serializer = this.serializerFor(type);
     }
