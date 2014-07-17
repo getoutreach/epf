@@ -1,6 +1,6 @@
 {
   "name": "epf",
-  "version": "0.3.0",
+  "version": "0.3.0+dev",
   "description": "A framework to keep you Ember.js apps in sync.",
   "main": "./lib/index.js",
   "scripts": {

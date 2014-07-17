@@ -449,6 +449,17 @@ export default Ember.Object.extend({
   },
 
   /**
+    Invalidate the cache for a particular model. This has the
+    effect of making the next `load` call hit the server.
+
+    @method invalidate
+    @param {Ep.Model} model
+  */
+  invalidate: function(model) {
+    this.cache.removeModel(model);
+  },
+
+  /**
     Mark a model as clean. This will prevent future
     `flush` calls from persisting this model's state to
     the server until the model is marked dirty again.

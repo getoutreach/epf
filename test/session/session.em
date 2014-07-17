@@ -7,6 +7,7 @@
 describe "Session", ->
 
   session = null
+  adapter = null
 
   beforeEach ->
     @App = Ember.Namespace.create()
@@ -90,6 +91,23 @@ describe "Session", ->
       expect(session.getModel(lazy)).to.eq(post)
 
 
+  describe '.invalidate', ->
+
+    it 'causes existing model to be reloaded', ->
+      post = session.merge @Post.create id: '1', title: 'refresh me plz'
+      hit = false
+      adapter.load = (model) ->
+        expect(model).to.eq(post)
+        hit = true
+        Ember.RSVP.resolve(model)
+      post.load()
+      expect(hit).to.be.false
+      session.invalidate(post)
+      post.load()
+      expect(hit).to.be.true
+
+
+
   describe '.merge', ->
 
     it 'reuses detached model', ->
@@ -147,6 +165,8 @@ describe "Session", ->
       session.touch(post)
       expect(post.isDirty).to.be.true
 
+
+  describe 
 
   describe '.isDirty', ->
 

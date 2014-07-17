@@ -19,6 +19,10 @@ export default Ember.Object.extend({
     }
   },
 
+  removeModel: function(model) {
+    delete this._data[get(model, 'clientId')];
+  },
+
   addPromise: function(model, promise) {
     this._data[get(model, 'clientId')] = promise;
   },

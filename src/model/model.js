@@ -200,7 +200,9 @@ var Model = Ember.Object.extend(Copyable, {
   refresh: sessionAlias('refresh'),
   deleteModel: sessionAlias('deleteModel'),
   remoteCall: sessionAlias('remoteCall'),
-  markClean: sessionAlias('markClean')
+  markClean: sessionAlias('markClean'),
+  invalidate: sessionAlias('invalidate'),
+  touch: sessionAlias('touch')
 
 });
 

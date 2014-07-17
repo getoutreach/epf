@@ -31,10 +31,7 @@ BelongsToDescriptor.prototype.get = function(obj, keyName) {
 
   var res = Ember.ComputedProperty.prototype.get.apply(this, arguments);
 
-  if(res instanceof BelongsToProxy) {
-    res = res.content;
-  }
-  return res;
+  return unwrap(res);
 };
 
 /**
@@ -52,6 +49,7 @@ BelongsToDescriptor.prototype.materialize = function(obj, keyName) {
       cached, existing;
 
   if((cached = cacheGet(cache, keyName))
+    && (cached = unwrap(cached))
     && (existing = session.add(cached))
     && (existing !== cached)) {
     cacheSet(cache, keyName, existing);
@@ -82,7 +80,7 @@ export default function(typeKey, options) {
           value = session.add(value);
         }
       } else if(value) {
-        value = BelongsToProxy.create({
+        value = BelongsToReference.create({
           _parent: this,
           content: value
         });
@@ -100,7 +98,7 @@ export default function(typeKey, options) {
   the way belongsTo CP's are lazily materialized and how
   Ember's internal chain watchers behave.
 */
-var BelongsToProxy = Ember.ObjectProxy.extend({
+var BelongsToReference = Ember.Object.extend({
   session: Ember.computed.alias('_parent.session'),
   _parent: null,
   willWatchProperty: function(key) {
@@ -115,6 +113,13 @@ var BelongsToProxy = Ember.ObjectProxy.extend({
     return session.loadModel.apply(session, args);
   }
 });
+
+function unwrap(ref) {
+  if(ref instanceof BelongsToReference) {
+    return ref.content;
+  }
+  return ref;
+}
 
 /**
   These observers observe all `belongsTo` relationships on the model. See

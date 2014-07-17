@@ -96,6 +96,15 @@ export default Ember.ArrayProxy.extend(Copyable, {
 
   isEqual: function(arr) {
     return this.diff(arr).length === 0;
+  },
+
+  load: function() {
+    var array = this;
+    return Ember.RSVP.all(this.map(function(model) {
+      return model.load();
+    })).then(function() {
+      return array;
+    });
   }
 
 });
