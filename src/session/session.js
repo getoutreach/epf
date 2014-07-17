@@ -55,7 +55,7 @@ export default Ember.Object.extend({
   adopt: function(model) {
     this.reifyClientId(model);
     Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !get(model, 'session') || get(model, 'session') === this);
-    Ember.assert("An equivalent model already exists in the session!", !this.getModel(model) || this.getModel(model) === model);
+    Ember.assert("An equivalent model already exists in the session!", !this.models.getModel(model) || this.models.getModel(model) === model);
 
     if(get(model, 'isNew')) {
       this.newModels.add(model);
@@ -159,7 +159,7 @@ export default Ember.Object.extend({
     // if the model is detached or does not exist
     // in the target session, updating is semantically
     // equivalent to adding
-    if(get(model, 'isDetached') || !dest || !get(dest, 'isLoaded')) {
+    if(get(model, 'isDetached') || !dest) {
       return this.add(model);
     }
 
@@ -247,9 +247,14 @@ export default Ember.Object.extend({
     // TODO: this should be done on a per-attribute bases
     var promise = this.cache.getPromise(model);
 
-    if(!promise) {
+    if(promise) {
+      // the cache's promise is not guaranteed to return anything
+      promise = promise.then(function() {
+        return model;
+      });
+    } else {
       // XXX: refactor adapter api to use model
-      promise = this.adapter.load(get(model, 'typeKey'), get(model, 'id'), opts, this);
+      promise = this.adapter.load(model, opts, this);
       this.cache.addPromise(model, promise);
     }
 
@@ -279,7 +284,7 @@ export default Ember.Object.extend({
 
   refresh: function(model, opts) {
     var session = this;
-    return this.adapter.refresh(model, opts, this);
+    return this.adapter.load(model, opts, this);
   },
 
   flush: function() {
@@ -437,14 +442,10 @@ export default Ember.Object.extend({
   /**
     @private
 
-    Updates the shadow based on the corresponding model.
+    Updates the promise cache
   */
-  updateShadow: function(model) {
-    var shadow = this.shadows.addData(model);
-    var model = this.getModel(model);
+  updateCache: function(model) {
     this.cache.addModel(model);
-    // TODO: move removing from originals here?
-    return shadow;
   },
 
   /**

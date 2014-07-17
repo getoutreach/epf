@@ -25,6 +25,8 @@ export default Session.extend({
       res = get(this, 'parent').getModel(model);
       if(res) {
         res = this.adopt(res.copy());
+        // TODO: is there a better place for this?
+        this.updateCache(res);
       }
     }
     return res;
@@ -41,6 +43,8 @@ export default Session.extend({
       res = get(this, 'parent').getForClientId(clientId);
       if(res) {
         res = this.adopt(res.copy());
+        // TODO: is there a better place for this?
+        this.updateCache(res);
       }
     }
     return res;

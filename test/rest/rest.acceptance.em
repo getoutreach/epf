@@ -156,7 +156,7 @@ describe "rest", ->
     it 'creates a new comment within a child session', ->
       adapter.r['POST:/comments'] = -> comment: {client_id: comment.clientId, id: "3", message: "#2", post: "1"}
 
-      post = session.merge @Post.create(id: "1", title: "brogrammer's guide to beer pong")
+      post = session.merge @Post.create(id: "1", title: "brogrammer's guide to beer pong", comments: [])
       session.merge @Comment.create(id: "2", message: "yo", post: post)
 
       childSession = session.newSession()
@@ -355,7 +355,7 @@ describe "rest", ->
         calls++
         Ember.run.later callback, calls * 100
 
-      campaign = session.merge @session.build('campaign', id: 1)
+      campaign = session.merge @session.build('campaign', id: 1, campaignSteps:[])
 
       session = session.newSession()
       campaign = session.add campaign
@@ -397,14 +397,17 @@ describe "rest", ->
       campaign = session.merge @session.build 'campaign',
         name: 'old name'
         id: 1
+        campaignSteps: []
 
       step = session.merge @session.build 'campaign_step',
         id: 2
         campaign: campaign
+        campaignTemplates: []
 
       step2 = session.merge @session.build 'campaign_step',
         id: 4
         campaign: campaign
+        campaignTemplates: []
 
       session.merge @session.build 'campaign_template',
         id: 3

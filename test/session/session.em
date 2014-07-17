@@ -1,4 +1,10 @@
-describe "Ep.Session", ->
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
+`import belongsTo from 'epf/relationships/belongs_to'`
+`import hasMany from 'epf/relationships/has_many'`
+`import ModelSerializer from 'epf/serializers/model'`
+
+describe "Session", ->
 
   session = null
 
@@ -7,12 +13,12 @@ describe "Ep.Session", ->
     @container = new Ember.Container()
     Ep.setupContainer(@container)
 
-    class @Post extends Ep.Model
-      title: Ep.attr('string')
+    class @Post extends Model
+      title: attr('string')
     @App.Post = @Post
 
-    class @Comment extends Ep.Model
-      body: Ep.attr('string')
+    class @Comment extends Model
+      body: attr('string')
       post: Ep.belongsTo(@Post)
     @App.Comment = @Comment
 
@@ -61,20 +67,11 @@ describe "Ep.Session", ->
       session.deleteModel post
       expect(post.isDeleted).to.be.true
 
-    it 'deletes a model via lazy reference', ->
-      post = session.merge session.build 'post', id: 1
-      lazyPost = Ep.LazyModel.create type: @Post, id: 1, session: session
-      lazyPost.load()
-      session.deleteModel lazyPost
-      expect(post.isDeleted).to.be.true
-
 
   describe '.add', ->
 
     it 'works with lazy models', ->
-      post = Ep.LazyModel.create
-        id: "1"
-        type: @Post
+      post = @Post.create id: "1"
       added = session.add(post)
       expect(added.session).to.eq(session)
 
@@ -84,7 +81,7 @@ describe "Ep.Session", ->
 
 
     it 'overwrites unloaded models', ->
-      lazy = Ep.LazyModel.create(id: '1', type: @Post)
+      lazy = @Post.create id: '1'
       session.add(lazy)
       post = session.merge(@Post.create(id: '1', title: 'post'))
       session.add(post)
@@ -95,58 +92,36 @@ describe "Ep.Session", ->
 
   describe '.merge', ->
 
-    it 'works with proxy with no corresponding record in session', ->
-      post = @Post.create(id: '1', title: 'someday')
-      lazy = Ep.LazyModel.create
-        content: post
-      merged = session.merge(lazy)
-      expect(merged.id).to.eq('1')
-
-
     it 'reuses detached model', ->
       post = @Post.create(id: "1", title: 'test')
       expect(session.merge(post)).to.eq(post)
 
 
     it 'handles merging detached model with hasMany child already in session', ->
-      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: Ep.LazyModel.create(type: @Post, id: "2"))
-      post = session.merge @Post.create(id: "2")
+      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2"))
+      post = session.merge @Post.create(id: "2", comments: [])
       post.comments.addObject(@Comment.create(id: "1", body: "obscurity"))
       expect(post.comments.firstObject).to.eq(comment)
 
 
     it 'handles merging detached model with belongsTo child already in session', ->
-      post = session.merge @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")])
-      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")]))
+      post = session.merge @Post.create(id: "2", comments: [@Comment.create(id: "1")])
+      comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2", comments: [@Comment.create(id: "1")]))
       expect(comment.post).to.eq(post)
       
       
     it 'handles merging detached model with lazy belongsTo reference', ->
-      post = session.merge @Post.create id: "2"
-      comment = session.merge @Comment.create id: "1", body: "obscurity", post: Ep.LazyModel.create(type: @Post, id: "2")
+      post = session.merge @Post.create id: "2", comments: []
+      comment = session.merge @Comment.create id: "1", body: "obscurity", post: @Post.create(id: "2")
       expect(post.comments.firstObject).to.eq(comment)
       expect(post.isDirty).to.be.false
 
 
     it 'handles merging detached model with lazy hasMany reference', ->
-      comment = session.merge @Comment.create id: "1", body: "obscurity"
-      post = session.merge @Post.create id: "2", comments: [Ep.LazyModel.create(type: @Comment, id: "1")]
+      comment = session.merge @Comment.create id: "1", body: "obscurity", post: null
+      post = session.merge @Post.create id: "2", comments: [@Comment.create(id: "1")]
       expect(comment.post).to.eq(post)
       expect(comment.isDirty).to.be.false
-      
-
-  context 'with orphaned proxy', ->
-
-    beforeEach ->
-      @lazyPost = session.merge Ep.LazyModel.create
-        id: "1"
-        type: @Post
-      @post = session.merge @Post.create
-        id: "1"
-        title: "this is the title"
-
-    it 'has actual record in `models`', ->
-      expect(session.models.toArray()).to.eql([@post])
 
 
   describe '.markClean', ->

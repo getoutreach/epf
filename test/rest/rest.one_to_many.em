@@ -3,6 +3,7 @@
 `import attr from 'epf/model/attribute'`
 `import belongsTo from 'epf/relationships/belongs_to'`
 `import hasMany from 'epf/relationships/has_many'`
+`import ModelSerializer from 'epf/serializers/model'`
 
 describe "rest", ->
 
@@ -212,7 +213,7 @@ describe "rest", ->
         session.flush().then ->
           expect(post.comments.length).to.eq(0)
           expect(post.title).to.eq('childless')
-          expect(adapter.h).to.eql(['PUT:/posts/1', 'DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['DELETE:/comments/2', 'PUT:/posts/1'])
 
 
     it 'deletes parent and child', ->
@@ -229,7 +230,7 @@ describe "rest", ->
         expect(post.comments.length).to.eq(0)
         session.deleteModel(post)
         session.flush().then ->
-          expect(adapter.h).to.eql(['DELETE:/posts/1', 'DELETE:/comments/2'])
+          expect(adapter.h).to.eql(['DELETE:/comments/2', 'DELETE:/posts/1'])
           expect(post.isDeleted).to.be.true
           expect(comment.isDeleted).to.be.true
 
@@ -313,7 +314,7 @@ describe "rest", ->
           expect(hash.data.post.comments.length).to.eq(0)
           return posts: {id: 1, title: 'mvcc ftw', comments: []}
 
-        post = @Post.create(id: "1", title: 'parent');
+        post = @Post.create(id: "1", title: 'parent', comments: []);
         post.comments.addObject @Comment.create(id: "2", message: 'child', post: post)
         session.merge post
 
@@ -331,7 +332,7 @@ describe "rest", ->
           expect(hash.data.post.comments.length).to.eq(1)
           return posts: {id: 1, title: 'mvcc ftw', comments: [{id: 3, client_id: sibling.clientId, post: 1, message: 'child2'}]}
 
-        post = @Post.create(id: "1", title: 'parent');
+        post = @Post.create(id: "1", title: 'parent', comments: []);
         post.comments.addObject @Comment.create(id: "2", message: 'child1', post: post)
         post.comments.addObject @Comment.create(id: "3", message: 'child2', post: post)
         session.merge post
@@ -352,7 +353,7 @@ describe "rest", ->
           expect(hash.data.post.comments.length).to.eq(0)
           return posts: {client_id: post.clientId, id: 1, title: 'mvcc ftw', comments: []}
 
-        post = session.create(@Post, title: 'parent')
+        post = session.create(@Post, title: 'parent', comments: [])
         comment = session.create(@Comment, title: 'child')
         post.comments.pushObject comment
         post.comments.removeObject comment
@@ -365,7 +366,7 @@ describe "rest", ->
 
 
       it 'deletes multiple children in multiple flushes', ->
-        post = @Post.create(id: "1", title: 'parent');
+        post = @Post.create(id: "1", title: 'parent', comments: []);
         post.comments.addObject @Comment.create(id: "2", message: 'thing 1', post: post)
         post.comments.addObject @Comment.create(id: "3", message: 'thing 2', post: post)
         post = session.merge(post)
@@ -386,7 +387,7 @@ describe "rest", ->
       it 'deletes parent and child', ->
         adapter.r['DELETE:/posts/1'] = {}
 
-        post = @Post.create(id: "1", title: 'parent');
+        post = @Post.create(id: "1", title: 'parent', comments: []);
         post.comments.addObject(@Comment.create(id: "2", message: 'child'))
         session.merge post
 

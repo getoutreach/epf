@@ -119,6 +119,7 @@ describe "relationships", ->
 
 
     it 'supports watching belongsTo properties that have a detached cached value', ->
+      @session.loadModel = Ember.K
       comment = @session.adopt @session.build 'comment', id: 2, post: @Post.create(id: 1)
 
       Ember.run ->

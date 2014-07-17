@@ -13,21 +13,27 @@ export default Ember.Mixin.create(SerializerForMixin, {
     return serializer.embeddedType(type, name);
   },
 
-  eachEmbeddedRecord: function(record, callback, binding) {
-    this.eachEmbeddedBelongsToRecord(record, callback, binding);
-    this.eachEmbeddedHasManyRecord(record, callback, binding);
+  eachEmbeddedRecord: function(model, callback, binding) {
+    this.eachEmbeddedBelongsToRecord(model, callback, binding);
+    this.eachEmbeddedHasManyRecord(model, callback, binding);
   },
 
-  eachEmbeddedBelongsToRecord: function(record, callback, binding) {
-    this.eachEmbeddedBelongsTo(get(record, 'type'), function(name, relationship, embeddedType) {
-      var embeddedRecord = get(record, name);
+  eachEmbeddedBelongsToRecord: function(model, callback, binding) {
+    this.eachEmbeddedBelongsTo(get(model, 'type'), function(name, relationship, embeddedType) {
+      if(!model.isPropertyLoaded(name)) {
+        return;
+      }
+      var embeddedRecord = get(model, name);
       if (embeddedRecord) { callback.call(binding, embeddedRecord, embeddedType); }
     });
   },
 
-  eachEmbeddedHasManyRecord: function(record, callback, binding) {
-    this.eachEmbeddedHasMany(get(record, 'type'), function(name, relationship, embeddedType) {
-      var array = get(record, name);
+  eachEmbeddedHasManyRecord: function(model, callback, binding) {
+    this.eachEmbeddedHasMany(get(model, 'type'), function(name, relationship, embeddedType) {
+      if(!model.isPropertyLoaded(name)) {
+        return;
+      }
+      var array = get(model, name);
       for (var i=0, l=get(array, 'length'); i<l; i++) {
         callback.call(binding, array.objectAt(i), embeddedType);
       }

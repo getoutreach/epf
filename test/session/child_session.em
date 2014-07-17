@@ -1,4 +1,11 @@
-describe "Ep.ChildSession", ->
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
+`import belongsTo from 'epf/relationships/belongs_to'`
+`import hasMany from 'epf/relationships/has_many'`
+`import ModelSerializer from 'epf/serializers/model'`
+`import setupContainer from 'epf/setup_container'`
+
+describe "ChildSession", ->
 
   parent = null
   session = null
@@ -10,16 +17,16 @@ describe "Ep.ChildSession", ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     Ep.__container__ = @container
-    Ep.setupContainer(@container)
+    setupContainer(@container)
 
-    class Post extends Ep.Model
-      title: Ep.attr('string')
-      comments: Ep.hasMany('comment')
+    class Post extends Model
+      title: attr('string')
+      comments: hasMany('comment')
       
     @App.Post = Post
       
-    class Comment extends Ep.Model
-      post: Ep.belongsTo('post')
+    class Comment extends Model
+      post: belongsTo('post')
       
     @App.Comment = Comment
 
@@ -43,21 +50,19 @@ describe "Ep.ChildSession", ->
       session.query('post', {q: "herpin"}).then (models) ->
         expect(models.length).to.eq(2)
 
-
   describe '.load', ->
 
-    it 'loads immediately if loaded in parent session', ->
+    it 'loads from parent session', ->
       parent.merge Post.create(id: "1", title: "flash gordon")
-      post = session.load(Post, 1)
-      expect(post.isProxy).to.be.true
-      expect(post.isLoaded).to.be.true
-      expect(post.title).to.eq('flash gordon')
+      session.load(Post, 1).then (post) ->
+        expect(post).to.not.eq(parent.getModel(post))
+        expect(post.title).to.eq('flash gordon')
       
       
   describe '.add', ->
   
     it 'includes lazy relationships', ->
-      parentComment = parent.merge Comment.create(id: "1", post: Ep.LazyModel.create(type: Post, id: "2"))
+      parentComment = parent.merge Comment.create(id: "1", post: Post.create(id: "2"))
       comment = session.add(parentComment)
       expect(comment).to.not.eq(parentComment)
       expect(comment.post).to.not.be.bull

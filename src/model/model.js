@@ -188,6 +188,14 @@ var Model = Ember.Object.extend(Copyable, {
     return typeof cached !== 'undefined';
   },
 
+  anyPropertiesLoaded: function() { 
+    var result = false;
+    get(this, 'type.fields').forEach(function(name, meta) {
+      result = result || this.isPropertyLoaded(name);
+    }, this);
+    return result;
+  },
+
   load: sessionAlias('loadModel'),
   refresh: sessionAlias('refresh'),
   deleteModel: sessionAlias('deleteModel'),

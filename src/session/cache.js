@@ -12,7 +12,11 @@ export default Ember.Object.extend({
   },
 
   addModel: function(model) {
-    this.addPromise(model, Ember.RSVP.resolve(model));
+    // for now we only add the model if some attributes are loaded,
+    // eventually this will be on a per-attribute basis
+    if(model.anyPropertiesLoaded()) {
+      this.addPromise(model, Ember.RSVP.resolve());
+    }
   },
 
   addPromise: function(model, promise) {

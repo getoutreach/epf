@@ -1,4 +1,8 @@
 `import setup from './_shared'`
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
+`import belongsTo from 'epf/relationships/belongs_to'`
+`import hasMany from 'epf/relationships/has_many'`
 
 describe "rest", ->
 
@@ -13,10 +17,10 @@ describe "rest", ->
   context 'simple model with errors', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-        category: Ep.attr('string')
-        createdAt: Ep.attr('date')
+      class @Post extends Model
+        title: attr('string')
+        category: attr('string')
+        createdAt: attr('date')
       @App.Post = @Post
 
       @container.register 'model:post', @Post

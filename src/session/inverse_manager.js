@@ -85,7 +85,7 @@ export default Ember.Object.extend({
   },
 
   _addToInverse: function(model, inverse, inverseModel) {
-    model = this.session.getModel(model);
+    model = this.session.models.getModel(model);
     // make sure the inverse is loaded
     if(!model || !model.isPropertyLoaded(inverse.name)) return;
     model.suspendRelationshipObservers(function() {
@@ -98,7 +98,7 @@ export default Ember.Object.extend({
   },
   
   _removeFromInverse: function(model, inverse, inverseModel) {
-    model = this.session.getModel(model);
+    model = this.session.models.getModel(model);
     // make sure the inverse is loaded
     if(!model || !model.isPropertyLoaded(inverse.name)) return;
     model.suspendRelationshipObservers(function() {

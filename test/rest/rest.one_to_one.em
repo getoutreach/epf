@@ -1,4 +1,8 @@
 `import setup from './_shared'`
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
+`import belongsTo from 'epf/relationships/belongs_to'`
+`import ModelSerializer from 'epf/serializers/model'`
 
 describe "rest", ->
 
@@ -11,17 +15,17 @@ describe "rest", ->
   context "one->one", ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
+      class @Post extends Model
+        title: attr('string')
       @App.Post = @Post
 
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
+      class @User extends Model
+        name: attr('string')
+        post: belongsTo(@Post)
       @App.User = @User
 
       @Post.reopen
-        user: Ep.belongsTo(@User)
+        user: belongsTo(@User)
 
       @adapter.reopen
         configs:
@@ -60,7 +64,7 @@ describe "rest", ->
         expect(user.id).to.eq("2")
         expect(user.name).to.be.undefined
 
-        post.user.then ->
+        post.user.load().then ->
           expect(adapter.h).to.eql(['GET:/posts/1', 'GET:/users/2'])
           expect(user.name).to.eq('brogrammer')
           expect(user.post.isEqual(post)).to.be.true
@@ -128,20 +132,20 @@ describe "rest", ->
   context "one->one embedded", ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
+      class @Post extends Model
+        title: attr('string')
       @App.Post = @Post
 
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
+      class @User extends Model
+        name: attr('string')
+        post: belongsTo(@Post)
       @App.User = @User
 
       @Post.reopen
-        user: Ep.belongsTo(@User)
+        user: belongsTo(@User)
 
 
-      PostSerializer = Ep.ModelSerializer.extend
+      PostSerializer = ModelSerializer.extend
         properties:
           user:
             embedded: 'always'

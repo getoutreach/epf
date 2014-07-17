@@ -61,11 +61,8 @@ export default Serializer.extend({
         if(typeof context === 'string' && typeKey === context) {
           // context is a typeKey (e.g. for a query)
           result.context.push(model);
-        } else if(get(context, 'isModel')) {
+        } else if(get(context, 'isModel') && context.isEqual(model)) {
           // context is a model
-          result.context = model;
-        } else if(get(model, 'id') === context.id && get(model, 'typeKey') === context.typeKey) {
-          // context is a type/id hash (e.g. for a load)
           result.context = model;
         }
       }

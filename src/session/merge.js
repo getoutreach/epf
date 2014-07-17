@@ -37,15 +37,17 @@ Session.reopen({
   merge: function(model, visited) {
     this.reifyClientId(model);
 
-    var adapter = get(this, 'adapter');
-    adapter.willMergeModel(model);
-
     if(!visited) visited = new Ember.Set();
 
     if(visited.contains(model)) {
       return this.getModel(model);
     }
     visited.add(model);
+
+    var adapter = get(this, 'adapter');
+    adapter.willMergeModel(model);
+
+    this.updateCache(model);
 
     var detachedChildren = [];
     // Since we re-use objects during merge if they are detached,
@@ -123,10 +125,10 @@ Session.reopen({
         // After a successful merge we update the shadow to the
         // last known value from the server. As an optimization,
         // we only create shadows if the model has been dirtied.
-        //if(shadows.contains(model)) {
+        if(shadows.contains(model)) {
           // TODO: should remove unless client has unflushed changes
-          this.updateShadow(model);
-        //}
+          shadows.addData(model);
+        }
 
         // Once the server has seen our local changes, the original
         // is no longer needed
@@ -193,14 +195,14 @@ Session.reopen({
     // TODO: we need to do a proper merge here
     set(merged, 'errors', Ember.copy(get(model, 'errors')));
  
-    //if(!get(model, 'isNew')) {
+    if(!get(model, 'isNew')) {
       // "rollback" the shadow to have what was returned by the server
       shadows.addData(model);
 
       // the shadow is now the server version, so no reason to
       // keep the original around
       originals.remove(model);
-    //}
+    }
 
     return merged;
   },

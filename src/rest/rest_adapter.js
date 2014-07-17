@@ -126,33 +126,11 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     return container;
   },
 
-  // TODO: keep track of loads and prevent concurrent (return same promise)
-  // XXX: refactor to take a model?
-  load: function(typeKey, id, opts, session) {
-    var context = {typeKey: typeKey, id: id};
-    var promise = this._load(typeKey, id, opts).then(null, function(payload) {
-      throw session.build(typeKey, {
-        type: type,
-        id: id,
-        errors: get(payload, 'errors')
-      });
-    });
-    return this._mergeAndContextualizePromise(promise, session, context, opts);
+  load: function(model, opts, session) {
+    return this._mergeAndContextualizePromise(this._load(model, opts), session, model, opts);
   },
   
-  _load: function(typeKey, id, opts) {
-    var context = {typeKey: typeKey, id: id};
-    opts = Ember.merge({
-      type: 'GET'
-    }, opts || {});
-    return this._remoteCall(context, null, null, opts);
-  },
-
-  refresh: function(model, opts, session) {
-    return this._mergeAndContextualizePromise(this._refresh(model, opts), session, model, opts);
-  },
-  
-  _refresh: function(model, opts) {
+  _load: function(model, opts) {
     opts = Ember.merge({
       type: 'GET'
     }, opts || {});
@@ -616,9 +594,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       // ensure embedded model graphs are part of the set
       this.eachEmbeddedRelative(model, function(embeddedModel) {
         // updated adapter level tracking of embedded parents
-        if(get(embeddedModel, 'isLoaded')) {
-          this._embeddedManager.updateParents(embeddedModel);
-        }
+        this._embeddedManager.updateParents(embeddedModel);
 
         if (result.contains(embeddedModel)) { return; }
         var copy = embeddedModel.copy();
@@ -648,9 +624,6 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
 
     visited.add(model);
     callback.call(binding, model);
-    
-    // XXX: 
-    if(!get(model, 'isLoaded')) return;
 
     this.serializerForModel(model).eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {
       this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
