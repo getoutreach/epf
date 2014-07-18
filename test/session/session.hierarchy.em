@@ -4,7 +4,7 @@ describe "Ep.Session", ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     Ep.setupContainer(@container)
-    @container.register('adapter:main', Ep.LocalAdapter)
+    @container.register('adapter:main', Ep.RestAdapter)
 
     class @Post extends Ep.Model
       title: Ep.attr('string')
@@ -23,6 +23,12 @@ describe "Ep.Session", ->
 
     @adapter = @container.lookup('adapter:main')
     @container = @adapter.container
+
+    @adapter.load = (model) -> Ember.RSVP.resolve(model)
+    @adapter.flush = (session) ->
+      models = session.dirtyModels
+      Ember.RSVP.resolve(models.copy(true)).then (models) ->
+        models.forEach (model) -> session.merge(model)
 
 
   describe 'sibling sessions', ->

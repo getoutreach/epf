@@ -10,8 +10,6 @@ import setupContainer from './setup_container';
 import ModelArray from './collections/model_array';
 import ModelSet from './collections/model_set';
 
-import LocalAdapter from './local/local_adapter';
-
 import MergeStrategy from './merge_strategies/base';
 import PerField from './merge_strategies/per_field';
 
@@ -66,8 +64,6 @@ Ep.setupContainer = setupContainer;
 
 Ep.ModelArray = ModelArray;
 Ep.ModelSet = ModelSet;
-
-Ep.LocalAdapter = LocalAdapter;
 
 Ep.MergeStrategy = MergeStrategy;
 Ep.PerField = PerField;

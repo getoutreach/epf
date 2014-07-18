@@ -172,6 +172,30 @@ describe "Session", ->
       expect(post.isDirty).to.be.true
 
 
+<<<<<<< HEAD
+=======
+  describe 'flushing', ->
+
+    beforeEach ->
+      adapter.flush = (session) ->
+        models = session.dirtyModels
+        Ember.RSVP.resolve(models.copy(true)).then (models) ->
+          models.forEach (model) -> session.merge(model)
+
+    it 'can update while flush is pending', ->
+      post = session.merge @Post.create(id: "1", title: 'original')
+      post.title = 'update 1'
+      f1 = session.flush()
+      post.title = 'update 2'
+      expect(post.title).to.eq('update 2')
+
+      f1.then ->
+        expect(post.title).to.eq('update 2')
+        post.title = 'update 3'
+        session.flush().then ->
+          expect(post.title).to.eq('update 3')
+
+>>>>>>> remove local adapter
   describe '.isDirty', ->
 
     it 'is true when models are dirty', ->
