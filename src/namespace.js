@@ -20,10 +20,6 @@ if ('undefined' === typeof Ep) {
   Ep = Ember.Namespace.create({
     VERSION: 'VERSION_STRING_PLACEHOLDER'
   });
-
-  if (Ember.libraries) {
-    Ember.libraries.registerCoreLibrary('EPF', Ep.VERSION);
-  }
 }
 
 export default Ep;

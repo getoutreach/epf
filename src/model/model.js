@@ -238,7 +238,12 @@ Model.reopenClass({
   },
 
   typeKey: computed(function() {
-    return Ember.String.underscore(this.toString().split(/[:.]/)[1]);
+    var camelized = this.toString().split(/[:.]/)[1];
+    if(camelized) {
+      return Ember.String.underscore(camelized);
+    } else {
+      throw new Ember.Error("Could not infer typeKey for " + this.toString());
+    }
   })
 
 });

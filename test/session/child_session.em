@@ -3,7 +3,7 @@
 `import belongsTo from 'epf/relationships/belongs_to'`
 `import hasMany from 'epf/relationships/has_many'`
 `import ModelSerializer from 'epf/serializers/model'`
-`import setupContainer from 'epf/setup_container'`
+`import setupContainer from 'epf/ember/setup_container'`
 
 describe "ChildSession", ->
 

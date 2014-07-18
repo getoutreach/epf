@@ -1,22 +1,22 @@
-import Session from './session/session';
-import ChildSession from './session/child_session';
+import Session from '../session/session';
+import ChildSession from '../session/child_session';
 
-import IdManager from './id_manager';
+import IdManager from '../id_manager';
 
-import BelongsToSerializer from './serializers/belongs_to';
-import BooleanSerializer from './serializers/boolean';
-import DateSerializer from './serializers/date';
-import HasManySerializer from './serializers/has_many';
-import IdSerializer from './serializers/id';
-import NumberSerializer from './serializers/number';
-import ModelSerializer from './serializers/model';
-import RevisionSerializer from './serializers/revision';
-import StringSerializer from './serializers/string';
+import BelongsToSerializer from '../serializers/belongs_to';
+import BooleanSerializer from '../serializers/boolean';
+import DateSerializer from '../serializers/date';
+import HasManySerializer from '../serializers/has_many';
+import IdSerializer from '../serializers/id';
+import NumberSerializer from '../serializers/number';
+import ModelSerializer from '../serializers/model';
+import RevisionSerializer from '../serializers/revision';
+import StringSerializer from '../serializers/string';
 
-import PerField from './merge_strategies/per_field';
-import DebugAdapter from './debug/debug_adapter';
+import PerField from '../merge_strategies/per_field';
+import DebugAdapter from '../debug/debug_adapter';
 
-import RestAdapter from './rest/rest_adapter';
+import RestAdapter from '../rest/rest_adapter';
 
 export default function setupContainer(container, application) {
   setupSession(container, application);

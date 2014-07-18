@@ -1,4 +1,4 @@
-`import setupContainer from 'epf/setup_container'`
+`import setupContainer from 'epf/ember/setup_container'`
 `import PerField from 'epf/merge_strategies/per_field'`
 `import Model from 'epf/model/model'`
 `import attr from 'epf/model/attribute'`

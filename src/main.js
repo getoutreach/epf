@@ -4,8 +4,8 @@ import Ep from './namespace';
 
 import Adapter from './adapter';
 import IdManager from './id_manager';
-import './initializers';
-import setupContainer from './setup_container';
+
+import {setupContainer} from './ember';
 
 import ModelArray from './collections/model_array';
 import ModelSet from './collections/model_set';
