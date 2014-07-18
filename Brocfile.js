@@ -11,6 +11,7 @@ var removeFile = require('broccoli-file-remover');
 var defeatureify = require('broccoli-defeatureify');
 var emberScript = require('broccoli-ember-script');
 var replace = require('broccoli-replace');
+var yuidocCompiler = require('broccoli-yuidoc');
 
 var calculateVersion = require('./lib/calculate-version');
 
@@ -152,4 +153,9 @@ distTree = replace(distTree, {
   ]
 });
 
-module.exports = distTree;
+var docs = yuidocCompiler('src', {
+  srcDir: '/',
+  destDir: 'docs'
+});
+
+module.exports = mergeTrees([docs, distTree]);

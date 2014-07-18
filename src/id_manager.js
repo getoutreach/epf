@@ -2,6 +2,13 @@ var get = Ember.get, set = Ember.set, merge = Ember.merge;
 
 var uuid = 1;
 
+/**
+  This class is responsible for maintaining a centralized mapping
+  between client-side identifiers (`clientId`) and server-side
+  identifiers (`id`).
+
+  @class IdManager
+*/
 export default class IdManager {
   constructor() {
     this.idMaps = {};
@@ -24,7 +31,7 @@ export default class IdManager {
         clientId = get(model, 'clientId'),
         typeKey = get(model, 'typeKey'),
         idMap = this.idMaps[typeKey];
-        
+
     if(!idMap) {
       idMap = this.idMaps[typeKey] = {};
     }
