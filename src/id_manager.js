@@ -4,11 +4,7 @@ var uuid = 1;
 
 export default class IdManager {
   constructor() {
-    this.idMaps = Ember.MapWithDefault.create({
-      defaultValue: function(typeKey) {
-        return Ember.Map.create();
-      }
-    });
+    this.idMaps = {};
   }
 
   /**
@@ -27,34 +23,38 @@ export default class IdManager {
     var id = get(model, 'id'),
         clientId = get(model, 'clientId'),
         typeKey = get(model, 'typeKey'),
-        idMap = this.idMaps.get(typeKey);
+        idMap = this.idMaps[typeKey];
+        
+    if(!idMap) {
+      idMap = this.idMaps[typeKey] = {};
+    }
 
     if(id) {
       id = id + '';
     }
 
     if(id && clientId) {
-      var existingClientId = idMap.get(id);
+      var existingClientId = idMap[id];
       Ember.assert("clientId has changed for " + model.toString(), !existingClientId || existingClientId === clientId);
       if(!existingClientId) {
-        idMap.set(id, clientId);
+        idMap[id] = clientId;
       }
     } else if(!clientId) {
       if(id) {
-        clientId = idMap.get(id);
+        clientId = idMap[id];
       }
       if(!clientId) {
         clientId = this._generateClientId(typeKey);
       }
       set(model, 'clientId', clientId);
-      idMap.set(id, clientId);
+      idMap[id] = clientId;
     } // else NO-OP, nothing to do if they already have a clientId and no id
     return clientId;
   }
 
   getClientId(typeKey, id) {
-    var idMap = this.idMaps.get(typeKey);
-    return idMap.get(id + '');
+    var idMap = this.idMaps[typeKey];
+    return idMap && idMap[id + ''];
   }
 
   _generateClientId(typeKey) {
