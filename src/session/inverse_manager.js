@@ -2,27 +2,24 @@ var get = Ember.get, set = Ember.set;
 
 import ModelSet from '../collections/model_set';
 
-export default Ember.Object.extend({
-  
-  session: null,
+/**
+  Manages updating inverses within a session.
 
-  init: function() {
-    this.map = Ember.MapWithDefault.create({
-      defaultValue: function() {
-        return Ember.MapWithDefault.create({
-          defaultValue: function() { return ModelSet.create(); }
-        });
-      }
-    });
-  },
+  @class InverseManager
+*/
+export default class InverseManager {
   
-  register: function(model) {
-    var clientId = get(model, 'clientId');
-    var session = get(this, 'session');
+  constructor(session) {
+    this.session = session;
+    this.map = {};
+  }
+  
+  register(model) {
+    var session = this.session;
     
     model.eachLoadedRelationship(function(name, relationship) {
       // this is a copy that we mutate
-      var existingInverses = this.map.get(clientId).get(name),
+      var existingInverses = this._inversesFor(model, name),
           inversesToClear = existingInverses.copy();
           
       function checkInverse(inverseModel) {
@@ -51,40 +48,65 @@ export default Ember.Object.extend({
         this.unregisterRelationship(model, name, inverseModel);
       }, this);
     }, this);
-  },
+  }
   
-  unregister: function (model) {
-    var clientId = get(model, 'clientId'), inverses = this.map.get(clientId);
-    inverses.forEach(function (name, inverseModels) {
-      var copiedInverseModels = Ember.copy(inverseModels);
+  unregister(model) {
+    var clientId = get(model, 'clientId'),
+        inverses = this._inverses(model);
+    for(var name in inverses) {
+      var inverseModels = inverses[name],
+          copiedInverseModels = Ember.copy(inverseModels);
+
       copiedInverseModels.forEach(function (inverseModel) {
         this.unregisterRelationship(model, name, inverseModel);
       }, this);
-    }, this);
-    this.map.remove(clientId);
-  },
+    }
+    delete this.map[clientId];
+  }
   
-  registerRelationship: function(model, name, inverseModel) {
+  registerRelationship(model, name, inverseModel) {
     var inverse = get(model, 'type').inverseFor(name);
     
-    this.map.get(get(model, 'clientId')).get(name).addObject(inverseModel);
+    this._inversesFor(model, name).addObject(inverseModel);
     if(inverse) {
-      this.map.get(get(inverseModel, 'clientId')).get(inverse.name).addObject(model);
+      this._inversesFor(inverseModel, inverse.name).addObject(model);
       this._addToInverse(inverseModel, inverse, model);
     }
-  },
+  }
   
-  unregisterRelationship: function(model, name, inverseModel) {
+  unregisterRelationship(model, name, inverseModel) {
     var inverse =  get(model, 'type').inverseFor(name);
     
-    this.map.get(get(model, 'clientId')).get(name).removeObject(inverseModel);
+    this._inversesFor(model, name).removeObject(inverseModel);
     if(inverse) {
-      this.map.get(get(inverseModel, 'clientId')).get(inverse.name).removeObject(model);
+      this._inversesFor(inverseModel, inverse.name).removeObject(model);
       this._removeFromInverse(inverseModel, inverse, model);
     }
-  },
+  }
 
-  _addToInverse: function(model, inverse, inverseModel) {
+  _inverses(model) {
+    var clientId = get(model, 'clientId'),
+        inverses = this.map[clientId];
+
+    if(!inverses) {
+      inverses = this.map[clientId] = {};
+    }
+
+    return inverses;
+  }
+
+  _inversesFor(model, name) {
+    var inverses = this._inverses(model);
+
+    var inversesFor = inverses[name];
+    if(!inversesFor) {
+      inversesFor = inverses[name] = new ModelSet();
+    }
+
+    return inversesFor;
+  }
+
+  _addToInverse(model, inverse, inverseModel) {
     model = this.session.models.getModel(model);
     // make sure the inverse is loaded
     if(!model || !model.isPropertyLoaded(inverse.name)) return;
@@ -95,9 +117,9 @@ export default Ember.Object.extend({
         set(model, inverse.name, inverseModel);
       }
     }, this);
-  },
+  }
   
-  _removeFromInverse: function(model, inverse, inverseModel) {
+  _removeFromInverse(model, inverse, inverseModel) {
     model = this.session.models.getModel(model);
     // make sure the inverse is loaded
     if(!model || !model.isPropertyLoaded(inverse.name)) return;
@@ -108,6 +130,6 @@ export default Ember.Object.extend({
         set(model, inverse.name, null);
       }
     }, this);
-  },
+  }
 
-});
+}

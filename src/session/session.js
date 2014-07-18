@@ -17,7 +17,7 @@ export default Ember.Object.extend({
     this._super.apply(this, arguments);
     this.models = ModelSet.create();
     this.collectionManager = new CollectionManager();
-    this.inverseManager = InverseManager.create({session: this});
+    this.inverseManager = new InverseManager(this);
     this.shadows = ModelSet.create();
     this.originals = ModelSet.create();
     this.newModels = ModelSet.create();
@@ -380,7 +380,6 @@ export default Ember.Object.extend({
       model.destroy();
     });
     this.models.destroy();
-    this.inverseManager.destroy();
     this.shadows.destroy();
     this.originals.destroy();
     this.newModels.destroy();
