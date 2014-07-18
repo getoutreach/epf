@@ -106,8 +106,6 @@ describe "Session", ->
       post.load()
       expect(hit).to.be.true
 
-
-
   describe '.merge', ->
 
     it 'reuses detached model', ->
@@ -218,3 +216,41 @@ describe "Session", ->
       post = session.mergeData {id: "1", title: "easy peazy"}, 'post'
       expect(post.title).to.eq('easy peazy')
       expect(session.getModel(post)).to.eq(post)
+
+
+  describe 'with parent session', ->
+
+    Post = null
+    parent = null
+
+    beforeEach ->
+      parent = session
+      session = parent.newSession()
+      Post = @Post
+
+    describe '.query', ->
+
+      it 'queries', ->
+        adapter.query = (type, query) ->
+          expect(query).to.eql({q: "herpin"})
+          Ember.RSVP.resolve([Post.create(id: "1", title: 'herp'), Post.create(id: "2", title: 'derp')])
+        session.query('post', {q: "herpin"}).then (models) ->
+          expect(models.length).to.eq(2)
+
+    describe '.load', ->
+
+      it 'loads from parent session', ->
+        parent.merge Post.create(id: "1", title: "flash gordon")
+        session.load(Post, 1).then (post) ->
+          expect(post).to.not.eq(parent.getModel(post))
+          expect(post.title).to.eq('flash gordon')
+        
+        
+    describe '.add', ->
+    
+      it 'includes lazy relationships', ->
+        parentComment = parent.merge @Comment.create(id: "1", post: Post.create(id: "2"))
+        comment = session.add(parentComment)
+        expect(comment).to.not.eq(parentComment)
+        expect(comment.post).to.not.be.bull
+        expect(comment.post.session).to.eq(session)

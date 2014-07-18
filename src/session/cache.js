@@ -2,34 +2,34 @@ var get = Ember.get, set = Ember.set;
 
 /**
   Maintains a cache of model-related promises
+
+  @class Cache
 */
-export default Ember.Object.extend({
+export default class Cache {
 
-  _data: null,
-
-  init: function() {
+  constructor() {
     this._data = {};
-  },
+  }
 
-  addModel: function(model) {
+  addModel(model) {
     // for now we only add the model if some attributes are loaded,
     // eventually this will be on a per-attribute basis
     if(model.anyPropertiesLoaded()) {
       this.addPromise(model, Ember.RSVP.resolve());
     }
-  },
+  }
 
-  removeModel: function(model) {
+  removeModel(model) {
     delete this._data[get(model, 'clientId')];
-  },
+  }
 
-  addPromise: function(model, promise) {
+  addPromise(model, promise) {
     this._data[get(model, 'clientId')] = promise;
-  },
+  }
 
-  getPromise: function(model) {
+  getPromise(model) {
     Ember.assert("Model does not have a client id", get(model, 'clientId'));
     return this._data[get(model, 'clientId')];
   }
 
-});
+}

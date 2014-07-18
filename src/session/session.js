@@ -21,7 +21,7 @@ export default Ember.Object.extend({
     this.shadows = ModelSet.create();
     this.originals = ModelSet.create();
     this.newModels = ModelSet.create();
-    this.cache = Cache.create();
+    this.cache = new Cache();
   },
 
   /**
@@ -323,7 +323,16 @@ export default Ember.Object.extend({
   },
 
   getModel: function(model) {
-    return this.models.getModel(model);
+    var res = this.models.getModel(model);
+    if(!res && this.parent) {
+      res = this.parent.getModel(model);
+      if(res) {
+        res = this.adopt(res.copy());
+        // TODO: is there a better place for this?
+        this.updateCache(res);
+      }
+    }
+    return res;
   },
 
   getForId: function(typeKey, id) {
@@ -332,7 +341,16 @@ export default Ember.Object.extend({
   },
 
   getForClientId: function(clientId) {
-    return this.models.getForClientId(clientId);
+    var res = this.models.getForClientId(clientId);
+    if(!res && this.parent) {
+      res = this.parent.getForClientId(clientId);
+      if(res) {
+        res = this.adopt(res.copy());
+        // TODO: is there a better place for this?
+        this.updateCache(res);
+      }
+    }
+    return res;
   },
 
   reifyClientId: function(model) {
@@ -398,8 +416,7 @@ export default Ember.Object.extend({
   },
 
   newSession: function() {
-    var Child = this.container.lookupFactory('session:child');
-    var child = Child.create({
+    var child = this.constructor.create({
       parent: this,
       adapter: this.adapter
     });
@@ -511,6 +528,52 @@ export default Ember.Object.extend({
   */
   mergeData: function(data, typeKey) {
     return this.adapter.mergeData(data, typeKey, this);
+  },
+
+  /**
+    Update the parent session with all changes local
+    to this child session.
+
+    @method updateParent
+  */
+  updateParent: function() {
+    if(!this.parent) {
+      throw new Ember.Error("Session does not have a parent");
+    }
+    // flush all local updates to the parent session
+    var dirty = get(this, 'dirtyModels'),
+        parent = get(this, 'parent');
+    
+    dirty.forEach(function(model) {
+      // XXX: we want to do this, but we need to think about
+      // revision numbers. The parent's clientRev needs to tbe
+      // the childs normal rev.
+
+      // "rebase" against parent version
+      // var parentModel = parent.getModel(model);
+      // if(parentModel) {
+      //   this.merge(parentModel);
+      // }
+      
+      // update the values of a corresponding model in the parent session
+      // if a corresponding model doesn't exist, its added to the parent session
+      parent.update(model); 
+    }, this);
+  },
+
+  /**
+    Similar to `flush()` with the additional effect that the models will
+    be immediately updated in the parent session. This is useful when
+    you want to optimistically assume success.
+
+    @method flushIntoParent
+  */
+  flushIntoParent: function() {
+    if(!this.parent) {
+      throw new Ember.Error("Session does not have a parent");
+    }
+    this.updateParent();
+    return this.flush();
   }
 
 });

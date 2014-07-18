@@ -35,6 +35,10 @@ Session.reopen({
     @param {Ember.Set} [visited] Cache used to break recursion. This is required for non-version-aware backends.
   */
   merge: function(model, visited) {
+    if(this.parent) {
+      model = this.parent.merge(model, visited);
+    }
+
     this.reifyClientId(model);
 
     if(!visited) visited = new Ember.Set();

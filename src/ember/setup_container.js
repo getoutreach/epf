@@ -1,5 +1,4 @@
 import Session from '../session/session';
-import ChildSession from '../session/child_session';
 
 import IdManager from '../id_manager';
 
@@ -31,7 +30,6 @@ export default function setupContainer(container, application) {
 function setupSession(container, application) {
   container.register('adapter:main', container.lookupFactory('adapter:application') || application && application.Adapter || RestAdapter);
   container.register('session:base',  Session);
-  container.register('session:child', ChildSession);
   container.register('session:main', container.lookupFactory('session:application') || application && application.Session || Session);
   container.register('id-manager:main', IdManager);
 }

@@ -48,7 +48,6 @@ import ModelSerializer from './serializers/model';
 import RevisionSerializer from './serializers/revision';
 import StringSerializer from './serializers/string';
 
-import ChildSession from './session/child_session';
 import CollectionManager from './session/collection_manager';
 import InverseManager from './session/inverse_manager';
 import './session/merge';
@@ -100,7 +99,6 @@ Ep.ModelSerializer = ModelSerializer;
 Ep.RevisionSerializer = RevisionSerializer;
 Ep.StringSerializer = StringSerializer;
 
-Ep.ChildSession = ChildSession;
 Ep.CollectionManager = CollectionManager;
 Ep.InverseManager = InverseManager;
 Ep.Session = Session;
