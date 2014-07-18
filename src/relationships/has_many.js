@@ -3,7 +3,7 @@ var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
 import Model from '../model/model';
 import ModelArray from '../collections/model_array';
 
-export default function(typeKey, options) {
+export default function hasMany(typeKey, options) {
   Ember.assert("The type passed to Ep.hasMany must be defined", !!typeKey);
   options = options || {};
 

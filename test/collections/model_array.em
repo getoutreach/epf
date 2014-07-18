@@ -1,12 +1,14 @@
 `import ModelArray from 'epf/collections/model_array'`
-`import {postSchema} from 'epf-test/support/schemas'`
+`import Model from 'epf/model/model'`
+`import attr from 'epf/model/attribute'`
 
 describe 'ModelArray', ->
 
   array = null
 
   beforeEach ->
-    postSchema.apply(this)
+    class @Post extends Model
+      title: attr('string')
     array = ModelArray.create(content: [])
 
   describe 'removeObject', ->

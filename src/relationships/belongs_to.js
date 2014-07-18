@@ -7,7 +7,7 @@ var get = Ember.get, set = Ember.set,
 import Model from '../model/model';
 import isEqual from '../utils/isEqual';
 
-export default function(typeKey, options) {
+export default function belongsTo(typeKey, options) {
   Ember.assert("The type passed to belongsTo must be defined", !!typeKey);
   options = options || {};
 

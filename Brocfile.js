@@ -1,5 +1,5 @@
 var fs = require('fs');
-var transpileES6 = require('broccoli-es6-module-transpiler');
+var traceur = require('broccoli-traceur');
 var pickFiles = require('broccoli-static-compiler');
 var mergeTrees = require('broccoli-merge-trees');
 var writeFile = require('broccoli-file-creator');
@@ -29,8 +29,9 @@ var es6Modules = (function() {
   tree = removeFile(tree,  {
     files: ['epf/main.js']
   });
-  var transpiled = transpileES6(tree, {
+  var transpiled = traceur(tree, {
     moduleName: true,
+    modules: 'amd'
   });
   return concat(transpiled, {
     inputFiles: ['**/*.js'],
@@ -49,8 +50,9 @@ var es6TestModules = (function() {
     bare: true
   });
 
-  var transpiled = transpileES6(tree, {
+  var transpiled = traceur(tree, {
     moduleName: true,
+    modules: 'amd'
   });
   return concat(transpiled, {
     inputFiles: ['**/*.js'],

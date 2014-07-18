@@ -35,7 +35,7 @@ Model.reopen({
   }
 });
 
-export default function(type, options) {
+export default function attr(type, options) {
   options = options || {};
 
   var meta = {

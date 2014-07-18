@@ -1,6 +1,6 @@
 {
   "name": "epf",
-  "version": "0.3.5",
+  "version": "0.4.0+dev",
   "description": "A framework to keep you Ember.js apps in sync.",
   "main": "./lib/index.js",
   "scripts": {
@@ -32,10 +32,10 @@
     "broccoli-defeatureify": "~0.3.0",
     "broccoli-file-creator": "~0.1.0",
     "broccoli-concat": "0.0.7",
-    "broccoli-es6-module-transpiler": "~0.1.1",
     "broccoli-file-mover": "~0.4.0",
     "broccoli-file-remover": "~0.2.2",
-    "broccoli-ember-script": "~0.1.1"
+    "broccoli-ember-script": "~0.1.1",
+    "broccoli-traceur": "git://github.com/ghempton/broccoli-traceur.git#master"
   },
   "dependencies": {
     "jsondiffpatch": "0.0.11"

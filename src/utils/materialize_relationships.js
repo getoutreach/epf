@@ -7,7 +7,7 @@ import ModelSet from '../collections/model_set';
   models/relations are replaced with their materialized counterparts
   if they exist within the collection.
 */
-export default function(models, idManager) {
+export default function materializeRelationships(models, idManager) {
 
   if(!(models instanceof ModelSet)) {
     models = ModelSet.fromArray(models);

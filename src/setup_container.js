@@ -18,7 +18,7 @@ import DebugAdapter from './debug/debug_adapter';
 
 import RestAdapter from './rest/rest_adapter';
 
-export default function(container, application) {
+export default function setupContainer(container, application) {
   setupSession(container, application);
   setupInjections(container, application);
   setupSerializers(container, application);
