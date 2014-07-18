@@ -12,7 +12,7 @@ import ModelSerializer from '../serializers/model';
 import RevisionSerializer from '../serializers/revision';
 import StringSerializer from '../serializers/string';
 
-import PerField from '../merge_strategies/per_field';
+import PerField from '../merge/per_field';
 import DebugAdapter from '../debug/debug_adapter';
 
 import RestAdapter from '../rest/rest_adapter';

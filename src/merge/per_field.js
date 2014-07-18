@@ -1,6 +1,6 @@
 var get = Ember.get, set = Ember.set, copy = Ember.copy;
 
-import MergeStrategy from './base';
+import Base from './base';
 import ModelSet from '../collections/model_set';
 import isEqual from '../utils/isEqual';
 
@@ -9,24 +9,30 @@ import isEqual from '../utils/isEqual';
 
   Fields which have been editted by both parties will
   default to "ours".
-*/
-export default MergeStrategy.extend({
 
-  merge: function(ours, ancestor, theirs) {
+  Fields which do not have an ancestor will default to
+  "theirs".
+
+  @namespace epf/merge
+  @class PerField
+*/
+export default class PerField extends Base {
+
+  merge(ours, ancestor, theirs) {
     ours.beginPropertyChanges();
     this.mergeAttributes(ours, ancestor, theirs);
     this.mergeRelationships(ours, ancestor, theirs);
     ours.endPropertyChanges();
     return ours;
-  },
+  }
 
-  mergeAttributes: function(ours, ancestor, theirs) {
+  mergeAttributes(ours, ancestor, theirs) {
     ours.eachAttribute(function(name, meta) {
       this.mergeProperty(ours, ancestor, theirs, name);
     }, this);
-  },
+  }
 
-  mergeRelationships: function(ours, ancestor, theirs) {
+  mergeRelationships(ours, ancestor, theirs) {
     var session = get(this, 'session');
     ours.eachRelationship(function(name, relationship) {
       if(relationship.kind === 'belongsTo') {
@@ -35,17 +41,17 @@ export default MergeStrategy.extend({
         this.mergeHasMany(ours, ancestor, theirs, name);
       }
     }, this);
-  },
+  }
 
-  mergeBelongsTo: function(ours, ancestor, theirs, name) {
+  mergeBelongsTo(ours, ancestor, theirs, name) {
     this.mergeProperty(ours, ancestor, theirs, name);
-  },
+  }
 
-  mergeHasMany: function(ours, ancestor, theirs, name) {
+  mergeHasMany(ours, ancestor, theirs, name) {
     this.mergeProperty(ours, ancestor, theirs, name);
-  },
+  }
 
-  mergeProperty: function(ours, ancestor, theirs, name) {
+  mergeProperty(ours, ancestor, theirs, name) {
     var oursValue = get(ours, name),
         ancestorValue = get(ancestor, name),
         theirsValue = get(theirs, name);
@@ -68,4 +74,4 @@ export default MergeStrategy.extend({
     }
   }
 
-});
+}

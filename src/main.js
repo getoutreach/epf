@@ -10,8 +10,8 @@ import {setupContainer} from './ember';
 import ModelArray from './collections/model_array';
 import ModelSet from './collections/model_set';
 
-import MergeStrategy from './merge_strategies/base';
-import PerField from './merge_strategies/per_field';
+import MergeStrategy from './merge/base';
+import PerField from './merge/per_field';
 
 import attr from './model/attribute';
 import Model from './model/model';
