@@ -1,33 +1,47 @@
 var get = Ember.get, set = Ember.set;
 
-export default Ember.Object.extend({
+/**
+  Handles tracking deleted models and removing from collections.
 
-  init: function() {
-    this.modelMap = Ember.MapWithDefault.create({
-      defaultValue: function() { return Ember.A([]); }
-    });
-  },
+  @class CollectionManager
+*/
+export default class CollectionManager {
 
-  register: function(array, model) {
-    var arrays = this.modelMap.get(get(model, 'clientId'));
-    if(arrays.contains(array)) return;
-    arrays.pushObject(array);
-  },
-
-  unregister: function(array, model) {
-    var arrays = this.modelMap.get(get(model, 'clientId'));
-    arrays.removeObject(array);
-    if(arrays.length === 0) {
-      this.modelMap.remove(get(model, 'clientId'));
-    }
-  },
-
-  modelWasDeleted: function(model) {
-    // copy since the observers will mutate
-    var arrays = this.modelMap.get(get(model, 'clientId')).copy();
-    arrays.forEach(function(array) {
-      array.removeObject(model);
-    });
+  constructor() {
+    this.modelMap = {};
   }
 
-});
+  register(array, model) {
+    var clientId = get(model, 'clientId'),
+        arrays = this.modelMap[clientId];
+    if(!arrays) {
+      arrays = this.modelMap[clientId] = [];
+    }
+    if(arrays.contains(array)) return;
+    arrays.push(array);
+  }
+
+  unregister(array, model) {
+    var clientId = get(model, 'clientId'),
+        arrays = this.modelMap[clientId];
+    if(arrays) {
+      _.pull(arrays, array);
+      if(arrays.length === 0) {
+        delete this.modelMap[clientId];
+      }
+    }
+  }
+
+  modelWasDeleted(model) {
+    var clientId = get(model, 'clientId'),
+        arrays = this.modelMap[clientId];
+
+    if(arrays) {
+      // clone this operation could mutate this array 
+      _.clone(arrays).forEach(function(array) {
+        array.removeObject(model);
+      });
+    }
+  }
+
+}
