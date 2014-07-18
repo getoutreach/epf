@@ -6,6 +6,7 @@
     "loader": "stefanpenner/loader.js#1.0.0",
     "jsondiffpatch": "~0.1.8",
     "mocha": "~1.20.1",
-    "chai": "~1.9.1"
+    "chai": "~1.9.1",
+    "traceur-runtime": "~0.0.49"
   }
 }

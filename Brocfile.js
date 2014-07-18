@@ -75,6 +75,7 @@ var devDist = (function() {
       'ember-inflector.js',
       'bundle.js', // jsondiffpatch dist
       'loader.js',
+      'traceur-runtime.js',
       'epf-modules.js',
       'bootstrap',
       'iife-stop'

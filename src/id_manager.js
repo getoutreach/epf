@@ -2,15 +2,14 @@ var get = Ember.get, set = Ember.set, merge = Ember.merge;
 
 var uuid = 1;
 
-export default Ember.Object.extend({
-  init: function() {
-    this._super.apply(this, arguments);
+export default class IdManager {
+  constructor() {
     this.idMaps = Ember.MapWithDefault.create({
       defaultValue: function(typeKey) {
         return Ember.Map.create();
       }
     });
-  },
+  }
 
   /**
     Three possible cases:
@@ -24,7 +23,7 @@ export default Ember.Object.extend({
     3. The model has and id but no clientId. Generate a new clientId,
        update the mapping, and assign it to the model.
   */
-  reifyClientId: function(model) {
+  reifyClientId(model) {
     var id = get(model, 'id'),
         clientId = get(model, 'clientId'),
         typeKey = get(model, 'typeKey'),
@@ -51,15 +50,18 @@ export default Ember.Object.extend({
       idMap.set(id, clientId);
     } // else NO-OP, nothing to do if they already have a clientId and no id
     return clientId;
-  },
+  }
 
-  getClientId: function(typeKey, id) {
+  getClientId(typeKey, id) {
     var idMap = this.idMaps.get(typeKey);
     return idMap.get(id + '');
-  },
+  }
 
-  _generateClientId: function(typeKey) {
+  _generateClientId(typeKey) {
     return typeKey + (uuid++);
   }
 
-});
+}
+
+// necessary to play with ember's container
+IdManager.create = function() { return new IdManager() };
