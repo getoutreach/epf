@@ -36,10 +36,10 @@ Model.reopen({
       // the computed property.
       var meta = value.meta();
 
-      if (meta.isRelationship && meta.kind === 'belongsTo') {
-        Ember.addObserver(proto, key, null, 'belongsToDidChange');
-        Ember.addBeforeObserver(proto, key, null, 'belongsToWillChange');
-      }
+      // if (meta.isRelationship && meta.kind === 'belongsTo') {
+      //   Ember.addObserver(proto, key, null, 'belongsToDidChange');
+      //   Ember.addBeforeObserver(proto, key, null, 'belongsToWillChange');
+      // }
 
       meta.parentType = proto.constructor;
     }
@@ -72,11 +72,11 @@ Model.reopen({
 
     try {
       this._suspendedRelationships = true;
-      Ember._suspendObservers(self, observers, null, 'belongsToDidChange', function() {
-        Ember._suspendBeforeObservers(self, observers, null, 'belongsToWillChange', function() {
+      // Ember._suspendObservers(self, observers, null, 'belongsToDidChange', function() {
+      //   Ember._suspendBeforeObservers(self, observers, null, 'belongsToWillChange', function() {
           callback.call(binding || self);
-        });
-      });
+      //   });
+      // });
     } finally {
       this._suspendedRelationships = false;
     }

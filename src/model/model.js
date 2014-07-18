@@ -181,6 +181,15 @@ var Model = Ember.Object.extend(Copyable, {
       return true;
     }
 
+    var proto = this.constructor.proto(),
+        descs = Ember.meta(proto).descs,
+        desc = descs[key],
+        meta = desc && desc._meta;
+
+    if(meta.isRelationship && meta.kind === 'belongsTo') {
+      return typeof this['__' + key] !== 'undefined';
+    }
+
     var meta = metaFor(this),
         cache = meta.cache,
         cached = cacheGet(cache, key);
