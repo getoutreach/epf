@@ -99,7 +99,7 @@ var Model = Ember.Object.extend(Copyable, {
     var session = get(this, 'session');
     if(!session) return false;
     return get(session, 'dirtyModels').contains(this);
-  }).property('session.dirtyModels.[]'),
+  }).volatile(),
 
   // creates a shallow copy with lazy children
   // TODO: we should not lazily copy detached children

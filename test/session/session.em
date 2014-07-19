@@ -33,10 +33,6 @@ describe "Session", ->
     @container = adapter.container
     session = adapter.newSession()
 
-  afterEach ->
-    session.destroy()
-
-
   describe '.build', ->
   
     it 'instantiates a model', ->

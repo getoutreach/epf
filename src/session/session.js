@@ -5,16 +5,21 @@ import InverseManager from './inverse_manager';
 import Model from '../model/model';
 import ModelPromise from '../model/promise';
 import Cache from './cache';
+import TypeFactory from '../factories/type';
+import MergeFactory from '../factories/merge';
+
 
 var get = Ember.get, set = Ember.set;
 
 var PromiseArray = Ember.ArrayProxy.extend(Ember.PromiseProxyMixin);
 
-export default Ember.Object.extend({
-  _dirtyCheckingSuspended: false,
+export default class Session {
 
-  init: function() {
-    this._super.apply(this, arguments);
+  constructor({adapter, idManager, container, parent}) {
+    this.adapter = adapter;
+    this.idManager = idManager;
+    this.container = container;
+    this.parent = parent;
     this.models = ModelSet.create();
     this.collectionManager = new CollectionManager();
     this.inverseManager = new InverseManager(this);
@@ -22,7 +27,10 @@ export default Ember.Object.extend({
     this.originals = ModelSet.create();
     this.newModels = ModelSet.create();
     this.cache = new Cache();
-  },
+    this.typeFactory = new TypeFactory(container)
+    this.mergeFactory = new MergeFactory(container)
+    this._dirtyCheckingSuspended = false;
+  }
 
   /**
     Instantiates a model but does *not* add it to the session. This is equivalent
@@ -33,11 +41,11 @@ export default Ember.Object.extend({
     @param {Object} hash the initial attributes of the model
     @return {Model} the instantiated model
   */
-  build: function(type, hash) {
+  build(type, hash) {
     type = this.typeFor(type);
     var model = type.create(hash || {});
     return model;
-  },
+  }
 
   /**
     Creates a model within the session.
@@ -47,12 +55,12 @@ export default Ember.Object.extend({
     @param {Object} hash the initial attributes of the model
     @return {Model} the created model
   */
-  create: function(type, hash) {
+  create(type, hash) {
     var model = this.build(type, hash);
     return this.add(model);
-  },
+  }
 
-  adopt: function(model) {
+  adopt(model) {
     this.reifyClientId(model);
     Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !get(model, 'session') || get(model, 'session') === this);
     Ember.assert("An equivalent model already exists in the session!", !this.models.getModel(model) || this.models.getModel(model) === model);
@@ -70,7 +78,7 @@ export default Ember.Object.extend({
     }
     set(model, 'session', this);
     return model;
-  },
+  }
 
   /**
     Adds a model to this session. Some cases below:
@@ -92,7 +100,7 @@ export default Ember.Object.extend({
     @method add
     @param {Ep.Model} model The model to add to the session
   */
-  add: function(model) {
+  add(model) {
     this.reifyClientId(model);
 
     var dest = this.getModel(model);
@@ -115,7 +123,7 @@ export default Ember.Object.extend({
       dest = model.lazyCopy();
     }
     return this.adopt(dest);
-  },
+  }
 
   /**
     Removes the model from the session.
@@ -126,12 +134,12 @@ export default Ember.Object.extend({
     @method remove
     @param {Ep.Model} model The model to remove from the session
   */
-  remove: function(model) {
+  remove(model) {
     // TODO: think through relationships that still reference the model
     get(this, 'models').remove(model);
     get(this, 'shadows').remove(model);
     get(this, 'originals').remove(model);
-  },
+  }
 
   /**
     Updates a model in this session using the passed in model as a reference.
@@ -145,7 +153,7 @@ export default Ember.Object.extend({
     @method update
     @param {Ep.Model} model A model containing updated properties
   */
-  update: function(model) {
+  update(model) {
     this.reifyClientId(model);
     var dest = this.getModel(model);
 
@@ -189,9 +197,9 @@ export default Ember.Object.extend({
     }, this);
 
     return dest;
-  },
+  }
 
-  deleteModel: function(model) {
+  deleteModel(model) {
     // if the model is new, deleting should essentially just
     // remove the object from the session
     if(get(model, 'isNew')) {
@@ -203,7 +211,7 @@ export default Ember.Object.extend({
     set(model, 'isDeleted', true);
     this.collectionManager.modelWasDeleted(model);
     this.inverseManager.unregister(model);
-  },
+  }
 
   /**
     Returns the model corresponding to the given typeKey and id
@@ -211,7 +219,7 @@ export default Ember.Object.extend({
 
     @returns {Model}
   */
-  fetch: function(type, id) {
+  fetch(type, id) {
     type = this.typeFor(type);
     var typeKey = get(type, 'typeKey');
     // Always coerce to string
@@ -225,24 +233,24 @@ export default Ember.Object.extend({
     }
 
     return model;
-  },
+  }
 
   /**
     Loads the model corresponding to the given typeKey and id.
 
     @returns {Promise}
   */
-  load: function(type, id, opts) {
+  load(type, id, opts) {
     var model = this.fetch(type, id);
     return this.loadModel(model, opts);
-  },
+  }
 
   /**
     Ensures data is loaded for a model.
 
     @returns {Promise}
   */
-  loadModel: function(model, opts) {
+  loadModel(model, opts) {
     Ember.assert("Cannot load a model with an id", get(model, 'id'));
     // TODO: this should be done on a per-attribute bases
     var promise = this.cache.getPromise(model);
@@ -264,30 +272,30 @@ export default Ember.Object.extend({
     });
 
     return promise;
-  },
+  }
 
-  find: function(type, query, opts) {
+  find(type, query, opts) {
     if (Ember.typeOf(query) === 'object') {
       return this.query(type, query, opts);
     }
     return this.load(type, query, opts);
-  },
+  }
 
-  query: function(type, query, opts) {
+  query(type, query, opts) {
     type = this.typeFor(type);
     var typeKey = get(type, 'typeKey');
     // TODO: return a model array immediately here
     // and also take into account errors
     var prom = this.adapter.query(typeKey, query, opts, this);
     return PromiseArray.create({promise:prom});
-  },
+  }
 
-  refresh: function(model, opts) {
+  refresh(model, opts) {
     var session = this;
     return this.adapter.load(model, opts, this);
-  },
+  }
 
-  flush: function() {
+  flush() {
     var session = this,
         dirtyModels = get(this, 'dirtyModels'),
         newModels = get(this, 'newModels'),
@@ -320,9 +328,9 @@ export default Ember.Object.extend({
     newModels.clear();
 
     return promise;
-  },
+  }
 
-  getModel: function(model) {
+  getModel(model) {
     var res = this.models.getModel(model);
     if(!res && this.parent) {
       res = this.parent.getModel(model);
@@ -333,14 +341,14 @@ export default Ember.Object.extend({
       }
     }
     return res;
-  },
+  }
 
-  getForId: function(typeKey, id) {
+  getForId(typeKey, id) {
     var clientId = this.idManager.getClientId(typeKey, id);
     return this.getForClientId(clientId);
-  },
+  }
 
-  getForClientId: function(clientId) {
+  getForClientId(clientId) {
     var res = this.models.getForClientId(clientId);
     if(!res && this.parent) {
       res = this.parent.getForClientId(clientId);
@@ -351,13 +359,13 @@ export default Ember.Object.extend({
       }
     }
     return res;
-  },
+  }
 
-  reifyClientId: function(model) {
+  reifyClientId(model) {
     this.idManager.reifyClientId(model);
-  },
+  }
 
-  remoteCall: function(context, name, params, opts) {
+  remoteCall(context, name, params, opts) {
     var session = this;
 
     if(opts && opts.deserializationContext && typeof opts.deserializationContext !== 'string') {
@@ -365,16 +373,16 @@ export default Ember.Object.extend({
     }
 
     return this.adapter.remoteCall(context, name, params, opts, this);
-  },
+  }
 
-  modelWillBecomeDirty: function(model) {
+  modelWillBecomeDirty(model) {
     if(this._dirtyCheckingSuspended) {
       return;
     }
     this.touch(model);
-  },
+  }
 
-  destroy: function() {
+  destroy() {
     this._super();
     this.models.forEach(function(model) {
       model.destroy();
@@ -383,9 +391,9 @@ export default Ember.Object.extend({
     this.shadows.destroy();
     this.originals.destroy();
     this.newModels.destroy();
-  },
+  }
 
-  dirtyModels: Ember.computed(function() {
+  get dirtyModels() {
     var models = ModelSet.fromArray(this.shadows.map(function(model) {
       return this.models.getModel(model);
     }, this));
@@ -395,9 +403,9 @@ export default Ember.Object.extend({
     });
 
     return models;
-  }).property('shadows.[]', 'newModels.[]'),
+  }
 
-  suspendDirtyChecking: function(callback, binding) {
+  suspendDirtyChecking(callback, binding) {
     var self = this;
 
     // could be nested
@@ -411,15 +419,17 @@ export default Ember.Object.extend({
     } finally {
       this._dirtyCheckingSuspended = false;
     }
-  },
+  }
 
-  newSession: function() {
+  newSession() {
     var child = this.constructor.create({
       parent: this,
-      adapter: this.adapter
+      adapter: this.adapter,
+      container: this.container,
+      idManager: this.idManager
     });
     return child;
-  },
+  }
 
   /**
     Returns a model class for a particular key. Used by
@@ -430,38 +440,31 @@ export default Ember.Object.extend({
     @param {String} key
     @returns {subclass of DS.Model}
   */
-  typeFor: function(key) {
+  typeFor(key) {
     if (typeof key !== 'string') {
       return key;
     }
 
-    var factory = this.container.lookupFactory('model:'+key);
+    return this.typeFactory.typeFor(key);
+  }
 
-    Ember.assert("No model was found for '" + key + "'", factory);
-
-    factory.session = this;
-    factory.typeKey = key;
-
-    return factory;
-  },
-
-  getShadow: function(model) {
+  getShadow(model) {
     var shadows = get(this, 'shadows');
     var models = get(this, 'models');
     // shadows are only created when the model is dirtied,
     // if no model exists in the `shadows` property then
     // it is safe to assume the model has not been modified
     return shadows.getModel(model) || models.getModel(model);
-  },
+  }
 
   /**
     @private
 
     Updates the promise cache
   */
-  updateCache: function(model) {
+  updateCache(model) {
     this.cache.addModel(model);
-  },
+  }
 
   /**
     Invalidate the cache for a particular model. This has the
@@ -470,9 +473,9 @@ export default Ember.Object.extend({
     @method invalidate
     @param {Ep.Model} model
   */
-  invalidate: function(model) {
+  invalidate(model) {
     this.cache.removeModel(model);
-  },
+  }
 
   /**
     Mark a model as clean. This will prevent future
@@ -482,11 +485,11 @@ export default Ember.Object.extend({
     @method markClean
     @param {Ep.Model} model
   */
-  markClean: function(model) {
+  markClean(model) {
     // as an optimization, model's without shadows
     // are assumed to be clean
     this.shadows.remove(model);
-  },
+  }
 
   /**
     Mark a model as dirty. This will cause this model
@@ -495,14 +498,14 @@ export default Ember.Object.extend({
     @method touch
     @param {Ep.Model} model
   */
-  touch: function(model) {
+  touch(model) {
     if(!get(model, 'isNew')) {
       var shadow = this.shadows.getModel(model);
       if(!shadow) {
         this.shadows.addObject(model.copy())
       }
     }
-  },
+  }
 
 
   /**
@@ -510,9 +513,9 @@ export default Ember.Object.extend({
 
     @property isDirty
   */
-  isDirty: Ember.computed(function() {
+  get isDirty() {
     return get(this, 'dirtyModels.length') > 0;
-  }).property('dirtyModels.length'),
+  }
 
 
   /**
@@ -524,9 +527,9 @@ export default Ember.Object.extend({
     @param String [typeKey] the name of the type that the data corresponds to
     @returns {any} the deserialized models that were merged in
   */
-  mergeData: function(data, typeKey) {
+  mergeData(data, typeKey) {
     return this.adapter.mergeData(data, typeKey, this);
-  },
+  }
 
   /**
     Update the parent session with all changes local
@@ -534,7 +537,7 @@ export default Ember.Object.extend({
 
     @method updateParent
   */
-  updateParent: function() {
+  updateParent() {
     if(!this.parent) {
       throw new Ember.Error("Session does not have a parent");
     }
@@ -557,7 +560,7 @@ export default Ember.Object.extend({
       // if a corresponding model doesn't exist, its added to the parent session
       parent.update(model); 
     }, this);
-  },
+  }
 
   /**
     Similar to `flush()` with the additional effect that the models will
@@ -566,7 +569,7 @@ export default Ember.Object.extend({
 
     @method flushIntoParent
   */
-  flushIntoParent: function() {
+  flushIntoParent() {
     if(!this.parent) {
       throw new Ember.Error("Session does not have a parent");
     }
@@ -574,4 +577,256 @@ export default Ember.Object.extend({
     return this.flush();
   }
 
-});
+
+  /**
+    Merges new data for a model into this session.
+
+    If the corresponding model inside the session is "dirty"
+    and has not been successfully flushed, the local changes
+    will be merged against these changes.
+
+    By default, if no server versioning information is specified,
+    this data is assumed to be more current than what is in
+    the session. If no client versioning information is specified,
+    this data is assumed to have not seen the latest client changes.
+
+    @method merge
+    @param {Ep.Model} model The model to merge
+    @param {Ember.Set} [visited] Cache used to break recursion. This is required for non-version-aware backends.
+  */
+  merge(model, visited) {
+    if(this.parent) {
+      model = this.parent.merge(model, visited);
+    }
+
+    this.reifyClientId(model);
+
+    if(!visited) visited = new Ember.Set();
+
+    if(visited.contains(model)) {
+      return this.getModel(model);
+    }
+    visited.add(model);
+
+    var adapter = get(this, 'adapter');
+    adapter.willMergeModel(model);
+
+    this.updateCache(model);
+
+    var detachedChildren = [];
+    // Since we re-use objects during merge if they are detached,
+    // we need to precompute all detached children
+    model.eachChild(function(child) {
+      if(get(child, 'isDetached')) {
+        detachedChildren.push(child);
+      }
+    }, this);
+
+    var merged;
+
+    if(get(model, 'hasErrors')) {
+      merged = this._mergeError(model);
+    } else {
+      merged = this._mergeSuccess(model);
+    }
+
+    if(model.meta){
+      merged.meta = model.meta;
+    }
+    
+    for(var i = 0; i < detachedChildren.length; i++) {
+      var child = detachedChildren[i];
+      this.merge(child, visited);
+    }
+
+    adapter.didMergeModel(model);
+    return merged;
+  }
+
+  mergeModels(models) {
+    var merged = ModelArray.create({session: this, content: []});
+    merged.meta = models.meta;
+    var session = this;
+    models.forEach(function(model) {
+      merged.pushObject(session.merge(model));
+    });
+    return merged;
+  }
+
+  _mergeSuccess(model) {
+    var models = get(this, 'models'),
+        shadows = get(this, 'shadows'),
+        newModels = get(this, 'newModels'),
+        originals = get(this, 'originals'),
+        merged,
+        ancestor,
+        existing = models.getModel(model);
+
+    if(existing && this._containsRev(existing, model)) {
+      return existing;
+    }
+
+    var hasClientChanges = !existing || this._containsClientRev(model, existing);
+
+    if(hasClientChanges) {
+      // If has latest client rev, merge against the shadow
+      ancestor = shadows.getModel(model);
+    } else {
+      // If doesn't have the latest client rev, merge against original
+      ancestor = originals.getModel(model);
+    }
+
+    this.suspendDirtyChecking(function() {
+      merged = this._mergeModel(existing, ancestor, model);
+    }, this);
+
+    if(hasClientChanges) {
+      // after merging, if the record is deleted, we remove
+      // it entirely from the session
+      if(get(merged, 'isDeleted')) {
+        this.remove(merged);
+      } else {
+        // After a successful merge we update the shadow to the
+        // last known value from the server. As an optimization,
+        // we only create shadows if the model has been dirtied.
+        if(shadows.contains(model)) {
+          // TODO: should remove unless client has unflushed changes
+          shadows.addData(model);
+        }
+
+        // Once the server has seen our local changes, the original
+        // is no longer needed
+        originals.remove(model);
+
+        if(!get(merged, 'isNew')) {
+          newModels.remove(merged);
+        }
+      }
+    } else {
+      // TODO: what should we do with the shadow if the merging ancestor
+      // is the original? In order to update, it would require knowledge
+      // of how the server handles merging (if at all)
+    }
+    
+    // clear the errors on the merged model
+    // TODO: we need to do a proper merge here
+    set(merged, 'errors', null);
+    
+    return merged;
+  }
+
+  _mergeError(model) {
+    var models = get(this, 'models'),
+        shadows = get(this, 'shadows'),
+        newModels = get(this, 'newModels'),
+        originals = get(this, 'originals'),
+        merged,
+        ancestor,
+        existing = models.getModel(model);
+
+    if(!existing) {
+      // Two cases where this would happen:
+      // 1. Load errors
+      // 2. Error during create inside child session
+      return model;
+    }
+
+    var hasClientChanges = this._containsClientRev(model, existing);
+    if(hasClientChanges) {
+      // If has latest client rev, merge against the shadow.
+
+      // If a shadow does not exist this could be an error during
+      // a create operation. In this case, if the server has seen
+      // the client's changes we should merge using the new model
+      // as the ancestor. This case could happen if the server manipulates
+      // the response to return valid values without saving.
+      ancestor = shadows.getModel(model) || existing;
+    } else {
+      // If doesn't have the latest client rev, merge against original
+      ancestor = originals.getModel(model);
+    }
+
+    // only merge if we haven't already seen this version
+    if(ancestor && !this._containsRev(existing, model)) {
+      this.suspendDirtyChecking(function() {
+        merged = this._mergeModel(existing, ancestor, model);
+      }, this);
+    } else {
+      merged = existing;
+    }
+
+    // set the errors on the merged model
+    // TODO: we need to do a proper merge here
+    set(merged, 'errors', Ember.copy(get(model, 'errors')));
+ 
+    if(!get(model, 'isNew')) {
+      // "rollback" the shadow to have what was returned by the server
+      shadows.addData(model);
+
+      // the shadow is now the server version, so no reason to
+      // keep the original around
+      originals.remove(model);
+    }
+
+    return merged;
+  }
+
+  _mergeModel(dest, ancestor, model) {
+    //Ember.assert("Cannot merge a model into it's own session", dest !== model);
+
+    // if the model does not exist, no "merging"
+    // is required
+    if(!dest) {
+      if(get(model, 'isDetached')) {
+        dest = model;
+      } else {
+        dest = model.copy();
+      }
+
+      this.adopt(dest);
+      return dest;
+    }
+
+    // set id for new records
+    set(dest, 'id', get(model, 'id'));
+    set(dest, 'clientId', get(model, 'clientId'));
+    // copy the server revision
+    set(dest, 'rev', get(model, 'rev'));
+    set(dest, 'isDeleted', get(model, 'isDeleted'));
+
+    //XXX: why do we need this? at this point shouldn't the dest always be in
+    // the session?
+    this.adopt(dest);
+
+    // as an optimization we might not have created a shadow
+    if(!ancestor) {
+      ancestor = dest;
+    }
+    
+    // Reify child client ids before merging. This isn't semantically
+    // required, but many data structures that might be used in the merging
+    // process use client ids.
+    model.eachChild(function(child) {
+      this.reifyClientId(child);
+    }, this);
+
+    var strategy = this.mergeFactory.mergeFor(get(model, 'type.typeKey'));
+    strategy.merge(dest, ancestor, model);
+
+    return dest;
+  }
+
+  _containsRev(modelA, modelB) {
+    if(!get(modelA, 'rev')) return false;
+    if(!get(modelB, 'rev')) return false;
+    return get(modelA, 'rev') >= get(modelB, 'rev');
+  }
+
+  _containsClientRev(modelA, modelB) {
+    return get(modelA, 'clientRev') >= get(modelB, 'clientRev');
+  }
+
+}
+
+// necessary to play with ember's container
+Session.create = function(props) { return new this(props) };

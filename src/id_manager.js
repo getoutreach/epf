@@ -71,4 +71,4 @@ export default class IdManager {
 }
 
 // necessary to play with ember's container
-IdManager.create = function() { return new IdManager() };
+IdManager.create = function() { return new this() };

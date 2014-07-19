@@ -7,7 +7,7 @@ import isEqual from '../utils/isEqual';
 /**
   Merge strategy that merges on a per-field basis.
 
-  Fields which have been editted by both parties will
+  Fields which have been editted by both will
   default to "ours".
 
   Fields which do not have an ancestor will default to

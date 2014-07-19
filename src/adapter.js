@@ -7,6 +7,7 @@ function mustImplement(name) {
 }
 
 import SerializerForMixin from './serializers/serializer_for_mixin';
+import Session from './session/session';
 
 export default Ember.Object.extend(SerializerForMixin, {
   mergedProperties: ['configs'],
@@ -29,9 +30,10 @@ export default Ember.Object.extend(SerializerForMixin, {
   },
 
   newSession: function() {
-    var Session = this.container.lookupFactory('session:base');
-    return Session.create({
-      adapter: this
+    return new Session({
+      adapter: this,
+      idManager: this.idManager,
+      container: this.container
     });
   },
 

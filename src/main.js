@@ -50,7 +50,6 @@ import StringSerializer from './serializers/string';
 
 import CollectionManager from './session/collection_manager';
 import InverseManager from './session/inverse_manager';
-import './session/merge';
 import Session from './session/session';
 
 import isEqual from './utils/isEqual';

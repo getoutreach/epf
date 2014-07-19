@@ -16,7 +16,6 @@ export default function belongsTo(typeKey, options) {
   if(typeof typeKey === 'string') {
     meta.typeKey = typeKey;
   } else {
-    Ember.deprecate("Using a raw class for relationship definitions is deprecated. Please pass in the name of the type (e.g. 'post')");
     meta.type = typeKey;
   }
 
