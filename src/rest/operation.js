@@ -1,25 +1,37 @@
 var get = Ember.get, set = Ember.set;
 
-export default Ember.Object.extend(Ember.DeferredMixin, {
+/**
+  @private
+  An operation that is part of a flush
 
-  model: null,
-  shadow: null,
-  adapter: null,
-  // forces the operation to be performed
-  force: false,
-
-  init: function() {
+  @namespace rest
+  @class Operation
+*/
+export default class Operation {
+  constructor(model, graph, adapter, session) {
+    this.model = model;
+    this.graph = graph;
+    this.adapter = adapter;
+    this.session = session;
+    // forces the operation to be performed
+    this.force = false
     this.children = Ember.Set.create();
     this.parents = Ember.Set.create();
-  },
+    this._deferred = Ember.RSVP.defer();
+  }
+
+  then(...args) {
+    var promise = this._deferred.promise;
+    return promise.then.apply(promise, args);
+  }
 
   // determine which relationships are affected by this operation
   // TODO: we should unify this with dirty checking
-  dirtyRelationships: Ember.computed(function() {
-    var adapter = get(this, 'adapter'),
-        model = get(this, 'model'),
+  get dirtyRelationships() {
+    var adapter = this.adapter,
+        model = this.model,
         rels = [],
-        shadow = get(this, 'shadow');
+        shadow = this.shadow;
 
     if(get(model, 'isNew')) {
       // if the model is new, all relationships are considered dirty
@@ -42,16 +54,16 @@ export default Ember.Object.extend(Ember.DeferredMixin, {
     }
 
     return rels;
-  }),
+  }
 
-  isDirty: Ember.computed(function() {
-    return !!get(this, 'dirtyType');
-  }),
+  get isDirty() {
+    return !!this.dirtyType;
+  }
 
-  isDirtyFromUpdates: Ember.computed(function() {
-    var model = get(this, 'model'),
-        shadow = get(this, 'shadow'),
-        adapter = get(this, 'adapter');
+  get isDirtyFromUpdates() {
+    var model = this.model,
+        shadow = this.shadow,
+        adapter = this.adapter;
 
     var diff = model.diff(shadow);
     var dirty = false;
@@ -65,25 +77,25 @@ export default Ember.Object.extend(Ember.DeferredMixin, {
       }
     }
     return dirty || adapter.isDirtyFromRelationships(model, shadow, relDiff);
-  }),
+  }
 
-  dirtyType: Ember.computed(function() {
-    var model = get(this, 'model');
+  get dirtyType() {
+    var model = this.model;
     if(get(model, 'isNew')) {
       return "created";
     } else if(get(model, 'isDeleted')) {
       return "deleted";
-    } else if(get(this, 'isDirtyFromUpdates') || get(this, 'force')) {
+    } else if(this.isDirtyFromUpdates || this.force) {
       return "updated";
     }
-  }).property('force'),
+  }
 
-  perform: function() {
-    var adapter = get(this, 'adapter'),
-        session = get(this, 'session'),
-        dirtyType = get(this, 'dirtyType'),
-        model = get(this, 'model'),
-        shadow = get(this, 'shadow'),
+  perform() {
+    var adapter = this.adapter,
+        session = this.session,
+        dirtyType = this.dirtyType,
+        model = this.model,
+        shadow = this.shadow,
         promise;
 
     if(!dirtyType || !adapter.shouldSave(model)) {
@@ -138,23 +150,23 @@ export default Ember.Object.extend(Ember.DeferredMixin, {
       }
       throw serverModel;
     });
-    this.resolve(promise);
+    this._deferred.resolve(promise);
     return this;
-  },
+  }
 
-  _embeddedParent: Ember.computed(function() {
-    var model = get(this, 'model'),
-        parentModel = get(this, 'adapter')._embeddedManager.findParent(model),
-        graph = get(this, 'graph');
+  get _embeddedParent() {
+    var model = this.model,
+        parentModel = this.adapter._embeddedManager.findParent(model),
+        graph = this.graph;
 
     Ember.assert("Embedded parent does not exist!", parentModel);
 
     return graph.getOp(parentModel);
-  }),
+  }
 
-  _promiseFromEmbeddedParent: function() {
+  _promiseFromEmbeddedParent() {
     var model = this.model,
-        adapter = get(this, 'adapter');
+        adapter = this.adapter;
 
     function findInParent(parentModel) {
       var res = null;
@@ -165,20 +177,16 @@ export default Ember.Object.extend(Ember.DeferredMixin, {
       return res;
     }
 
-    return get(this, '_embeddedParent').then(function(parent) {
+    return this._embeddedParent.then(function(parent) {
       return findInParent(parent);
     }, function(parent) {
       throw findInParent(parent);
     });
-  },
+  }
 
-  toStringExtension: function() {
-    return "( " + get(this, 'dirtyType') + " " + get(this, 'model') + " )";
-  },
-
-  addChild: function(child) {
+  addChild(child) {
     this.children.add(child);
     child.parents.add(this);
   }
 
-});
+}

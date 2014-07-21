@@ -14,12 +14,7 @@ export default Ember.Object.extend({
         session = get(this, 'session');
     this.ops = Ember.MapWithDefault.create({
       defaultValue: function(model) {
-        return Operation.create({
-          model: model,
-          graph: graph,
-          adapter: adapter,
-          session: session
-        });
+        return new Operation(model, graph, adapter, session);
       }
     });
     this.build();
