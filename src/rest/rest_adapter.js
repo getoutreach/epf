@@ -431,12 +431,12 @@ export default class RestAdapter extends Adapter {
     // (all of the copies have lazy models in their relationships)
     materializeRelationships(models);
 
-    var op = OperationGraph.create({
-      models: models,
-      shadows: shadows,
-      adapter: this,
-      session: session
-    });
+    var op = new OperationGraph(
+      models,
+      shadows,
+      this,
+      session
+    );
 
     return this._performFlush(op, session);
   }

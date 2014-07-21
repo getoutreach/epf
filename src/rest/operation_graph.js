@@ -2,26 +2,24 @@ var get = Ember.get, set = Ember.set;
 
 import Operation from './operation';
 
-export default Ember.Object.extend({
+export default class OperationGraph {
 
-  models: null,
-  shadows: null,
-  adapter: null,
-
-  init: function() {
-    var graph = this,
-        adapter = get(this, 'adapter'),
-        session = get(this, 'session');
+  constructor(models, shadows, adapter, session) {
+    this.models = models;
+    this.shadows = shadows;
+    this.adapter = adapter;
+    this.session = session;
+    var graph = this;
     this.ops = Ember.MapWithDefault.create({
       defaultValue: function(model) {
         return new Operation(model, graph, adapter, session);
       }
     });
     this.build();
-  },
+  }
 
-  perform: function() {
-    var adapter = get(this, 'adapter'),
+  perform() {
+    var adapter = this.adapter,
         cumulative = [];
 
     function createNestedPromise(op) {
@@ -60,7 +58,7 @@ export default Ember.Object.extend({
     }
 
     var promises = [];
-    get(this, 'ops').forEach(function(model, op) {
+    this.ops.forEach(function(model, op) {
       promises.push(createNestedPromise(op));
     }); 
 
@@ -69,13 +67,13 @@ export default Ember.Object.extend({
     }, function(err) {
       throw cumulative;
     });
-  },
+  }
 
-  build: function() {
-    var adapter = get(this, 'adapter');
-    var models = get(this, 'models');
-    var shadows = get(this, 'shadows');
-    var ops = get(this, 'ops');
+  build() {
+    var adapter = this.adapter,
+        models = this.models,
+        shadows = this.shadows,
+        ops = this.ops;
 
     models.forEach(function(model) {
       // skip any promises that aren't loaded
@@ -131,14 +129,14 @@ export default Ember.Object.extend({
       }
 
     }, this);
-  },
+  }
 
-  getOp: function(model) {
+  getOp(model) {
     // ops is is a normal Ember.Map and doesn't use client
     // ids so we need to make sure that we are looking up
     // with the correct model instance
-    var models = get(this, 'models');
-    var materializedModel = models.getModel(model);
+    var models = this.models,
+        materializedModel = models.getModel(model);
     // TODO: we do this check since it is possible that some
     // lazy models are not part of `models`, a more robust
     // solution needs to be figured out for dealing with operations
@@ -147,4 +145,4 @@ export default Ember.Object.extend({
     return this.ops.get(model);
   }
 
-});
+}
