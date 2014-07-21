@@ -25,7 +25,6 @@ import {HasManyArray} from './relationships/has_many';
 
 import RestErrorsSerializer from './rest/serializers/errors';
 import PayloadSerializer from './rest/serializers/payload';
-import EmbeddedHelpersMixin from './rest/embedded_helpers_mixin';
 import EmbeddedManager from './rest/embedded_manager';
 import Operation from './rest/operation';
 import OperationGraph from './rest/operation_graph';
@@ -75,7 +74,6 @@ Ep.ModelPromise = ModelPromise;
 
 Ep.RestErrorsSerializer = RestErrorsSerializer;
 Ep.PayloadSerializer = PayloadSerializer;
-Ep.EmbeddedHelpersMixin = EmbeddedHelpersMixin;
 Ep.EmbeddedManager = EmbeddedManager;
 Ep.Operation = Operation;
 Ep.OperationGraph = OperationGraph;

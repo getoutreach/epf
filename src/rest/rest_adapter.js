@@ -2,7 +2,6 @@
 var get = Ember.get, set  = Ember.set, forEach = Ember.ArrayPolyfills.forEach, pluralize = Ember.String.pluralize;
 
 import Adapter from '../adapter';
-import EmbeddedHelpersMixin from './embedded_helpers_mixin';
 import EmbeddedManager from './embedded_manager';
 import ModelSet from '../collections/model_set';
 import OperationGraph from './operation_graph';
@@ -108,79 +107,77 @@ import materializeRelationships from '../utils/materialize_relationships';
 
   @class RestAdapter
   @constructor
-  @namespace Ep
+  @namespace rest
   @extends Adapter
 */
-export default Adapter.extend(EmbeddedHelpersMixin, {
-  defaultSerializer: 'payload',
-
-  init: function() {
-    this._super.apply(this, arguments);
-    this._embeddedManager = EmbeddedManager.create({adapter: this, container: this.container, serializerFactory: this.serializerFactory});
+export default class RestAdapter extends Adapter {
+  constructor() {
+    super();
+    this._embeddedManager = new EmbeddedManager(this);
     this.serializerFactory = new SerializerFactory(this.container);
     this._pendingOps = {};
-  },
+  }
 
-  setupContainer: function(parent) {
+  setupContainer(parent) {
     var container = parent.child();
     container.register('serializer:errors', RestErrorsSerializer);
     container.register('serializer:payload', PayloadSerializer);
     return container;
-  },
+  }
 
-  load: function(model, opts, session) {
+  load(model, opts, session) {
     return this._mergeAndContextualizePromise(this._load(model, opts), session, model, opts);
-  },
+  }
   
-  _load: function(model, opts) {
+  _load(model, opts) {
     opts = Ember.merge({
       type: 'GET'
     }, opts || {});
     return this._remoteCall(model, null, null, opts);
-  },
+  }
 
-  update: function(model, opts, session) {
+  update(model, opts, session) {
     return this._mergeAndContextualizePromise(this._update(model, opts), session, model, opts);
-  },
+  }
   
-  _update: function(model, opts) {
+  _update(model, opts) {
     opts = Ember.merge({
       type: 'PUT'
     }, opts || {});
     return this._remoteCall(model, null, model, opts);
-  },
+  }
   
-  create: function(model, opts, session) {
+  create(model, opts, session) {
     return this._mergeAndContextualizePromise(this._create(model, opts), session, model, opts);
-  },
+  }
 
-  _create: function(model, opts) {
+  _create(model, opts) {
     return this._remoteCall(model, null, model, opts);
-  },
+  }
   
-  deleteModel: function(model, opts, session) {
+  deleteModel(model, opts, session) {
     return this._mergeAndContextualizePromise(this._deleteModel(model, opts), session, model, opts);
-  },
+  }
 
-  _deleteModel: function(model, opts) {
+  _deleteModel(model, opts) {
     opts = Ember.merge({
       type: 'DELETE'
     }, opts || {});
     return this._remoteCall(model, null, null, opts);
-  },
+  }
 
-  query: function(typeKey, query, opts, session) {
+  query(typeKey, query, opts, session) {
     return this._mergeAndContextualizePromise(this._query(typeKey, query, opts), session, typeKey, opts);
-  },
+  }
   
-  _query: function(typeKey, query, opts) {
+  _query(typeKey, query, opts) {
     opts = Ember.merge({
       type: 'GET',
       serialize: false,
       deserializer: 'payload',
     }, opts || {});
     return this._remoteCall(typeKey, null, query, opts);
-  },
+  }
 
   /**
     Calls a custom endpoint on the remote server.
@@ -202,16 +199,16 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param Object [opts] an options hash
     @param Session [session] the session to merge the results into
   */
-  remoteCall: function(context, name, data, opts, session) {
+  remoteCall(context, name, data, opts, session) {
     var serialize = data && !!get(data, 'isModel');
     opts = Ember.merge({
       serialize: serialize,
       deserializer: 'payload'
     }, opts || {});
     return this._mergeAndContextualizePromise(this._remoteCall(context, name, data, opts), session, context, opts);
-  },
+  }
 
-  _remoteCall: function(context, name, data, opts) {
+  _remoteCall(context, name, data, opts) {
     var adapter = this,
         opts = this._normalizeOptions(opts),
         url;
@@ -245,27 +242,27 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     }
 
     return this._deserializePromise(this.ajax(url, method, {data: data}), context, opts);
-  },
+  }
   
-  _normalizeOptions: function(opts) {
+  _normalizeOptions(opts) {
     opts = opts || {};
     // make sure that the context is a typeKey instead of a type
     if(opts.serializerOptions && typeof opts.serializerOptions.context === 'function') {
       opts.serializerOptions.context = get(opts.serializerOptions.context, 'typeKey');
     }
     return opts;
-  },
+  }
   
-  serializerForContext: function(context) {
-    return get(this, 'defaultSerializer');
-  },
+  serializerForContext(context) {
+    return this.defaultSerializer;
+  }
 
   /**
     @private
 
     Deserialize the contents of a promise.
   */
-  _deserializePromise: function(promise, context, opts) {
+  _deserializePromise(promise, context, opts) {
     var adapter = this;
 
     return promise.then(function(data){
@@ -311,14 +308,14 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       }
       throw xhr;
     });
-  },
+  }
 
   /**
     @private
 
     Merge the contents of the promise into the session.
   */
-  _mergePromise: function(promise, session, opts) {
+  _mergePromise(promise, session, opts) {
     if(opts && opts.deserialize === false) {
       return promise;
     }
@@ -336,7 +333,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     }, function(deserialized) {
       throw merge(deserialized);
     });
-  },
+  }
 
   /**
     @private
@@ -347,7 +344,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     this case we want to just return the model that
     corresponds to the load.
   */
-  _contextualizePromise: function(promise, context, opts) {
+  _contextualizePromise(promise, context, opts) {
     if(opts && opts.deserializationContext !== undefined) {
       context = opts.deserializationContext;
     }
@@ -378,16 +375,16 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     }, function(merged) {
       throw contextualize(merged);
     });
-  },
+  }
 
   /**
     @private
 
     Composition of `_mergePromise` and `_contextualizePromise`.
   */
-  _mergeAndContextualizePromise: function(promise, session, context, opts) {
+  _mergeAndContextualizePromise(promise, session, context, opts) {
     return this._contextualizePromise(this._mergePromise(promise, session, opts), context, opts);
-  },
+  }
 
   /**
     Useful for manually merging in payload data.
@@ -398,7 +395,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param Session [session] the session to merge into. Defaults to the main session.
     @returns {any} The result of the merge contextualized to the context. E.g. if 'post' is the context, this will return all posts that are part of the payload.
   */
-  mergePayload: function(data, context, session) {
+  mergePayload(data, context, session) {
     var payload = this.deserialize('payload', data, {context: context});
     if(!session) {
       session = this.container.lookup('session:main');
@@ -408,17 +405,17 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       return payload.context;
     }
     return payload;
-  },
+  }
 
   /**
     Book-keeping for embedded models is done on the adapter.
     The logic inside this hook is for this purpose.
   */
-  willMergeModel: function(model) {
+  willMergeModel(model) {
     this._embeddedManager.updateParents(model);
-  },
+  }
 
-  flush: function(session) {
+  flush(session) {
     // take a snapshot of the models and their shadows
     // (these will be updated by the session before the flush is complete)
     var models = this.buildDirtySet(session);
@@ -442,9 +439,9 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     });
 
     return this._performFlush(op, session);
-  },
+  }
 
-  _performFlush: function(op, session) {
+  _performFlush(op, session) {
     var models = get(op, 'models'),
         pending = Ember.Set.create();
     // check for any pending operations
@@ -485,7 +482,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
         return session.merge(model);
       });
     });
-  },
+  }
 
   /**
     This callback is intendended to resolve the request ordering issue
@@ -500,7 +497,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     TODO: this should utilize the "owner" of the relationship
     TODO: move this to OperationGraph
   */
-  rebuildRelationships: function(children, parent) {
+  rebuildRelationships(children, parent) {
     parent.suspendRelationshipObservers(function() {
       // TODO: figure out a way to preserve ordering (or screw ordering and use sets)
       for(var i = 0; i < children.length; i++) {
@@ -537,22 +534,26 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
         }, this);
       }
     }, this);
-  },
+  }
 
   /**
     Returns whether or not the passed in relationship
     is the "owner" of the relationship. This defaults
     to true for belongsTo and false for hasMany
   */
-  isRelationshipOwner: function(relationship) {
+  isRelationshipOwner(relationship) {
     var config = this.configFor(relationship.parentType);
     var owner = config[relationship.key] && config[relationship.key].owner;
     // TODO: use lack of an inverse to determine this value as well
     return relationship.kind === 'belongsTo' && owner !== false ||
       relationship.kind === 'hasMany' && owner === true
-  },
+  }
 
-  isDirtyFromRelationships: function(model, cached, relDiff) {
+  embeddedType(type, name) {
+    return this._embeddedManager.embeddedType(type, name);
+  }
+
+  isDirtyFromRelationships(model, cached, relDiff) {
     var serializer = this.serializerFactory.serializerForModel(model);
     for(var i = 0; i < relDiff.length; i++) {
       var diff = relDiff[i];
@@ -561,22 +562,22 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       }
     }
     return false;
-  },
+  }
 
-  shouldSave: function(model) {
+  shouldSave(model) {
     return !this.isEmbedded(model);
-  },
+  }
 
-  isEmbedded: function(model) {
+  isEmbedded(model) {
     return this._embeddedManager.isEmbedded(model);
-  },
+  }
 
   /**
     @private
     Iterate over the models and remove embedded records
     that are missing their embedded parents.
   */
-  removeEmbeddedOrphans: function(models, shadows, session) {
+  removeEmbeddedOrphans(models, shadows, session) {
     var orphans = [];
     models.forEach(function(model) {
       if(!this.isEmbedded(model)) return;
@@ -587,18 +588,18 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     }, this);
     models.removeObjects(orphans);
     shadows.removeObjects(orphans);
-  },
+  }
 
   /**
     @private
     Build the set of dirty models that are part of the flush
   */
-  buildDirtySet: function(session) {
+  buildDirtySet(session) {
     var result = ModelSet.create()
     get(session, 'dirtyModels').forEach(function(model) {
       result.add(model.copy());
       // ensure embedded model graphs are part of the set
-      this.eachEmbeddedRelative(model, function(embeddedModel) {
+      this._embeddedManager.eachEmbeddedRelative(model, function(embeddedModel) {
         // updated adapter level tracking of embedded parents
         this._embeddedManager.updateParents(embeddedModel);
 
@@ -608,9 +609,9 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       }, this);
     }, this);
     return result;
-  },
+  }
 
-  findEmbeddedRoot: function(model, models) {
+  findEmbeddedRoot(model, models) {
     var parent = model;
     while(parent) {
       model = parent;
@@ -618,28 +619,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     }
     // we want the version in the current session
     return models.getModel(model);
-  },
-
-  /**
-    @private
-    Traverses the entire embedded graph (including parents)
-  */
-  eachEmbeddedRelative: function(model, callback, binding, visited) {
-    if(!visited) visited = new Ember.Set();
-    if(visited.contains(model)) return;
-
-    visited.add(model);
-    callback.call(binding, model);
-
-    this.eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {
-      this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
-    }, this);
-
-    var parent = this._embeddedManager.findParent(model);
-    if(parent) {
-      this.eachEmbeddedRelative(parent, callback, binding, visited);
-    }
-  },
+  }
 
   /**
     Builds a URL from a context. A context can be one of three things:
@@ -653,7 +633,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param {String} action
     @returns {String} url
   */
-  buildUrlFromContext: function(context, action) {
+  buildUrlFromContext(context, action) {
     var typeKey, id;
     if(typeof context === 'string') {
       typeKey = context;
@@ -667,7 +647,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       url = url + '/' + action;
     }
     return url;
-  },
+  }
 
   /**
     Builds a URL for a given type and optional ID.
@@ -684,7 +664,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param {String} id
     @returns {String} url
   */
-  buildUrl: function(typeKey, id) {
+  buildUrl(typeKey, id) {
     var url = [],
         host = get(this, 'host'),
         prefix = this.urlPrefix();
@@ -698,7 +678,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     if (!host && url) { url = '/' + url; }
 
     return url;
-  },
+  }
 
   /**
     @method urlPrefix
@@ -707,7 +687,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param {String} parentUrl
     @return {String} urlPrefix
   */
-  urlPrefix: function(path, parentURL) {
+  urlPrefix(path, parentURL) {
     var host = get(this, 'host'),
         namespace = get(this, 'namespace'),
         url = [];
@@ -733,7 +713,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     }
 
     return url.join('/');
-  },
+  }
 
   /**
     Determines the pathname for a given type.
@@ -748,7 +728,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
 
     ```js
     Ep.RESTAdapter.reopen({
-      pathForType: function(type) {
+      pathForType(type) {
         var decamelized = Ember.String.decamelize(type);
         return Ember.String.pluralize(decamelized);
       };
@@ -759,10 +739,10 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param {String} type
     @returns {String} path
   **/
-  pathForType: function(type) {
+  pathForType(type) {
     var camelized = Ember.String.camelize(type);
     return pluralize(camelized);
-  },
+  }
 
   /**
     Takes an ajax response, and returns a relevant error.
@@ -773,7 +753,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
 
     ```javascript
     App.ApplicationAdapter = Ep.RESTAdapter.extend({
-      ajaxError: function(jqXHR) {
+      ajaxError(jqXHR) {
         var error = this._super(jqXHR);
 
         if (jqXHR && jqXHR.status === 422) {
@@ -798,13 +778,13 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param  {Object} jqXHR
     @return {Object} jqXHR
   */
-  ajaxError: function(jqXHR) {
+  ajaxError(jqXHR) {
     if (jqXHR && typeof jqXHR === 'object') {
       jqXHR.then = null;
     }
 
     return jqXHR;
-  },
+  }
 
   /**
     Takes a URL, an HTTP method and a hash of data, and makes an
@@ -830,7 +810,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param {Object} hash
     @return {Promise} promise
   */
-  ajax: function(url, type, hash) {
+  ajax(url, type, hash) {
     var adapter = this;
 
     return new Ember.RSVP.Promise(function(resolve, reject) {
@@ -846,7 +826,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
 
       Ember.$.ajax(hash);
     }, "Ep: RestAdapter#ajax " + type + " to " + url);
-  },
+  }
 
   /**
     @method ajaxOptions
@@ -856,7 +836,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     @param {Object} hash
     @return {Object} hash
   */
-  ajaxOptions: function(url, type, hash) {
+  ajaxOptions(url, type, hash) {
     hash = hash || {};
     hash.url = url;
     hash.type = type;
@@ -877,8 +857,11 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
       };
     }
 
-
     return hash;
   }
 
+}
+
+RestAdapter.reopen({
+  defaultSerializer: 'payload'
 });

@@ -15,9 +15,7 @@ var Model = Ember.Object.extend(Copyable, {
   errors: null,
   isModel: true,
   isDeleted: false,
-
-  _loadPromise: null,
-
+  
   /**
     Two models are "equal" when they correspond to the same
     key. This does not mean they necessarily have the same data.

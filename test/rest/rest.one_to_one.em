@@ -27,10 +27,9 @@ describe "rest", ->
       @Post.reopen
         user: belongsTo(@User)
 
-      @adapter.reopen
-        configs:
-          post:
-            user: {owner: false}
+      @adapter.configs =
+        post:
+          user: {owner: false}
 
       adapter = @adapter
       session = @session

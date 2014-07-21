@@ -6,68 +6,57 @@ function mustImplement(name) {
   };
 }
 
+import BaseClass from './utils/base_class';
 import SerializerFactory from './factories/serializer';
 import Session from './session/session';
 
-export default Ember.Object.extend({
-  mergedProperties: ['configs'],
+export default class Adapter extends BaseClass {
 
-  init: function() {
-    this._super.apply(this, arguments);
+  constructor() {
     this.configs = {};
     this.container = this.setupContainer(this.container);
-    this.serializerFactory =  new SerializerFactory(this.container);
-  },
+    this.serializerFactory = new SerializerFactory(this.container);
+  }
 
-  setupContainer: function(container) {
+  setupContainer(container) {
     return container;
-  },
+  }
 
-  configFor: function(type) {
-    var configs = get(this, 'configs'),
+  configFor(type) {
+    var configs = this.configs,
         typeKey = get(type, 'typeKey');
 
     return configs[typeKey] || {};
-  },
+  }
 
-  newSession: function() {
+  newSession() {
     return new Session({
       adapter: this,
       idManager: this.idManager,
       container: this.container
     });
-  },
+  }
 
-  load: mustImplement("load"),
-
-  query: mustImplement("find"),
-
-  refresh: mustImplement("refresh"),
-
-  flush: mustImplement("flush"),
-
-  remoteCall: mustImplement("remoteCall"),
-
-  serialize: function(model, opts) {
+  serialize(model, opts) {
     return this.serializerFactory.serializerForModel(model).serialize(model, opts);
-  },
+  }
 
-  deserialize: function(typeKey, data, opts) {
+  deserialize(typeKey, data, opts) {
     return this.serializerFor(typeKey).deserialize(data, opts);
-  },
+  }
 
-  serializerFor: function(typeKey) {
+  serializerFor(typeKey) {
     return this.serializerFactory.serializerFor(typeKey);
-  },
+  }
 
-  merge: function(model, session) {
+  merge(model, session) {
     if(!session) {
       session = this.container.lookup('session:main');
     }
     return session.merge(model);
-  },
+  }
 
-  mergeData: function(data, typeKey, session) {
+  mergeData(data, typeKey, session) {
     if(!typeKey) {
       typeKey = this.defaultSerializer;
     }
@@ -82,7 +71,24 @@ export default Ember.Object.extend({
         return this.merge(model, session);
       }, this);
     }
-  },
+  }
+
+  // This can be overridden in the adapter sub-classes
+  isDirtyFromRelationships(model, cached, relDiff) {
+    return relDiff.length > 0;
+  }
+
+  shouldSave(model) {
+    return true;
+  }
+
+  reifyClientId(model) {
+    this.idManager.reifyClientId(model);
+  }
+
+}
+
+Adapter.reopen({
 
   mergeError: Ember.aliasMethod('mergeData'),
 
@@ -90,17 +96,14 @@ export default Ember.Object.extend({
 
   didMergeModel: Ember.K,
 
-  // This can be overridden in the adapter sub-classes
-  isDirtyFromRelationships: function(model, cached, relDiff) {
-    return relDiff.length > 0;
-  },
+  load: mustImplement("load"),
 
-  shouldSave: function(model) {
-    return true;
-  },
+  query: mustImplement("find"),
 
-  reifyClientId: function(model) {
-    this.idManager.reifyClientId(model);
-  }
+  refresh: mustImplement("refresh"),
+
+  flush: mustImplement("flush"),
+
+  remoteCall: mustImplement("remoteCall"),
 
 });

@@ -52,22 +52,21 @@ var decamelize = Ember.String.decamelize,
 
   @class ActiveModelAdapter
   @constructor
-  @namespace Ep
+  @namespace active_model
   @extends RestAdapter
 **/
-export default RestAdapter.extend({
-  defaultSerializer: 'payload',
+export default class ActiveModelAdapter extends RestAdapter {
 
-  setupContainer: function(parent) {
-    var container = this._super(parent);
+  setupContainer(parent) {
+    var container = super(parent);
     container.register('serializer:model', ActiveModelSerializer);
     return container;
-  },
+  }
 
-  pathForType: function(type) {
+  pathForType(type) {
     var decamelized = decamelize(type);
     var underscored = underscore(decamelized);
     return pluralize(underscored);
   }
 
-});
+}

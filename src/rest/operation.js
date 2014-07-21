@@ -158,7 +158,7 @@ export default Ember.Object.extend(Ember.DeferredMixin, {
 
     function findInParent(parentModel) {
       var res = null;
-      adapter.eachEmbeddedRecord(parentModel, function(child, embeddedType) {
+      adapter._embeddedManager.eachEmbeddedRecord(parentModel, function(child, embeddedType) {
         if(res) return;
         if(child.isEqual(model)) res = child;
       });

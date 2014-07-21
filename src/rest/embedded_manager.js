@@ -1,25 +1,23 @@
 var get = Ember.get, set = Ember.set;
 
-import EmbeddedHelpersMixin from './embedded_helpers_mixin';
+import BaseClass from '../utils/base_class';
 
-export default Ember.Object.extend(EmbeddedHelpersMixin, {
+/**
+  Keeps track of embedded records.
 
-  // needs to be set for embedded helpers
-  // TODO: extract out the embedded helpers
-  adapter: null,
+  @namespace rest
+  @class EmbeddedManager
+*/
+export default class EmbeddedManager extends BaseClass {
 
-  serializerFactory: null,
-
-  init: function() {
-    this._super.apply(this, arguments);
-
+  constructor(adapter) {
+    this.adapter = adapter;
     // bookkeep all the parents of embedded records
     this._parentMap = {};
-
     this._cachedIsEmbedded = Ember.Map.create();
-  },
+  }
 
-  updateParents: function(model) {
+  updateParents(model) {
     var type = get(model, 'type'),
         adapter = get(this, 'adapter'),
         typeKey = get(type, 'typeKey'),
@@ -28,14 +26,14 @@ export default Ember.Object.extend(EmbeddedHelpersMixin, {
     this.eachEmbeddedRecord(model, function(embedded, kind) {
       this._parentMap[get(embedded, 'clientId')] = model;
     }, this);
-  },
+  }
 
-  findParent: function(model) {
+  findParent(model) {
     var parent = this._parentMap[get(model, 'clientId')];
     return parent;
-  },
+  }
 
-  isEmbedded: function(model) {
+  isEmbedded(model) {
     var type = get(model, 'type'),
         result = this._cachedIsEmbedded.get(type);
 
@@ -61,4 +59,77 @@ export default Ember.Object.extend(EmbeddedHelpersMixin, {
     return result;
   }
 
-});
+  embeddedType(type, name) {
+    var serializer = this.adapter.serializerFactory.serializerForType(type);
+    return serializer.embeddedType(type, name);
+  }
+
+  eachEmbeddedRecord(model, callback, binding) {
+    this.eachEmbeddedBelongsToRecord(model, callback, binding);
+    this.eachEmbeddedHasManyRecord(model, callback, binding);
+  }
+
+  eachEmbeddedBelongsToRecord(model, callback, binding) {
+    this.eachEmbeddedBelongsTo(get(model, 'type'), function(name, relationship, embeddedType) {
+      if(!model.isPropertyLoaded(name)) {
+        return;
+      }
+      var embeddedRecord = get(model, name);
+      if (embeddedRecord) { callback.call(binding, embeddedRecord, embeddedType); }
+    });
+  }
+
+  eachEmbeddedHasManyRecord(model, callback, binding) {
+    this.eachEmbeddedHasMany(get(model, 'type'), function(name, relationship, embeddedType) {
+      if(!model.isPropertyLoaded(name)) {
+        return;
+      }
+      var array = get(model, name);
+      for (var i=0, l=get(array, 'length'); i<l; i++) {
+        callback.call(binding, array.objectAt(i), embeddedType);
+      }
+    });
+  }
+
+  eachEmbeddedHasMany(type, callback, binding) {
+    this.eachEmbeddedRelationship(type, 'hasMany', callback, binding);
+  }
+
+  eachEmbeddedBelongsTo(type, callback, binding) {
+    this.eachEmbeddedRelationship(type, 'belongsTo', callback, binding);
+  }
+
+  eachEmbeddedRelationship(type, kind, callback, binding) {
+    type.eachRelationship(function(name, relationship) {
+      var embeddedType = this.embeddedType(type, name);
+
+      if (embeddedType) {
+        if (relationship.kind === kind) {
+          callback.call(binding, name, relationship, embeddedType);
+        }
+      }
+    }, this);
+  }
+
+  /**
+    @private
+    Traverses the entire embedded graph (including parents)
+  */
+  eachEmbeddedRelative(model, callback, binding, visited) {
+    if(!visited) visited = new Ember.Set();
+    if(visited.contains(model)) return;
+
+    visited.add(model);
+    callback.call(binding, model);
+
+    this.eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {
+      this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
+    }, this);
+
+    var parent = this.findParent(model);
+    if(parent) {
+      this.eachEmbeddedRelative(parent, callback, binding, visited);
+    }
+  }
+
+}
