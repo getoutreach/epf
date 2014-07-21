@@ -1,17 +1,24 @@
-import SerializerForMixin from './serializer_for_mixin';
+import SerializerFactory from '../factories/serializer';
+import BaseClass from '../utils/base_class';
 
 /**
   Base class for serialization/deserialization
 
-  @namespace epf/serializers
+  @namespace serializers
   @class Base
 */
-export default Ember.Object.extend(SerializerForMixin, {
+export default class Base extends BaseClass {
 
-  typeKey: null,
+  constructor() {
+    this.serializerFactory = new SerializerFactory(this.container);
+  }
 
-  serialize: Ember.required(),
+  serialize() {}
   
-  deserialize: Ember.required()
+  deserialize() {}
 
-});
+  serializerFor(typeKey) {
+    return this.serializerFactory.serializerFor(typeKey);
+  }
+
+}

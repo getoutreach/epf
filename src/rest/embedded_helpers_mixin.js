@@ -1,15 +1,9 @@
 var get = Ember.get, set = Ember.set;
 
-import SerializerForMixin from '../serializers/serializer_for_mixin';
-
-export default Ember.Mixin.create(SerializerForMixin, {
+export default Ember.Mixin.create({
 
   embeddedType: function(type, name) {
-    var serializer = this.serializerForType(type);
-    if(this === serializer) {
-      var config = this.configFor(name);
-      return config.embedded;
-    }
+    var serializer = this.serializerFactory.serializerForType(type);
     return serializer.embeddedType(type, name);
   },
 

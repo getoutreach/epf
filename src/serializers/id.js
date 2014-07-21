@@ -1,15 +1,19 @@
 import Serializer from './base';
 
-export default Serializer.extend({
+/**
+  @namespace serializers
+  @class IdSerializer
+*/
+export default class IdSerializer extends Serializer {
 
-  deserialize: function(serialized) {
+  deserialize(serialized) {
     if(serialized === undefined || serialized === null) return;
     return serialized+'';
-  },
+  }
 
-  serialize: function(id) {
+  serialize(id) {
     if (isNaN(id) || id === null) { return id; }
     return +id;
   }
 
-});
+}

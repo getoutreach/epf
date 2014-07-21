@@ -1,8 +1,11 @@
-
 import Serializer from './base';
 
-export default Serializer.extend({
-  deserialize: function(serialized) {
+/**
+  @namespace serializers
+  @class BooleanSerializer
+*/
+export default class BooleanSerializer extends Serializer {
+  deserialize(serialized) {
     var type = typeof serialized;
 
     if (type === "boolean") {
@@ -14,9 +17,9 @@ export default Serializer.extend({
     } else {
       return false;
     }
-  },
+  }
 
-  serialize: function(deserialized) {
+  serialize(deserialized) {
     return Boolean(deserialized);
   }
-});
+}

@@ -2,13 +2,13 @@ var empty = Ember.isEmpty;
 
 import Serializer from './base';
 
-export default Serializer.extend({
+/**
+  @namespace serializers
+  @class HasManySerializer
+*/
+export default class HasManySerializer extends Serializer {
 
-  typeFor: function(typeName) {
-    return this.container.lookupFactory('model:' + typeName);
-  },
-
-  deserialize: function(serialized, opts) {
+  deserialize(serialized, opts) {
     if(!serialized) return [];
     if(!opts.embedded) {
       var idSerializer = this.serializerFor('id');
@@ -20,27 +20,27 @@ export default Serializer.extend({
       opts.reifyClientId = false;
     }
     return this.deserializeModels(serialized, opts);
-  },
+  }
 
-  deserializeModels: function(serialized, opts) {
+  deserializeModels(serialized, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return serialized.map(function(hash) {
       return serializer.deserialize(hash, opts);
     });
-  },
+  }
 
-  serialize: function(models, opts) {
+  serialize(models, opts) {
     if(opts.embedded) {
       return this.serializeModels(models, opts);
     }
     return undefined;
-  },
+  }
 
-  serializeModels: function(models, opts) {
+  serializeModels(models, opts) {
     var serializer = this.serializerFor(opts.typeKey);
     return models.map(function(model) {
       return serializer.serialize(model);
     });
   }
   
-});
+}

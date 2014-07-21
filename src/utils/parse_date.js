@@ -3,11 +3,8 @@
  * © 2011 Colin Snover <http://zetafleet.com>
  * Released under MIT license.
  */
-
-Ember.Date = Ember.Date || {};
-
 var origParse = Date.parse, numericKeys = [ 1, 4, 5, 6, 7, 10, 11 ];
-Ember.Date.parse = function (date) {
+export default function parseDate(date) {
     var timestamp, struct, minutesOffset = 0;
 
     // ES5 §15.9.4.2 states that the string should attempt to be parsed as a Date Time String Format string
@@ -40,7 +37,3 @@ Ember.Date.parse = function (date) {
 
     return timestamp;
 };
-
-if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Date) {
-  Date.parse = Ember.Date.parse;
-}

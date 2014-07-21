@@ -1,3 +1,5 @@
+var get = Ember.get;
+
 /**
   @namespace factory
   @class SerializerFactory

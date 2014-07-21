@@ -9,6 +9,7 @@ import OperationGraph from './operation_graph';
 import RestErrors from './rest_errors';
 import PayloadSerializer from './serializers/payload';
 import RestErrorsSerializer from './serializers/errors';
+import SerializerFactory from '../factories/serializer';
 
 import materializeRelationships from '../utils/materialize_relationships';
 
@@ -115,7 +116,8 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
 
   init: function() {
     this._super.apply(this, arguments);
-    this._embeddedManager = EmbeddedManager.create({adapter: this, container: this.container});
+    this._embeddedManager = EmbeddedManager.create({adapter: this, container: this.container, serializerFactory: this.serializerFactory});
+    this.serializerFactory = new SerializerFactory(this.container);
     this._pendingOps = {};
   },
 
@@ -551,7 +553,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
   },
 
   isDirtyFromRelationships: function(model, cached, relDiff) {
-    var serializer = this.serializerForModel(model);
+    var serializer = this.serializerFactory.serializerForModel(model);
     for(var i = 0; i < relDiff.length; i++) {
       var diff = relDiff[i];
       if(this.isRelationshipOwner(diff.relationship) || serializer.embeddedType(model.constructor, diff.name) === 'always') {
@@ -629,7 +631,7 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
     visited.add(model);
     callback.call(binding, model);
 
-    this.serializerForModel(model).eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {
+    this.eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {
       this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
     }, this);
 

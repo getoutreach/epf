@@ -2,13 +2,17 @@ var empty = Ember.isEmpty;
 
 import Serializer from './base';
 
-export default Serializer.extend({
+/**
+  @namespace serializers
+  @class NumberSerializer
+*/
+export default class NumberSerializer extends Serializer {
 
-  deserialize: function(serialized) {
+  deserialize(serialized) {
     return empty(serialized) ? null : Number(serialized);
-  },
+  }
 
-  serialize: function(deserialized) {
+  serialize(deserialized) {
     return empty(deserialized) ? null : Number(deserialized);
   }
-});
+}

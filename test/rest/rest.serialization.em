@@ -88,7 +88,7 @@ describe 'rest serialization', ->
         expect(post.clientRev).to.eq(321)
 
       it 'respects aliases', ->
-        @serializer.reopen
+        @serializer.constructor.reopen
           aliases:
             blog_post: 'post'
 
@@ -119,7 +119,7 @@ describe 'rest serialization', ->
         expect(data).to.eql(client_id: "2", id: 1, title: 'wat', long_title: 'wat omgawd', rev: 123, client_rev: 321)
 
       it 'obeys custom keys', ->
-        @serializer.reopen
+        @serializer.constructor.reopen
           properties:
             title:
               key: 'POST_TITLE'

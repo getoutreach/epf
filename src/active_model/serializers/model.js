@@ -1,8 +1,8 @@
 import ModelSerializer from '../../serializers/model';
 
-export default ModelSerializer.extend({
+export default class ActiveModelSerializer extends ModelSerializer {
 
-  keyForType: function(name, type, opts) {
+  keyForType(name, type, opts) {
     var key = this._super(name, type);
     if(!opts || !opts.embedded) {
       if(type === 'belongs-to') {
@@ -12,6 +12,6 @@ export default ModelSerializer.extend({
       }
     }
     return key;
-  },
+  }
 
-});
+}

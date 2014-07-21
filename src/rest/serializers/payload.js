@@ -4,42 +4,37 @@ import materializeRelationships from '../../utils/materialize_relationships';
 import Serializer from '../../serializers/base';
 import Payload from '../payload'
 
-export default Serializer.extend({
-  mergedProperties: ['aliases'],
+export default class PayloadSerializer extends Serializer {
 
-  aliases: {},
-  metaKey: 'meta',
-  errorsKey: 'errors',
-
-  singularize: function(name) {
+  singularize(name) {
     return Ember.String.singularize(name);
-  },
+  }
 
-  typeKeyFor: function(name) {
+  typeKeyFor(name) {
     var singular = this.singularize(name),
         aliases = get(this, 'aliases'),
         alias = aliases[name];
     return alias || singular;
-  },
+  }
 
-  rootForTypeKey: function(typeKey) {
+  rootForTypeKey(typeKey) {
     return typeKey;
-  },
+  }
 
   /**
     Note: we serialize a model, but we deserialize
     to a payload object.
   */
-  serialize: function(model) {
+  serialize(model) {
     var typeKey = get(model, 'typeKey'),
         root = this.rootForTypeKey(typeKey),
         res = {},
         serializer = this.serializerFor(typeKey);
     res[root] = serializer.serialize(model);
     return res;
-  },
+  }
 
-  deserialize: function(hash, opts) {
+  deserialize(hash, opts) {
     opts = opts || {};
     var result = Payload.create(),
         metaKey = get(this, 'metaKey'),
@@ -119,4 +114,10 @@ export default Serializer.extend({
     return result;
   }
 
+}
+
+PayloadSerializer.reopen({
+  metaKey: 'meta',
+  aliases: {},
+  errorsKey: 'errors'
 });

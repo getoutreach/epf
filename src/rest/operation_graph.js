@@ -103,8 +103,7 @@ export default Ember.Object.extend({
         var name = d.name;
         var parentModel = model.get(name) || shadows.getModel(d.oldValue);
         // embedded children should not be dependencies
-        var serializer = adapter.serializerForModel(model);
-        var isEmbeddedRel = serializer.embeddedType(get(model, 'type'), name);
+        var isEmbeddedRel = adapter.embeddedType(get(model, 'type'), name);
 
         // TODO: handle hasMany's depending on adapter configuration
         if(parentModel && !isEmbeddedRel) {

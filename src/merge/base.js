@@ -1,7 +1,7 @@
 /**
   Abstract base class for a three-way `Model` merge implementation.
 
-  @namespace epf/merge
+  @namespace merge
   @class Base
 */
 export default class Base {

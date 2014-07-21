@@ -1,12 +1,14 @@
 var get = Ember.get, set = Ember.set;
 
-import EmbdeddedHelpersMixin from './embedded_helpers_mixin';
+import EmbeddedHelpersMixin from './embedded_helpers_mixin';
 
-export default Ember.Object.extend(EmbdeddedHelpersMixin, {
+export default Ember.Object.extend(EmbeddedHelpersMixin, {
 
   // needs to be set for embedded helpers
   // TODO: extract out the embedded helpers
   adapter: null,
+
+  serializerFactory: null,
 
   init: function() {
     this._super.apply(this, arguments);

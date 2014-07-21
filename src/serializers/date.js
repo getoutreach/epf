@@ -1,13 +1,17 @@
-import '../ext/date';
 import Serializer from './base';
+import parseDate from '../utils/parse_date';
 
-export default Serializer.extend({
+/**
+  @namespace serializers
+  @class DateSerializer
+*/
+export default class DateSerializer extends Serializer {
 
-  deserialize: function(serialized) {
+  deserialize(serialized) {
     var type = typeof serialized;
 
     if (type === "string") {
-      return new Date(Ember.Date.parse(serialized));
+      return new Date(parseDate(serialized));
     } else if (type === "number") {
       return new Date(serialized);
     } else if (serialized === null || serialized === undefined) {
@@ -17,9 +21,9 @@ export default Serializer.extend({
     } else {
       return null;
     }
-  },
+  }
 
-  serialize: function(date) {
+  serialize(date) {
     if (date instanceof Date) {
       var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -48,4 +52,4 @@ export default Serializer.extend({
     }
   } 
 
-});
+}

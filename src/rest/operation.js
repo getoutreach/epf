@@ -154,12 +154,11 @@ export default Ember.Object.extend(Ember.DeferredMixin, {
 
   _promiseFromEmbeddedParent: function() {
     var model = this.model,
-        adapter = get(this, 'adapter'),
-        serializer = adapter.serializerForModel(model);
+        adapter = get(this, 'adapter');
 
     function findInParent(parentModel) {
       var res = null;
-      serializer.eachEmbeddedRecord(parentModel, function(child, embeddedType) {
+      adapter.eachEmbeddedRecord(parentModel, function(child, embeddedType) {
         if(res) return;
         if(child.isEqual(model)) res = child;
       });

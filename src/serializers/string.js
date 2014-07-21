@@ -1,15 +1,19 @@
-var none = Ember.isNone, empty = Ember.isEmpty;
+var none = Ember.isNone;
 
 import Serializer from './base';
 
-export default Serializer.extend({
+/**
+  @namespace serializers
+  @class StringSerializer
+*/
+export default class StringSerializer extends Serializer {
 
-  deserialize: function(serialized) {
+  deserialize(serialized) {
     return none(serialized) ? null : String(serialized);
-  },
+  }
 
-  serialize: function(deserialized) {
+  serialize(deserialized) {
     return none(deserialized) ? null : String(deserialized);
   }
 
-});
+}

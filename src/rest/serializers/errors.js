@@ -3,9 +3,9 @@ var get = Ember.get, set = Ember.set, isEmpty = Ember.isEmpty;
 import RestErrors from '../rest_errors';
 import Serializer from '../../serializers/base';
 
-export default Serializer.extend({
+export default class ErrorsSerializer extends Serializer {
 
-  deserialize: function(serialized, opts) {
+  deserialize(serialized, opts) {
     var xhr = opts && opts.xhr;
     
     if(!xhr && (isEmpty(serialized) || isEmptyObject(serialized))) return;
@@ -25,17 +25,17 @@ export default Serializer.extend({
     }
     
     return res;
-  },
+  }
   
-  transformPropertyKey: function(name) {
+  transformPropertyKey(name) {
     return Ember.String.camelize(name);
-  },
+  }
 
-  serialize: function(id) {
+  serialize(id) {
     throw new Ember.Error("Errors are not currently serialized down to the server.");
   }
 
-});
+}
 
 function isEmptyObject(obj) {
   return Ember.keys(obj).length === 0;

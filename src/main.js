@@ -1,5 +1,4 @@
 
-import "./ext/date";
 import Ep from './namespace';
 
 import Adapter from './adapter';
@@ -52,7 +51,7 @@ import CollectionManager from './session/collection_manager';
 import InverseManager from './session/inverse_manager';
 import Session from './session/session';
 
-import isEqual from './utils/isEqual';
+import isEqual from './utils/is_equal';
 
 import DebugAdapter from './debug/debug_adapter';
 

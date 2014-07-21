@@ -2,7 +2,7 @@ var get = Ember.get, set = Ember.set, copy = Ember.copy;
 
 import Base from './base';
 import ModelSet from '../collections/model_set';
-import isEqual from '../utils/isEqual';
+import isEqual from '../utils/is_equal';
 
 /**
   Merge strategy that merges on a per-field basis.
@@ -13,7 +13,7 @@ import isEqual from '../utils/isEqual';
   Fields which do not have an ancestor will default to
   "theirs".
 
-  @namespace epf/merge
+  @namespace merge
   @class PerField
 */
 export default class PerField extends Base {

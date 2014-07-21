@@ -2,13 +2,17 @@ var empty = Ember.isEmpty;
 
 import Serializer from './base';
 
-export default Serializer.extend({
+/**
+  @namespace serializers
+  @class RevisionSerializer
+*/
+export default class RevisionSerializer extends Serializer {
 
-  deserialize: function(serialized) {
+  deserialize(serialized) {
     return serialized ? serialized : undefined;
-  },
+  }
 
-  serialize: function(deserialized) {
+  serialize(deserialized) {
     return deserialized ? deserialized : undefined;
   }
-});
+}

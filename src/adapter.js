@@ -6,16 +6,17 @@ function mustImplement(name) {
   };
 }
 
-import SerializerForMixin from './serializers/serializer_for_mixin';
+import SerializerFactory from './factories/serializer';
 import Session from './session/session';
 
-export default Ember.Object.extend(SerializerForMixin, {
+export default Ember.Object.extend({
   mergedProperties: ['configs'],
 
   init: function() {
     this._super.apply(this, arguments);
     this.configs = {};
     this.container = this.setupContainer(this.container);
+    this.serializerFactory =  new SerializerFactory(this.container);
   },
 
   setupContainer: function(container) {
@@ -48,11 +49,15 @@ export default Ember.Object.extend(SerializerForMixin, {
   remoteCall: mustImplement("remoteCall"),
 
   serialize: function(model, opts) {
-    return this.serializerForModel(model).serialize(model, opts);
+    return this.serializerFactory.serializerForModel(model).serialize(model, opts);
   },
 
   deserialize: function(typeKey, data, opts) {
     return this.serializerFor(typeKey).deserialize(data, opts);
+  },
+
+  serializerFor: function(typeKey) {
+    return this.serializerFactory.serializerFor(typeKey);
   },
 
   merge: function(model, session) {

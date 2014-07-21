@@ -1,12 +1,12 @@
 var get = Ember.get, set = Ember.set;
 
-import EmbeddedHelpersMixin from '../rest/embedded_helpers_mixin';
-
 import Serializer from './base';
 
-export default Serializer.extend(EmbeddedHelpersMixin, {
-  mergedProperties: ['properties'],
-
+/**
+  @namespace serializers
+  @class ModelSerializer
+*/
+export default class ModelSerializer extends Serializer {
   /**
     Specifies configurations for individual properties.
 
@@ -24,25 +24,11 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
 
     @property properties
   */
-  properties: {},
-
-  /**
-    @private
-    Used to cache key to property mappings
-  */
-  _keyCache: null,
-
-  /**
-    @private
-    Used to cache property name to key mappings
-  */
-  _nameCache: null,
-
-  init: function() {
-    this._super();
+  constructor(...args) {
+    super(args);
     this._keyCache = {};
     this._nameCache = {};
-  },
+  }
 
   /**
     @private
@@ -50,12 +36,12 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     Looks up the property name corresponding to the
     given key.
   */
-  nameFor: function(key) {
+  nameFor(key) {
     var name;
     if(name = this._nameCache[key]) {
       return name;
     }
-    var configs = get(this, 'properties');
+    var configs = this.properties;
     for(var currentName in configs) {
       var current = configs[name];
       var keyName = current.key;
@@ -66,13 +52,14 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     name = name || Ember.String.camelize(key);
     this._nameCache[key] = name;
     return name;
-  },
+  }
 
-  configFor: function(name) {
-    return this.properties[name] || {};
-  },
+  configFor(name) {
+    var properties = this.properties;
+    return properties && properties[name] || {};
+  }
 
-  keyFor: function(name, type, opts) {
+  keyFor(name, type, opts) {
     var key;
     if(key = this._keyCache[name]) {
       return key;
@@ -82,11 +69,11 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     key = config.key || this.keyForType(name, type, opts);
     this._keyCache[name] = key;
     return key;
-  },
+  }
 
-  keyForType: function(name, type, opts) {
+  keyForType(name, type, opts) {
     return Ember.String.underscore(name);
-  },
+  }
 
   /**
     @private
@@ -100,11 +87,11 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     @param {Ep.Model subclass} type
     @returns {String} name of the root element
   */
-  rootForType: function(type) {
+  rootForType(type) {
     return get(type, 'typeKey');
-  },
+  }
 
-  serialize: function(model) {
+  serialize(model) {
     var serialized = {};
 
     this.addMeta(serialized, model);
@@ -112,24 +99,24 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     this.addRelationships(serialized, model);
 
     return serialized;
-  },
+  }
 
-  addMeta: function(serialized, model) {
+  addMeta(serialized, model) {
     this.addProperty(serialized, model, 'id', 'id');
     this.addProperty(serialized, model, 'clientId', 'string');
     this.addProperty(serialized, model, 'rev', 'revision');
     this.addProperty(serialized, model, 'clientRev', 'revision');
-  },
+  }
 
-  addAttributes: function(serialized, model) {
+  addAttributes(serialized, model) {
     model.eachLoadedAttribute(function(name, attribute) {
       // do not include transient properties
       if(attribute.options.transient) return;
       this.addProperty(serialized, model, name, attribute.type);
     }, this);
-  },
+  }
 
-  addRelationships: function(serialized, model) {
+  addRelationships(serialized, model) {
     model.eachLoadedRelationship(function(name, relationship) {
       var config = this.configFor(name),
           opts = {typeKey: relationship.typeKey, embedded: config.embedded},
@@ -137,9 +124,9 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
           kindKey = Ember.String.dasherize(relationship.kind);
       this.addProperty(serialized, model, name, kindKey, opts);
     }, this);
-  },
+  }
 
-  addProperty: function(serialized, model, name, type, opts) {
+  addProperty(serialized, model, name, type, opts) {
     var key = this.keyFor(name, type, opts),
         value = get(model, name),
         serializer;
@@ -153,9 +140,9 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     if(value !== undefined) {
       serialized[key] = value;
     }
-  },
+  }
 
-  deserialize: function(hash, opts) {
+  deserialize(hash, opts) {
     var model = this.createModel();
 
     this.extractMeta(model, hash, opts);
@@ -163,9 +150,9 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     this.extractRelationships(model, hash);
 
     return model;
-  },
+  }
 
-  extractMeta: function(model, hash, opts) {
+  extractMeta(model, hash, opts) {
     this.extractProperty(model, hash, 'id', 'id');
     this.extractProperty(model, hash, 'clientId', 'string');
     this.extractProperty(model, hash, 'rev', 'revision');
@@ -174,15 +161,15 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     if(!opts || opts.reifyClientId !== false) {
       this.idManager.reifyClientId(model);
     }
-  },
+  }
 
-  extractAttributes: function(model, hash) {
+  extractAttributes(model, hash) {
     model.eachAttribute(function(name, attribute) {
       this.extractProperty(model, hash, name, attribute.type);
     }, this);
-  },
+  }
 
-  extractRelationships: function(model, hash) {
+  extractRelationships(model, hash) {
     model.eachRelationship(function(name, relationship) {
       var config = this.configFor(name),
           opts = {typeKey: relationship.typeKey, embedded: config.embedded},
@@ -190,9 +177,9 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
           kindKey = Ember.String.dasherize(relationship.kind);
       this.extractProperty(model, hash, name, kindKey, opts);
     }, this);
-  },
+  }
 
-  extractProperty: function(model, hash, name, type, opts) {
+  extractProperty(model, hash, name, type, opts) {
     var key = this.keyFor(name, type, opts),
         value = hash[key],
         serializer;
@@ -208,14 +195,23 @@ export default Serializer.extend(EmbeddedHelpersMixin, {
     if(typeof value !== 'undefined') {
       set(model, name, value);
     }
-  },
+  }
 
-  createModel: function() {
+  createModel() {
     return this.typeFor(this.typeKey).create();
-  },
+  }
 
-  typeFor: function(typeKey) {
+  typeFor(typeKey) {
     return this.container.lookupFactory('model:' + typeKey);
   }
 
-});
+  serializerFor(typeKey) {
+    return this.serializerFactory.serializerFor(typeKey);
+  }
+
+  embeddedType(type, name) {
+    var config = this.configFor(name);
+    return config.embedded;
+  }
+
+}

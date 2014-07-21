@@ -26,13 +26,15 @@ var es6Modules = (function() {
     srcFile: 'epf/main.js',
     destFile: '/epf.js'
   });
+
   tree = mergeTrees([tree, vendoredPackage]);
   tree = removeFile(tree,  {
     files: ['epf/main.js']
   });
   var transpiled = traceur(tree, {
     moduleName: true,
-    modules: 'amd'
+    modules: 'amd',
+    annotations: true
   });
   return concat(transpiled, {
     inputFiles: ['**/*.js'],
