@@ -141,6 +141,12 @@ describe "Session", ->
       expect(comment.post).to.eq(post)
       expect(comment.isDirty).to.be.false
 
+    it 'reuses existing hasMany arrays', ->
+      post = session.merge @Post.create id: "2", comments: []
+      comments = post.comments
+      session.merge @Post.create id: "2", comments: [@Comment.create(id: "1", post: @Post.create(id: "2"))]
+      expect(comments.length).to.eq(1)
+
 
   describe '.markClean', ->
 
@@ -165,8 +171,6 @@ describe "Session", ->
       session.touch(post)
       expect(post.isDirty).to.be.true
 
-
-  describe 
 
   describe '.isDirty', ->
 

@@ -16,7 +16,7 @@ export default function(typeKey, options) {
     meta.type = typeKey;
   }
 
-  return Ember.computed(function(key, value) {
+  return Ember.computed(function(key, value, oldValue) {
     var content;
     if(arguments.length === 1) {
       if(!get(this, 'isNew')) {
@@ -26,11 +26,18 @@ export default function(typeKey, options) {
     } else {
       content = value;
     }
-    return HasManyArray.create({
-      owner: this,
-      name: key,
-      content: content
-    });
+    // reuse the existing array
+    // must check if an array here since Ember passes in UNDEFINED() instead of undefined
+    if(oldValue && (oldValue instanceof Array)) {
+      set(oldValue, 'content', content);
+      return oldValue;
+    } else {
+      return HasManyArray.create({
+        owner: this,
+        name: key,
+        content: content
+      });
+    }
   }).property().meta(meta);
 };
 
