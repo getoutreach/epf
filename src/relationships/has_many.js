@@ -28,7 +28,7 @@ export default function(typeKey, options) {
     }
     // reuse the existing array
     // must check if an array here since Ember passes in UNDEFINED() instead of undefined
-    if(oldValue && (oldValue instanceof Array)) {
+    if(oldValue && (oldValue instanceof HasManyArray)) {
       set(oldValue, 'content', content);
       return oldValue;
     } else {
