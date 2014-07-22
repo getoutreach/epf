@@ -3,7 +3,10 @@ var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Embe
     cacheGet = cacheFor.get,
     metaFor = Ember.meta;
 
+import BaseClass from '../utils/base_class';
 import ModelSet from '../collections/model_set';
+
+export default class Model extends BaseClass {
 
 var Model = Ember.Object.extend(Copyable, {
 
@@ -203,6 +206,9 @@ var Model = Ember.Object.extend(Copyable, {
     return result;
   },
 
+});
+
+Model.reopen({
   load: sessionAlias('loadModel'),
   refresh: sessionAlias('refresh'),
   deleteModel: sessionAlias('deleteModel'),
@@ -210,7 +216,6 @@ var Model = Ember.Object.extend(Copyable, {
   markClean: sessionAlias('markClean'),
   invalidate: sessionAlias('invalidate'),
   touch: sessionAlias('touch')
-
 });
 
 Model.reopenClass({
@@ -255,5 +260,3 @@ function sessionAlias(name) {
     return session[name].apply(session, args);
   };
 }
-
-export default Model;
