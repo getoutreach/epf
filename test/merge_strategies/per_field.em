@@ -50,7 +50,6 @@ describe 'PerField', ->
     expect(post.body).to.eq('bodyB')
     expect(post.createdAt).to.be.null
     post.comments.addObject session.create 'comment'
-    debugger
     session.merge App.Post.create(id: '1', title: 'titleB', body: 'bodyB', user: App.User.create(id: '2', posts: [App.Post.create(id: '1')]))
     expect(post.comments.length).to.eq(1)
     expect(post.comments.firstObject.id).to.be.null

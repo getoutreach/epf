@@ -507,9 +507,13 @@ export default Adapter.extend(EmbeddedHelpersMixin, {
         child.eachLoadedRelationship(function(name, relationship) {
           // TODO: handle hasMany's for non-relational databases...
           if(relationship.kind === 'belongsTo') {
-            var value = get(child, name);
-            var inverse = child.constructor.inverseFor(name);
+            var value = get(child, name),
+                inverse = child.constructor.inverseFor(name);
+
             if(inverse) {
+              if(!(parent instanceof inverse.type)) {
+                return;
+              }
               // if embedded then we are certain the parent has the correct data
               if(this.embeddedType(inverse.type, inverse.name)) {
                 return;
