@@ -166,8 +166,6 @@ describe "Session", ->
       expect(post.isDirty).to.be.true
 
 
-<<<<<<< HEAD
-=======
   describe 'flushing', ->
 
     beforeEach ->
@@ -189,7 +187,6 @@ describe "Session", ->
         session.flush().then ->
           expect(post.title).to.eq('update 3')
 
->>>>>>> remove local adapter
   describe '.isDirty', ->
 
     it 'is true when models are dirty', ->

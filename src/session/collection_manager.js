@@ -38,7 +38,7 @@ export default class CollectionManager {
 
     if(arrays) {
       // clone this operation could mutate this array 
-      _.clone(arrays).forEach(function(array) {
+        _.clone(arrays).forEach(function(array) {
         array.removeObject(model);
       });
     }

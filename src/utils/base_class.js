@@ -14,7 +14,8 @@ export default class Base {
   }
 
   static reopen(props) {
-    for(var key in props) {
+    for(var key in props) { 
+      if(!props.hasOwnProperty(key)) return;
       this.prototype[key] = props[key];
     }
     return this;
@@ -28,6 +29,7 @@ export default class Base {
 
   static reopenClass(props) {
     for(var key in props) {
+      if(!props.hasOwnProperty(key)) return;
       this[key] = props[key];
     }
     return this;
