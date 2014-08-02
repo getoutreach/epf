@@ -1,4 +1,5 @@
 `import setup from './_shared'`
+`import Model from 'epf/model/model'`
 
 describe "Ep.RestAdapter", ->
 
@@ -11,15 +12,27 @@ describe "Ep.RestAdapter", ->
     session = @session
     Ep.__container__ = @container
 
-    class @Post extends Ep.Model
-      title: Ep.attr('string')
-      comments: Ep.hasMany('comment')
+    `class Post extends Model {}`
+    @Post = Post
+    Post.defineSchema
+      typeKey: 'post'
+      attributes:
+        title: {type: 'string'}
+      relationships:
+        comments: {kind: 'hasMany', type: 'comment'}
     @App.Post = @Post
     @container.register 'model:post', @Post
 
-    class @Comment extends Ep.Model
-      body: Ep.attr('string')
-      post: Ep.belongsTo('post')
+    `class Comment extends Model {}`
+    @Comment = Comment
+    Comment.defineSchema
+      typeKey: 'comment'
+      attributes:
+        body: {type: 'string'}
+      relationships:
+        post: {kind: 'belongsTo', type: 'post'}
+        
+    debugger
     @App.Comment = @Comment
     @container.register 'model:comment', @Comment
 
@@ -32,7 +45,7 @@ describe "Ep.RestAdapter", ->
       post: {id: 1, title: 'ma post', comments: [2, 3]}
       comments: [{id: 2, body: 'yo'}, {id: 3, body: 'sup'}]
 
-    it 'should merge with typeKey as context', ->
+    it.only 'should merge with typeKey as context', ->
       post = adapter.mergePayload(data, 'post', session).firstObject
       expect(post.title).to.eq('ma post')
       expect(post).to.eq(session.getModel(post))
@@ -40,5 +53,3 @@ describe "Ep.RestAdapter", ->
     it 'should merge with no context', ->
       models = adapter.mergePayload(data, null, session)
       expect(models.length).to.eq(3)
-
-

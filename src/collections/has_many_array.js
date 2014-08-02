@@ -1,51 +1,12 @@
 var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
 
-import Model from '../model/model';
 import ModelArray from '../collections/model_array';
 
-export default function hasMany(typeKey, options) {
-  Ember.assert("The type passed to Ep.hasMany must be defined", !!typeKey);
-  options = options || {};
-
-  var meta = { isRelationship: true, options: options, kind: 'hasMany' };
-
-  if(typeof typeKey === 'string') {
-    meta.typeKey = typeKey;
-  } else {
-    meta.type = typeKey;
-  }
-
-  return Ember.computed(function(key, value, oldValue) {
-    var content;
-    if(arguments.length === 1) {
-      if(!get(this, 'isNew')) {
-        return;
-      }
-      content = [];
-    } else {
-      content = value;
-    }
-    // reuse the existing array
-    // must check if an array here since Ember passes in UNDEFINED() instead of undefined
-    if(oldValue && (oldValue instanceof HasManyArray)) {
-      set(oldValue, 'content', content);
-      return oldValue;
-    } else {
-      return HasManyArray.create({
-        owner: this,
-        name: key,
-        content: content
-      });
-    }
-  }).property().meta(meta);
-};
-
-var HasManyArray = ModelArray.extend({
+export default ModelArray.extend({
 
   name: null,
   owner: null,
   session: Ember.computed.alias('owner.session'),
-
 
   objectAtContent: function(index) {
     var content = get(this, 'content'),
@@ -94,5 +55,3 @@ var HasManyArray = ModelArray.extend({
   },
 
 });
-
-export {HasManyArray};

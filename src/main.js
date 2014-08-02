@@ -12,16 +12,10 @@ import ModelSet from './collections/model_set';
 import MergeStrategy from './merge/base';
 import PerField from './merge/per_field';
 
-import attr from './model/attribute';
 import Model from './model/model';
 import './model/diff';
 import Errors from './model/errors';
 import ModelPromise from './model/promise';
-
-import belongsTo from './relationships/belongs_to';
-import './relationships/ext';
-import hasMany from './relationships/has_many';
-import {HasManyArray} from './relationships/has_many';
 
 import RestErrorsSerializer from './rest/serializers/errors';
 import PayloadSerializer from './rest/serializers/payload';
@@ -64,9 +58,6 @@ Ep.ModelSet = ModelSet;
 Ep.MergeStrategy = MergeStrategy;
 Ep.PerField = PerField;
 
-Ep.belongsTo = belongsTo;
-Ep.hasMany = hasMany;
-Ep.attr = attr;
 Ep.Model = Model;
 Ep.Errors = Errors;
 

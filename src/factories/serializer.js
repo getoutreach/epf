@@ -35,7 +35,7 @@ export default class SerializerFactory {
   }
 
   serializerForModel(model) {
-    var type = get(model, 'type');
+    var type = model.constructor;
     return this.serializerForType(type);
   }
 

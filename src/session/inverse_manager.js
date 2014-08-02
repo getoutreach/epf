@@ -65,7 +65,7 @@ export default class InverseManager {
   }
   
   registerRelationship(model, name, inverseModel) {
-    var inverse = get(model, 'type').inverseFor(name);
+    var inverse = model.constructor.inverseFor(name);
     
     this._inversesFor(model, name).addObject(inverseModel);
     if(inverse) {
@@ -75,7 +75,7 @@ export default class InverseManager {
   }
   
   unregisterRelationship(model, name, inverseModel) {
-    var inverse =  get(model, 'type').inverseFor(name);
+    var inverse =  model.constructor.inverseFor(name);
     
     this._inversesFor(model, name).removeObject(inverseModel);
     if(inverse) {
@@ -109,7 +109,7 @@ export default class InverseManager {
   _addToInverse(model, inverse, inverseModel) {
     model = this.session.models.getModel(model);
     // make sure the inverse is loaded
-    if(!model || !model.isPropertyLoaded(inverse.name)) return;
+    if(!model || !model.isFieldLoaded(inverse.name)) return;
     model.suspendRelationshipObservers(function() {
       if(inverse.kind === 'hasMany') {
         get(model, inverse.name).addObject(inverseModel)
@@ -122,7 +122,7 @@ export default class InverseManager {
   _removeFromInverse(model, inverse, inverseModel) {
     model = this.session.models.getModel(model);
     // make sure the inverse is loaded
-    if(!model || !model.isPropertyLoaded(inverse.name)) return;
+    if(!model || !model.isFieldLoaded(inverse.name)) return;
     model.suspendRelationshipObservers(function() {
       if(inverse.kind === 'hasMany') {
         get(model, inverse.name).removeObject(inverseModel)

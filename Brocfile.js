@@ -10,6 +10,7 @@ var uglify = require('broccoli-uglify-js');
 var removeFile = require('broccoli-file-remover');
 var defeatureify = require('broccoli-defeatureify');
 var emberScript = require('broccoli-ember-script');
+var coffee = require('broccoli-coffee');
 var replace = require('broccoli-replace');
 var yuidocCompiler = require('broccoli-yuidoc');
 
@@ -49,7 +50,11 @@ var es6TestModules = (function() {
     destDir: 'epf-test'
   });
 
-  tree = emberScript(tree, {
+  // tree = emberScript(tree, {
+  //   bare: true
+  // });
+  
+  tree = coffee(tree, {
     bare: true
   });
 

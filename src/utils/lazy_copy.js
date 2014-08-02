@@ -1,8 +1,9 @@
-function _copy(obj, deep, seen, copies) {
+function _lazyCopy(obj, deep, seen, copies) {
   var ret, loc, key;
 
   // primitive data types are immutable, just return them.
   if ('object' !== typeof obj || obj===null) return obj;
+  if (obj.lazyCopy && typeof obj.lazyCopy === 'function') return obj.lazyCopy(deep);
   if (obj.copy && typeof obj.copy === 'function') return obj.copy(deep);
 
   // avoid cyclical loops
@@ -12,7 +13,7 @@ function _copy(obj, deep, seen, copies) {
     ret = obj.slice();
     if (deep) {
       loc = ret.length;
-      while(--loc>=0) ret[loc] = _copy(ret[loc], deep, seen, copies);
+      while(--loc>=0) ret[loc] = _lazyCopy(ret[loc], deep, seen, copies);
     }
   } else if (obj instanceof Date) {
     ret = new Date(obj.getTime());
@@ -25,7 +26,7 @@ function _copy(obj, deep, seen, copies) {
       // copying internal Ember properties
       if (key.substring(0,2) === '__') continue;
 
-      ret[key] = deep ? _copy(obj[key], deep, seen, copies) : obj[key];
+      ret[key] = deep ? _lazyCopy(obj[key], deep, seen, copies) : obj[key];
     }
   }
 
@@ -38,18 +39,13 @@ function _copy(obj, deep, seen, copies) {
 }
 
 /**
-  Creates a clone of the passed object. This function can take just about
-  any type of object and create a clone of it, including primitive values
-  (which are not actually cloned because they are immutable).
+  Similar to `copy` but checks for a `lazyCopy` method first.
 
-  If the passed object implements the `clone()` method, then this function
-  will simply call that method and return the result.
-
-  @method copy
+  @method lazyCopy
   @param {Object} obj The object to clone
   @param {Boolean} deep If true, a deep copy of the object is made
   @return {Object} The cloned object
 */
-export default function copy(obj, deep) {
-  return _copy(obj, deep, deep ? [] : null, deep ? [] : null);
+export default function lazyCopy(obj, deep) {
+  return _lazyCopy(obj, deep, deep ? [] : null, deep ? [] : null);
 }

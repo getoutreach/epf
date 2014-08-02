@@ -14,7 +14,7 @@ export default class Cache {
   addModel(model) {
     // for now we only add the model if some attributes are loaded,
     // eventually this will be on a per-attribute basis
-    if(model.anyPropertiesLoaded()) {
+    if(model.anyFieldsLoaded) {
       this.addPromise(model, Ember.RSVP.resolve());
     }
   }

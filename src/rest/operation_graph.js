@@ -96,7 +96,7 @@ export default class OperationGraph {
         var name = d.name;
         var parentModel = model.get(name) || shadows.getModel(d.oldValue);
         // embedded children should not be dependencies
-        var isEmbeddedRel = adapter.embeddedType(get(model, 'type'), name);
+        var isEmbeddedRel = adapter.embeddedType(model.constructor, name);
 
         // TODO: handle hasMany's depending on adapter configuration
         if(parentModel && !isEmbeddedRel) {

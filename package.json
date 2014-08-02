@@ -36,7 +36,8 @@
     "broccoli-file-remover": "~0.2.2",
     "broccoli-ember-script": "~0.1.1",
     "broccoli-traceur": "git://github.com/ghempton/broccoli-traceur.git#master",
-    "broccoli-yuidoc": "~1.3.0"
+    "broccoli-yuidoc": "~1.3.0",
+    "broccoli-coffee": "~0.1.0"
   },
   "dependencies": {
     "jsondiffpatch": "0.0.11"

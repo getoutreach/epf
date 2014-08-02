@@ -1,19 +1,23 @@
 `import ModelSet from 'epf/collections/model_set'`
+`import Model from 'epf/model/model'`
 
 describe 'Model', ->
 
-  App = null
   session = null
 
   beforeEach ->
-    App = Ember.Namespace.create()
-    class App.User extends Ep.Model
-      name: Ep.attr('string')
-      raw: Ep.attr()
-      createdAt: Ep.attr('date')
+    `class User extends Model {}`
+    User.defineSchema
+      attributes:
+        name: {type: 'string'}
+        raw: {}
+        createdAt: {type: 'date'}
+    User.typeKey = 'user'
+    @User = User
+    
     @container = new Ember.Container()
     Ep.setupContainer(@container)
-    @container.register 'model:user', App.User
+    @container.register 'model:user', User
     session = @container.lookup('session:main')
 
     Ep.__container__ = @container
@@ -21,32 +25,30 @@ describe 'Model', ->
   afterEach ->
     delete Ep.__container__
 
-
   describe '.isDirty', ->      
 
     it 'returns false when detached', ->
-      expect(App.User.create().isDirty).to.be.false
+      expect(new @User().isDirty).to.be.false
 
     it 'returns true when dirty', ->
       user = null
       Object.defineProperty session, 'dirtyModels',
         get: -> ModelSet.fromArray([user])
 
-      user = App.User.create()
+      user = new @User()
       user.session = session
       expect(user.isDirty).to.be.true
 
     it 'returns false when untouched', ->
-      user = null
       Object.defineProperty session, 'dirtyModels',
         get: -> new ModelSet
 
-      user = App.User.create()
+      user = new @User()
       user.session = session
       expect(user.isDirty).to.be.false
 
     xit 'is observable', ->
-      user = session.merge App.User.create
+      user = session.merge new @User
         id: '1'
         name: 'Wes'
 
@@ -63,21 +65,22 @@ describe 'Model', ->
 
 
   it 'can use .find', ->
+    User = @User
     session.find = (type, id) ->
-      expect(type).to.eq(App.User)
+      expect(type).to.eq(User)
       expect(id).to.eq(1)
-      Ember.RSVP.resolve(type.create(id: id.toString()))
+      Ember.RSVP.resolve(new type(id: id.toString()))
 
-    App.User.find(1).then (user) ->
+    @User.find(1).then (user) ->
       expect(user.id).to.eq("1")
 
   describe 'typeKey class var', ->
-    it 'works with global Ember', ->
+    xit 'works with global Ember', ->
       class App.SomeThing extends Ep.Model
       typeKey = Ember.get(App.SomeThing, 'typeKey')
       expect(typeKey).to.eq('some_thing')
 
-    it 'works with modular Ember', ->
+    xit 'works with modular Ember', ->
       class SomeThing extends Ep.Model
       SomeThing._toString = "my-app@model:some-thing:"
       typeKey = Ember.get(SomeThing, 'typeKey')
@@ -86,17 +89,17 @@ describe 'Model', ->
   describe '.diff', ->
 
     it 'detects differences in complex object attributes', ->
-      left = App.User.create
+      left = new @User
         raw: {test: 'a'}
-      right = App.User.create
+      right = new @User
         raw: {test: 'b'}
 
       expect(left.diff(right)).to.eql([ { type: 'attr', name: 'raw' } ])
 
     it 'detects no difference in complex object attributes', ->
-      left = App.User.create
+      left = new @User
         raw: {test: 'a'}
-      right = App.User.create
+      right = new @User
         raw: {test: 'a'}
 
       expect(left.diff(right)).to.eql([])
@@ -107,7 +110,7 @@ describe 'Model', ->
     it 'copies dates', ->
       
       date = new Date(2014, 7, 22)
-      user = App.User.create
+      user = new @User
         createdAt: date
       copy = user.copy()
       expect(user.createdAt.getTime()).to.eq(copy.createdAt.getTime())
@@ -115,7 +118,7 @@ describe 'Model', ->
 
     it 'deep copies complex object attributes', ->
 
-      user = App.User.create
+      user = new @User
         raw: {test: {value: 'a'}}
 
       copy = user.copy()
@@ -127,7 +130,7 @@ describe 'Model', ->
 
     it 'deep copies array attributes', ->
 
-      user = App.User.create
+      user = new @User
         raw: ['a', 'b', 'c']
 
       copy = user.copy()

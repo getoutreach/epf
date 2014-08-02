@@ -56,18 +56,18 @@ export default class PerField extends Base {
         ancestorValue = get(ancestor, name),
         theirsValue = get(theirs, name);
 
-    if(!ours.isPropertyLoaded(name)) {
-      if(theirs.isPropertyLoaded(name)) {
+    if(!ours.isFieldLoaded(name)) {
+      if(theirs.isFieldLoaded(name)) {
         set(ours, name, copy(theirsValue));
       }
       return;
     }
-    if(!theirs.isPropertyLoaded(name) || isEqual(oursValue, theirsValue)) {
+    if(!theirs.isFieldLoaded(name) || isEqual(oursValue, theirsValue)) {
       return;
     }
     // if the ancestor does not have the property loaded we are
     // performing a two-way merge and we just pick theirs
-    if(!ancestor.isPropertyLoaded(name) || isEqual(oursValue, ancestorValue)) {
+    if(!ancestor.isFieldLoaded(name) || isEqual(oursValue, ancestorValue)) {
       set(ours, name, copy(theirsValue));
     } else {
       // NO-OP

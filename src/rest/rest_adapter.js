@@ -518,7 +518,7 @@ export default class RestAdapter extends Adapter {
                 return;
               }
 
-              if(inverse.kind === 'hasMany' && parent.isPropertyLoaded(inverse.name)) {
+              if(inverse.kind === 'hasMany' && parent.isFieldLoaded(inverse.name)) {
                 var parentCollection = get(parent, inverse.name);
                 if(child.get('isDeleted')) {
                   parentCollection.removeObject(child);

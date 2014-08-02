@@ -1,54 +1,59 @@
 var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Ember.computed,
     cacheFor = Ember.cacheFor,
     cacheGet = cacheFor.get,
-    metaFor = Ember.meta;
+    metaFor = Ember.meta,
+    camelize = Ember.String.camelize,
+    pluralize = Ember.String.pluralize;
 
 import BaseClass from '../utils/base_class';
 import ModelSet from '../collections/model_set';
+import HasManyArray from '../collections/has_many_array';
 import copy from '../utils/copy';
+import lazyCopy from '../utils/lazy_copy';
+import isEqual from '../utils/is_equal';
 
 export default class Model extends BaseClass {
 
   get id() {
-    return this._attributes['_id'];
+    return this._meta['_id'];
   }
   set id(value) {
-    return this._attributes['_id'] = value;
+    return this._meta['_id'] = value;
   }
 
   get clientId() {
-    return this._attributes['_clientId'];
+    return this._meta['_clientId'];
   }
   set clientId(value) {
-    return this._attributes['_clientId'] = value;
+    return this._meta['_clientId'] = value;
   }
 
   get rev() {
-    return this._attributes['_rev'];
+    return this._meta['_rev'];
   }
   set rev(value) {
-    return this._attributes['_rev'] = value;
+    return this._meta['_rev'] = value;
   }
 
   get clientRev() {
-    return this._attributes['_clientId'];
+    return this._meta['_clientId'];
   }
   set clientRev(value) {
-    return this._attributes['_clientId'] = value;
+    return this._meta['_clientId'] = value;
   }
 
   get isDeleted() {
-    return this._attributes['_deleted'];
+    return this._meta['_deleted'];
   }
   set isDeleted(value) {
-    return this._attributes['_deleted'] = value;
+    return this._meta['_deleted'] = value;
   }
 
   get errors() {
-    return this._attributes['_errors'];
+    return this._meta['_errors'];
   }
   set errors(value) {
-    return this._attributes['_errors'] = value;
+    return this._meta['_errors'] = value;
   }
 
   get isModel() {
@@ -56,7 +61,7 @@ export default class Model extends BaseClass {
   }
 
   constructor(fields) {
-    this._attributes = {
+    this._meta = {
       _id: null,
       _clientId: null,
       _rev: null,
@@ -64,7 +69,9 @@ export default class Model extends BaseClass {
       _deleted: false,
       _errors: null
     }
+    this._attributes = {};
     this._relationships = {};
+    this._suspendedRelationships = false;
 
     for(var name in fields) {
       if(!fields.hasOwnProperty(name)) continue;
@@ -89,22 +96,21 @@ export default class Model extends BaseClass {
     var otherId = model.id;
     return this instanceof model.constructor && id === otherId
   }
-
-  type: computed(function(key, value) {
-    return value || this.constructor;
-  }),
-
-  typeKey: computed(function() {
-    return get(this, 'type.typeKey');
-  }),
+  
+  get typeKey() {
+    return this.constructor.typeKey;
+  }
 
   toString() {
     var sessionString = this.session ? this.session.toString() : "detached";
-    return "<" + this.typeKey + "[" + get(this, 'id') + ", " + get(this, 'clientId') + "](" + sessionString + ")>";
+    return "<" + this.typeKey + "[" + this.id + ", " + this.clientId + "](" + sessionString + ")>";
   }
 
   toJSON() {
-    return this._attributes;
+    var res = {};
+    _.merge(res, this._meta);
+    _.merge(res, this._attributes);
+    return res;
   }
 
   get hasErrors() {
@@ -126,6 +132,8 @@ export default class Model extends BaseClass {
   get isDirty() {
     if(this.session) {
       return this.session.dirtyModels.contains(this);
+    } else {
+      return false;
     }
   }
 
@@ -136,9 +144,10 @@ export default class Model extends BaseClass {
     @returns {Model}
   */
   lazyCopy() {
-    var copy = new this.constructor();
-    copy.id = this.id;
-    copy.clientId = this.clientId;
+    var copy = new this.constructor({
+      id: this.id,
+      clientId: this.clientId
+    });
     return copy;
   }
 
@@ -151,138 +160,502 @@ export default class Model extends BaseClass {
   }
 
   copyTo(dest) {
-    dest._attributes = copy(this._attributes);
-
-    // TODO: rels
+    // TODO: only copy loaded
+    dest._meta = copy(this._meta);
+    dest._attributes = copy(this._attributes, true);
+    dest._relationships = lazyCopy(this._relationships);
   }
 
-  copyAttributes(dest) {
-    dest.beginPropertyChanges();
-    
-    this.eachLoadedAttribute(function(name, meta) {
-      var left = get(this, name);
-      var right = get(dest, name);
-      var copy;
-      // Ember.copy does not support Date
-      if(left instanceof Date) {
-        copy = new Date(left.getTime());
-      } else {
-        copy = Ember.copy(left, true);
-      }
-      set(dest, name, copy);
-    }, this);
-    dest.endPropertyChanges();
-  }
-
-  copyMeta(dest) {
-    set(dest, 'id', get(this, 'id'));
-    set(dest, 'clientId', get(this, 'clientId'));
-    set(dest, 'rev', get(this, 'rev'));
-    set(dest, 'clientRev', get(this, 'clientRev'));
-    set(dest, 'errors', Ember.copy(get(this, 'errors')));
-    set(dest, 'isDeleted', get(this, 'isDeleted'));
-  }
+  // copyAttributes(dest) {
+  //   dest.beginPropertyChanges();
+  //   
+  //   this.eachLoadedAttribute(function(name, meta) {
+  //     var left = get(this, name);
+  //     var right = get(dest, name);
+  //     var copy;
+  //     // Ember.copy does not support Date
+  //     if(left instanceof Date) {
+  //       copy = new Date(left.getTime());
+  //     } else {
+  //       copy = Ember.copy(left, true);
+  //     }
+  //     set(dest, name, copy);
+  //   }, this);
+  //   dest.endPropertyChanges();
+  // }
+  // 
+  // copyMeta(dest) {
+  //   set(dest, 'id', get(this, 'id'));
+  //   set(dest, 'clientId', get(this, 'clientId'));
+  //   set(dest, 'rev', get(this, 'rev'));
+  //   set(dest, 'clientRev', get(this, 'clientRev'));
+  //   set(dest, 'errors', Ember.copy(get(this, 'errors')));
+  //   set(dest, 'isDeleted', get(this, 'isDeleted'));
+  // }
 
   willWatchProperty(key) {
+    // EMBERTODO
     if(get(this, 'isManaged') && this.shouldTriggerLoad(key)) {
       Ember.run.scheduleOnce('actions', this, this.load);
     }
   }
 
   shouldTriggerLoad(key) {
-    return this.isAttributeOrRelationship(key) && !this.isPropertyLoaded(key);
+    return this.isField(key) && !this.isFieldLoaded(key);
   }
 
-  isAttributeOrRelationship(key) {
-    var proto = this.constructor.proto(),
-        descs = Ember.meta(proto).descs,
-        desc = descs[key],
-        meta = desc && desc._meta;
-
-    return meta && (meta.isAttribute || meta.isRelationship);
+  isField(key) {
+    return !!this.constructor._fieldDefinitions[key];
   }
 
-  isPropertyLoaded(key) {
-    if(get(this, 'isNew')) {
-      return true;
-    }
-
-    var proto = this.constructor.proto(),
-        descs = Ember.meta(proto).descs,
-        desc = descs[key],
-        meta = desc && desc._meta;
-
-    if(meta.isRelationship && meta.kind === 'belongsTo') {
-      return typeof this['__' + key] !== 'undefined';
-    }
-
-    var meta = metaFor(this),
-        cache = meta.cache,
-        cached = cacheGet(cache, key);
-
-    return typeof cached !== 'undefined';
+  isFieldLoaded(key) {
+    return this.isNew || typeof this[key] !== 'undefined'
   }
 
-  anyPropertiesLoaded() { 
-    var result = false;
-    get(this, 'type.fields').forEach(function(name, meta) {
-      result = result || this.isPropertyLoaded(name);
+  get anyFieldsLoaded() {
+    var res = false;
+    this.fields.forEach(function(options, name) {
+      res = res || this.isFieldLoaded(name);
     }, this);
-    return result;
+    return res;
   }
 
-  static defineSchema(fields) {
-    // TODO
+  /**
+    Defines the attributes and relationships on the model.
+    
+    For example:
+    
+    ```
+    class Post extends Model {}
+    Post.defineSchema({
+      typeKey: 'post',
+      attributes: {
+        title: {
+          type: 'string'
+        },
+        body: {
+          type: 'string'
+        }
+      },
+      relationships: {
+        user: {
+          type: 'user',
+          kind: 'belongsTo'
+        },
+        comments: {
+          type: 'comment',
+          kind: 'hasMany'
+        }
+      }
+    });
+    ```
+    
+    @method defineSchema
+    @param {Object} schema
+  */
+  static defineSchema(schema) {
+    if(typeof schema.typeKey !== 'undefined') {
+      this.typeKey = schema.typeKey;
+    }
+    var attributes = schema.attributes || {};
+    for(var name in attributes) {
+      if(!attributes.hasOwnProperty(name)) continue;
+      defineAttribute(this, name, attributes[name]);
+    }
+    var relationships = schema.relationships || {};
+    for(var name in relationships) {
+      if(!relationships.hasOwnProperty(name)) continue;
+      var options = relationships[name];
+      Ember.assert("Relationships must have a 'kind' property specified", options.kind);
+      if(options.kind === 'belongsTo') {
+        defineBelongsTo(this, name, options);
+      } else if(options.kind === 'hasMany') {
+        defineHasMany(this, name, options);
+      } else {
+        Ember.assert("Unkown relationship kind '" + options.kind + "'. Supported kinds are 'belongsTo' and 'hasMany'", false);
+      }
+    }
+  }
+  
+  static get fields() {
+    // These definitions are set when definied
+    // XXX: should merge in fields from superclass
+    return this._fields || (this._fields = new Map());
+  }
+
+  static get attributes() {
+    // TODO: memoize
+    var res = new Map();
+    this.fields.forEach(function(options, name) {
+      if(options.kind === 'attribute') {
+        res.set(name, options);
+      }
+    });
+    return res;
+  }
+
+  static get relationships() {
+    // TODO: memoize
+    var res = new Map();
+    this.fields.forEach(function(options, name) {
+      if(options.kind === 'belongsTo' || options.kind === 'hasMany') {
+        res.set(name, options);
+      }
+    });
+    return res;
+  }
+  
+  static get relationshipsByType() {
+    var res = new Map();
+    this.relationships.forEach(function(options, name) {
+      var type = options.type;
+      var rels = res.get(type);
+      if(!rels) {
+        rels = [];
+        res.set(type, rels);
+      }
+      rels.push(options);
+    });
+    return res;
   }
 
   get attributes() {
-
+    return this.constructor.attributes;
+  }
+  
+  get fields() {
+    return this.constructor.fields;
   }
 
   get loadedAttributes() {
-
+    var res = new Map();
+    this.attributes.forEach(function(options, name) {
+      if(this.isFieldLoaded(name)) {
+        res.set(name, options);
+      }
+    }, this);
+    return res;
   }
 
   get relationships() {
-
+    return this.constructor.relationships;
   }
 
   get loadedRelationships() {
+    var res = new Map();
+    this.relationships.forEach(function(options, name) {
+      if(this.isFieldLoaded(name)) {
+        res.set(name, options);
+      }
+    }, this);
+    return res;
+  }
+
+  attributeWillChange(name) {
+    var session = this.session;
+    if(session) {
+      session.modelWillBecomeDirty(this);
+    }
+  }
+
+  attributeDidChange(name) {
 
   }
 
-});
+  belongsToWillChange(name) {
+    if(this._suspendedRelationships) {
+      return;
+    }
+    var inverseModel = this[name],
+        session = this.session;
+    if(session && inverseModel) {
+      session.inverseManager.unregisterRelationship(model, name, inverseModel);
+    }
+  }
 
-function defineAttribute(proto, name, type, options) {
-  Object.defineProperty(proto, name, {
+  belongsToDidChange(name) {
+    if(this._suspendedRelationships) {
+      return;
+    }
+    var inverseModel = this[name],
+        session = this.session;
+    if(session && inverseModel) {
+      session.inverseManager.registerRelationship(model, name, inverseModel);
+    }
+  }
+
+  hasManyWillChange(name) {
+    // XXX: unregister all?
+  }
+
+  hasManyDidChange(name) {
+    // XXX: reregister
+  }
+  
+  //
+  // DEPRECATED back-compat methods below, instead should use es6 iterators
+  //
+  eachAttribute(callback, binding) {
+    this.attributes.forEach(function(options, name) {
+      callback.call(binding, name, options);
+    });
+  }
+
+  eachLoadedAttribute(callback, binding) {
+    this.loadedAttributes.forEach(function(options, name) {
+      callback.call(binding, name, options);
+    });
+  }
+  
+  eachRelationship(callback, binding) {
+    this.relationships.forEach(function(options, name) {
+      callback.call(binding, name, options);
+    });
+  }
+  
+  static eachRelationship(callback, binding) {
+    this.relationships.forEach(function(options, name) {
+      callback.call(binding, name, options);
+    });
+  }
+
+  eachLoadedRelationship(callback, binding) {
+    this.loadedRelationships.forEach(function(options, name) {
+      callback.call(binding, name, options);
+    });
+  }
+  
+  /**
+    Traverses the object graph rooted at this model, invoking the callback.
+  */
+  eachRelatedModel(callback, binding, cache) {
+    if(!cache) cache = new Set();
+    if(cache.has(this)) return;
+    cache.add(this);
+    callback.call(binding || this, this);
+
+    this.eachLoadedRelationship(function(name, relationship) {
+      if(relationship.kind === 'belongsTo') {
+        var child = this[name];
+        if(!child) return;
+        this.eachRelatedModel.call(child, callback, binding, cache);
+      } else if(relationship.kind === 'hasMany') {
+        var children = this[name];
+        children.forEach(function(child) {
+          this.eachRelatedModel.call(child, callback, binding, cache);
+        }, this);
+      }
+    }, this);
+  }
+  
+  /**
+    Given a callback, iterates over each child (1-level deep relation).
+
+    @param {Function} callback the callback to invoke
+    @param {any} binding the value to which the callback's `this` should be bound
+  */
+  eachChild(callback, binding) {
+    this.eachLoadedRelationship(function(name, relationship) {
+      if(relationship.kind === 'belongsTo') {
+        var child = this[name];
+        if(child) {
+          callback.call(binding, child);
+        }
+      } else if(relationship.kind === 'hasMany') {
+        var children = this[name];
+        children.forEach(function(child) {
+          callback.call(binding, child);
+        }, this);
+      }
+    }, this);
+  }
+  
+  /**
+    @private
+
+    The goal of this method is to temporarily disable specific observers
+    that take action in response to application changes.
+
+    This allows the system to make changes (such as materialization and
+    rollback) that should not trigger secondary behavior (such as setting an
+    inverse relationship or marking records as dirty).
+
+    The specific implementation will likely change as Ember proper provides
+    better infrastructure for suspending groups of observers, and if Array
+    observation becomes more unified with regular observers.
+  */
+  suspendRelationshipObservers(callback, binding) {
+    var observers = get(this.constructor, 'relationshipNames').belongsTo;
+    var self = this;
+
+    // could be nested
+    if(this._suspendedRelationships) {
+      return callback.call(binding || self);
+    }
+
+    try {
+      this._suspendedRelationships = true;
+      callback.call(binding || self);
+    } finally {
+      this._suspendedRelationships = false;
+    }
+  }
+  
+  static inverseFor(name) {
+    var relationship = this.relationships.get(name);
+    reifyRelationshipType(relationship);
+
+    if (!relationship) { return null; }
+      
+    var inverseType = relationship.type;
+
+    if (relationship.inverse) {
+      inverseName = relationship.inverse;
+      return inverseType.relationships.get(inverseName);
+    }
+    
+    
+    var possibleRelationships = findPossibleInverses(this, inverseType);
+
+    if (possibleRelationships.length === 0) { return null; }
+
+    Ember.assert("You defined the '" + name + "' relationship on " + this + ", but multiple possible inverse relationships of type " + this + " were found on " + inverseType + ".", possibleRelationships.length === 1);
+
+    function findPossibleInverses(type, inverseType, possibleRelationships) {
+      possibleRelationships = possibleRelationships || [];
+      
+      var relationships = inverseType.relationshipsByType.get(type);
+      
+      var typeKey = type.typeKey;
+      if (relationships.length > 0 && typeKey) {
+        // Match inverse based on typeKey
+        var propertyName = camelize(typeKey);
+        var inverse = relationships.get(propertyName) || relationships.get(pluralize(propertyName));
+        if(inverse) {
+          possibleRelationships.push(inverse);
+        }
+      }
+      if (type.superclass && type.superclass !== Model) {
+        findPossibleInverses(type.superclass, inverseType, possibleRelationships);
+      }
+      return possibleRelationships;
+    }
+
+    return possibleRelationships[0];
+  }
+}
+
+function defineAttribute(constructor, name, options) {
+  Object.defineProperty(constructor.prototype, name, {
     enumerable: true,
     get: function() {
       return this._attributes[name];
     },
     set: function(value) {
-      this.fieldWillChange(name);
+      var oldValue = this._attributes[name];
+      if(isEqual(oldValue, value)) return;
+      this.attributeWillChange(name);
       this._attributes[name] = value;
-      this.fieldDidChange(name);
+      this.attributeDidChange(name);
+      return value;
     }
   });
 
+  options.kind = 'attribute';
   options.name = name;
-  options.type = type;
 
-  proto._attributeDefinitions[name] = options;
+  constructor.fields.set(name, options);
 }
 
-function defineBelongsTo(proto, name, options) {
+function defineBelongsTo(constructor, name, options) {
+  Object.defineProperty(constructor.prototype, name, {
+    enumerable: true,
+    get: function() {
+      var value = this._relationships[name],
+          session = this.session;
+      if(session && value && value.session !== session) {
+        value = this._relationships[name] = this.session.add(value);
+      }
+      return value;
+    },
+    set: function(value) {
+      var oldValue = this._attributes[name];
+      if(isEqual(oldValue, value)) return;
+      this.belongsToWillChange(name);
+      var session = this.session;
+      if(session) {
+        session.modelWillBecomeDirty(this);
+        value = session.add(value);
+      }
+      this._relationships[name] = value;
+      this.belongsToDidChange(name);
+      return value;
+    }
+  });
 
+  options.kind = 'belongsTo';
+  options.name = name;
+  reifyRelationshipType(options);
+  
+  constructor.fields.set(name, options);
 }
 
-function defineHasMany(proto, name, options) {
+function defineHasMany(constructor, name, options) {
+  Object.defineProperty(constructor.prototype, name, {
+    enumerable: true,
+    get: function() {
+      var value = this._relationships[name];
+      if(this.isNew && !value) {
+        value = this._relationships[name] = HasManyArray.create({
+          owner: this,
+          name: name,
+          content: []
+        });
+      }
+      return value;
+    },
+    set: function(value) {
+      var oldValue = this._attributes[name];
+      if(isEqual(oldValue, value)) return;
+      if(oldValue && oldValue instanceof HasManyArray) {
+        // XXX: make sure the content is not an ArrayProxy
+        set(oldValue, 'content', value);
+      } else {
+        this.hasManyWillChange(name);
+        value = this._relationships[name] = HasManyArray.create({
+          owner: this,
+          name: name,
+          content: value
+        });
+        this.hasManyDidChange(name);
+      }
+      return value;
+    }
+  });
 
+  options.kind = 'hasMany';
+  options.name = name;
+  reifyRelationshipType(options);
+
+  constructor.fields.set(name, options);
+}
+
+function reifyRelationshipType(relationship) {
+  if(typeof relationship.type === 'string') {
+    relationship.typeKey = relationship.type;
+    delete relationship.type;
+  }
+  if(!relationship.type) {
+    relationship.type = Ep.__container__.lookupFactory('model:' + relationship.typeKey);
+  }
+  if(!relationship.typeKey) {
+    relationship.typeKey = type.typeKey;
+  }
 }
 
 function sessionAlias(name) {
   return function () {
-    var session = get(this, 'session');
+    var session = this.session;
     Ember.assert("Cannot call " + name + " on a detached model", session);
     var args = [].splice.call(arguments,0);
     args.unshift(this);

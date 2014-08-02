@@ -27,9 +27,9 @@ export default class IdManager {
        update the mapping, and assign it to the model.
   */
   reifyClientId(model) {
-    var id = get(model, 'id'),
-        clientId = get(model, 'clientId'),
-        typeKey = get(model, 'typeKey'),
+    var id = model.id,
+        clientId = model.clientId,
+        typeKey = model.typeKey,
         idMap = this.idMaps[typeKey];
 
     if(!idMap) {

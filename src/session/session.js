@@ -158,7 +158,7 @@ export default class Session {
     var dest = this.getModel(model);
 
     if(get(model, 'isNew') && !dest) {
-      dest = get(model, 'type').create();
+      dest = model.constructor.create();
       // need to set the clientId for adoption
       set(dest, 'clientId', get(model, 'clientId'));
       this.adopt(dest);
@@ -810,7 +810,7 @@ export default class Session {
       this.reifyClientId(child);
     }, this);
 
-    var strategy = this.mergeFactory.mergeFor(get(model, 'type.typeKey'));
+    var strategy = this.mergeFactory.mergeFor(model.typeKey);
     strategy.merge(dest, ancestor, model);
 
     return dest;

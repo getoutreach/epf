@@ -18,7 +18,7 @@ export default class EmbeddedManager extends BaseClass {
   }
 
   updateParents(model) {
-    var type = get(model, 'type'),
+    var type = model.constructor,
         adapter = get(this, 'adapter'),
         typeKey = get(type, 'typeKey'),
         serializer = adapter.serializerFor(typeKey);
@@ -34,7 +34,7 @@ export default class EmbeddedManager extends BaseClass {
   }
 
   isEmbedded(model) {
-    var type = get(model, 'type'),
+    var type = model.constructor,
         result = this._cachedIsEmbedded.get(type);
 
     if(result !== undefined) return result;
@@ -70,8 +70,8 @@ export default class EmbeddedManager extends BaseClass {
   }
 
   eachEmbeddedBelongsToRecord(model, callback, binding) {
-    this.eachEmbeddedBelongsTo(get(model, 'type'), function(name, relationship, embeddedType) {
-      if(!model.isPropertyLoaded(name)) {
+    this.eachEmbeddedBelongsTo(model.constructor, function(name, relationship, embeddedType) {
+      if(!model.isFieldLoaded(name)) {
         return;
       }
       var embeddedRecord = get(model, name);
@@ -80,8 +80,8 @@ export default class EmbeddedManager extends BaseClass {
   }
 
   eachEmbeddedHasManyRecord(model, callback, binding) {
-    this.eachEmbeddedHasMany(get(model, 'type'), function(name, relationship, embeddedType) {
-      if(!model.isPropertyLoaded(name)) {
+    this.eachEmbeddedHasMany(model.constructor, function(name, relationship, embeddedType) {
+      if(!model.isFieldLoaded(name)) {
         return;
       }
       var array = get(model, name);

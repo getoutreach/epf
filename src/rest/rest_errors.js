@@ -2,19 +2,22 @@ var get = Ember.get, set = Ember.set;
 
 import Errors from '../model/errors';
 
-var RestErrors = Errors.extend({
 
-  status: null,
-  xhr: null,
-
-  copy: function() {
-    return RestErrors.create({
-      content: Ember.copy(this.content),
-      status: this.status,
-      xhr: this.xhr
-    });
+class RestErrors extends Errors {
+  
+  constructor(opts) {
+    super(opts.content);
+    this.xhr = opts.xhr;
+    this.status = opts.status;
   }
-
-});
+  
+  copy() {
+    var res = super();
+    res.xhr = this.xhr;
+    res.stats = this.status;
+    return res;
+  }
+  
+}
 
 export default RestErrors;
