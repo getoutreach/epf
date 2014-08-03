@@ -1,6 +1,7 @@
 import Field from './field';
 import HasManyArray from '../collections/has_many_array';
 import isEqual from '../utils/is_equal';
+import copy from '../utils/copy';
 
 export default class HasMany extends Field {
   
@@ -24,10 +25,13 @@ export default class HasMany extends Field {
         return value;
       },
       set: function(value) {
-        var oldValue = this._attributes[name];
-        if(isEqual(oldValue, value)) return;
+        var oldValue = this._relationships[name];
+        if(oldValue === value) return;
+        if(value && value instanceof HasManyArray) {
+          // need to copy since this content is being listened to
+          value = copy(value.content);
+        }
         if(oldValue && oldValue instanceof HasManyArray) {
-          // XXX: make sure the content is not an ArrayProxy
           oldValue.content = value;
         } else {
           this.hasManyWillChange(name);

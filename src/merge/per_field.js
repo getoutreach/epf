@@ -1,8 +1,9 @@
-var get = Ember.get, set = Ember.set, copy = Ember.copy;
+var get = Ember.get, set = Ember.set;
 
 import Base from './base';
 import ModelSet from '../collections/model_set';
 import isEqual from '../utils/is_equal';
+import copy from '../utils/copy';
 
 /**
   Merge strategy that merges on a per-field basis.

@@ -19,11 +19,12 @@ export default class EmbeddedManager extends BaseClass {
 
   updateParents(model) {
     var type = model.constructor,
-        adapter = get(this, 'adapter'),
-        typeKey = get(type, 'typeKey'),
+        adapter = this.adapter,
+        typeKey = type.typeKey,
         serializer = adapter.serializerFor(typeKey);
 
     this.eachEmbeddedRecord(model, function(embedded, kind) {
+      this.adapter.reifyClientId(embedded);
       this._parentMap[get(embedded, 'clientId')] = model;
     }, this);
   }

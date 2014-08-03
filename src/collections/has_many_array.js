@@ -6,7 +6,9 @@ export default ModelArray.extend({
 
   name: null,
   owner: null,
-  session: Ember.computed.alias('owner.session'),
+  session: Ember.computed(function() {
+    return this.owner.session;
+  }).volatile(),
 
   objectAtContent: function(index) {
     var content = get(this, 'content'),

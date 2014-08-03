@@ -13,11 +13,14 @@ describe "rest", ->
   context 'returns meta data when', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-      @App.Post = @Post
+      `class Post extends Ep.Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+      @App.Post = @Post = Post
 
-      @container.register 'model:post', @Post, instantiate: false
+      @container.register 'model:post', @Post
 
 
     it 'loads', ->
@@ -36,7 +39,7 @@ describe "rest", ->
       post.title = 'mvcc ftw'
 
       session.flush().then (result)->
-        expect(result.firstObject.meta.traffic).to.eq('heavy')
+        expect(result.get('firstObject').meta.traffic).to.eq('heavy')
         expect(post.id).to.eq("1")
         expect(post.title).to.eq('mvcc ftw')
         expect(adapter.h).to.eql(['POST:/posts'])
@@ -51,7 +54,7 @@ describe "rest", ->
         expect(post.title).to.eq('test')
         post.title = 'updated'
         session.flush().then (result)->
-          expect(result.firstObject.meta.traffic).to.eq('heavy')
+          expect(result.get('firstObject').meta.traffic).to.eq('heavy')
           expect(post.title).to.eq('updated')
           expect(adapter.h).to.eql(['PUT:/posts/1'])
 
@@ -65,14 +68,14 @@ describe "rest", ->
       post.title = 'updated'
 
       session.flush().then  (result)->
-        expect(result.firstObject.meta.traffic).to.eq('heavy')
+        expect(result.get('firstObject').meta.traffic).to.eq('heavy')
         expect(post.title).to.eq('updated')
         expect(adapter.h).to.eql(['PUT:/posts/1'])
 
         adapter.r['PUT:/posts/1'] = -> meta: {traffic: 'lighter'}, posts: {id: 1, title: 'updated again'}
         post.title = 'updated again'
         session.flush().then (result)->
-          expect(result.firstObject.meta.traffic).to.eq('lighter')
+          expect(result.get('firstObject').meta.traffic).to.eq('lighter')
           expect(post.title).to.eq('updated again')
           expect(adapter.h).to.eql(['PUT:/posts/1', 'PUT:/posts/1'])
 
@@ -87,7 +90,7 @@ describe "rest", ->
         expect(post.title).to.eq('test')
         session.deleteModel(post)
         session.flush().then (result)->
-          expect(result.firstObject.meta.traffic).to.eq('heavy')
+          expect(result.get('firstObject').meta.traffic).to.eq('heavy')
           expect(post.isDeleted).to.be.true
           expect(adapter.h).to.eql(['DELETE:/posts/1'])
 
@@ -130,7 +133,7 @@ describe "rest", ->
 
     #     post.title = 'no more fsm'
     #     childSession.flush().then (result)->
-    #       expect(result.firstObject.meta.traffic).to.eq('lighter')
+    #       expect(result.get('firstObject').meta.traffic).to.eq('lighter')
     #       expect(adapter.h).to.eql(['GET:/posts/1', 'PUT:/posts/1'])
     #       expect(post.title).to.eq('no more fsm')
   

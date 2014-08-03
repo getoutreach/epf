@@ -11,7 +11,6 @@ describe 'EmbeddedManager', ->
     setup.apply(this)
     adapter = @adapter
     session = @session
-    Ep.__container__ = @container
 
     postWithEmbeddedComments.apply(this)
 

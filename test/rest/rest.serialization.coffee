@@ -1,13 +1,12 @@
 `import setup from './_shared'`
 `import Model from 'epf/model/model'`
 `import ModelSerializer from 'epf/serializers/model'`
-`import {postWithComments, postWithEmbeddedComments} from '../support/schemas'`
+`import {postWithComments, postWithEmbeddedComments, userWithPost} from '../support/schemas'`
 
 describe 'rest serialization', ->
 
   beforeEach ->
     setup.apply(this)
-    Ep.__container__ = @container
     @serializer = @adapter.serializerFor('payload')
 
 
@@ -241,33 +240,13 @@ describe 'rest serialization', ->
   context 'one->one embedded', ->
 
     beforeEach ->
-      @App = Ember.Namespace.create()
-      `class Post extends Model {}`
-      Post.defineSchema
-        typeKey: 'post'
-        attributes:
-          title: {type: 'string'}
-        relationships:
-          user: {kind: 'belongsTo', type: 'user'}
-      @App.Post = @Post = Post
-
-      `class User extends Model {}`
-      User.defineSchema
-        typeKey: 'user'
-        attributes:
-          name: {type: 'string'}
-        relationships:
-          post: {kind: 'belongsTo', type: 'post'}
-      @App.User = @User = User
+      userWithPost.apply(this)
 
       PostSerializer = ModelSerializer.extend
         properties:
           user: { embedded: 'always' }
 
       @container.register 'serializer:post', PostSerializer
-
-      @container.register 'model:post', @Post
-      @container.register 'model:user', @User
 
 
     it 'deserializes null belongsTo', ->

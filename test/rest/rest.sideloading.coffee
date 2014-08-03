@@ -8,7 +8,6 @@ describe "rest", ->
 
   beforeEach ->
     setup.apply(this)
-    Ep.__container__ = @container
     adapter = @adapter
     session = @session
 
@@ -18,7 +17,7 @@ describe "rest", ->
     beforeEach ->
       postWithComments.apply(this)
 
-    it.only 'sideloads', ->
+    it 'sideloads', ->
       adapter.r['GET:/posts/1'] =
         posts: {id: "1", title: 'sideload my children', comments: [2, 3]}
         comments: [{id: "2", body: "here we", post: "1"}, {id: "3",  body: "are", post: "1"}]

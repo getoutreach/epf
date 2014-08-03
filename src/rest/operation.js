@@ -145,7 +145,7 @@ export default class Operation {
 
       // there won't be a shadow if the model is new
       if(shadow && serverModel === model) {
-        shadow.set('errors', serverModel.get('errors'));
+        shadow.errors = serverModel.errors;
         throw shadow;
       }
       throw serverModel;

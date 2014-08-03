@@ -4,7 +4,7 @@ import copy from '../utils/copy';
 
 class Errors extends Map {
 
-  constructor(obj) {
+  constructor(obj={}) {
     super()
     for(var key in obj) {
       if(!obj.hasOwnProperty(key)) return;
@@ -15,7 +15,7 @@ class Errors extends Map {
   copy() {
     var res = new this.constructor();
     this.forEach(function(value, key) {
-      res.set(value, copy(value));
+      res.set(key, copy(value));
     });
     return res;
   }

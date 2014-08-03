@@ -14,6 +14,8 @@ setup = ->
   @session = @adapter.newSession()
 
   @container = @adapter.container
+  
+  Ep.__container__ = @container
 
 
 `export default setup`

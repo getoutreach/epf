@@ -1,4 +1,5 @@
 `import setup from './_shared'`
+`import {postWithComments} from '../support/schemas'`
 
 describe "rest", ->
 
@@ -18,17 +19,7 @@ describe "rest", ->
 
     beforeEach ->
 
-      class @Post extends Ep.Model
-        title: Ep.attr 'string'
-        comments: Ep.hasMany 'comment'
-
-      @App.Post = @Post
-
-      class @Comment extends Ep.Model
-        message: Ep.attr 'string'
-        post: Ep.belongsTo 'post'
-
-      @App.Comment = @Comment
+      postWithComments.apply(this)
 
       @container.register 'model:post', @Post
       @container.register 'model:comment', @Comment
@@ -42,7 +33,7 @@ describe "rest", ->
       comments: ({id: i, message: "message#{i}", post: 1, rev: 1} for i in [1..100])
 
       session.query('post').then (posts) ->
-        expect(posts[0].comments.length).to.eq(100)
+        expect(posts[0].comments.get('length')).to.eq(100)
 
 
     it 'loads model with many children repeatedly fast when rev is set', ->
@@ -55,4 +46,4 @@ describe "rest", ->
 
       session.query('post').then (posts) ->
         session.query('post').then (posts) ->
-          expect(posts[0].comments.length).to.eq(100)
+          expect(posts[0].comments.get('length')).to.eq(100)

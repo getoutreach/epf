@@ -20,13 +20,15 @@ export default class BelongsTo extends Field {
         return value;
       },
       set: function(value) {
-        var oldValue = this._attributes[name];
-        if(isEqual(oldValue, value)) return;
+        var oldValue = this._relationships[name];
+        if(oldValue === value) return;
         this.belongsToWillChange(name);
         var session = this.session;
         if(session) {
           session.modelWillBecomeDirty(this);
-          value = session.add(value);
+          if(value) {
+            value = session.add(value);
+          }
         }
         this._relationships[name] = value;
         this.belongsToDidChange(name);

@@ -1,8 +1,7 @@
 `import setup from './_shared'`
 `import Model from 'epf/model/model'`
-`import attr from 'epf/model/attribute'`
-`import belongsTo from 'epf/relationships/belongs_to'`
 `import ModelSerializer from 'epf/serializers/model'`
+`import {userWithPost} from '../support/schemas'`
 
 describe "rest", ->
 
@@ -15,17 +14,7 @@ describe "rest", ->
   context "one->one", ->
 
     beforeEach ->
-      class @Post extends Model
-        title: attr('string')
-      @App.Post = @Post
-
-      class @User extends Model
-        name: attr('string')
-        post: belongsTo(@Post)
-      @App.User = @User
-
-      @Post.reopen
-        user: belongsTo(@User)
+      userWithPost.apply(this)
 
       @adapter.configs =
         post:
@@ -33,9 +22,6 @@ describe "rest", ->
 
       adapter = @adapter
       session = @session
-
-      @container.register 'model:post', @Post
-      @container.register 'model:user', @User
 
 
     it 'child can be null', ->
@@ -131,18 +117,7 @@ describe "rest", ->
   context "one->one embedded", ->
 
     beforeEach ->
-      class @Post extends Model
-        title: attr('string')
-      @App.Post = @Post
-
-      class @User extends Model
-        name: attr('string')
-        post: belongsTo(@Post)
-      @App.User = @User
-
-      @Post.reopen
-        user: belongsTo(@User)
-
+      userWithPost.apply(this)
 
       PostSerializer = ModelSerializer.extend
         properties:
@@ -153,9 +128,6 @@ describe "rest", ->
       session = @session
 
       @container.register 'serializer:post', PostSerializer
-
-      @container.register 'model:post', @Post
-      @container.register 'model:user', @User
 
 
     it 'creates child', ->

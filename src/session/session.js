@@ -7,11 +7,13 @@ import ModelPromise from '../model/promise';
 import Cache from './cache';
 import TypeFactory from '../factories/type';
 import MergeFactory from '../factories/merge';
-
+import copy from '../utils/copy';
 
 var get = Ember.get, set = Ember.set;
 
 var PromiseArray = Ember.ArrayProxy.extend(Ember.PromiseProxyMixin);
+
+var uuid = 1;
 
 export default class Session {
 
@@ -30,6 +32,7 @@ export default class Session {
     this.typeFactory = new TypeFactory(container);
     this.mergeFactory = new MergeFactory(container);
     this._dirtyCheckingSuspended = false;
+    this.name = "session" + uuid++;
   }
 
   /**
@@ -75,8 +78,8 @@ export default class Session {
       // session. Otherwise, in a child session, the entire graph will be
       // materialized.
       this.inverseManager.register(model);
+      model.session = this;
     }
-    model.session = this;
     return model;
   }
 
@@ -320,7 +323,7 @@ export default class Session {
       // hasn't seen client updates
       var original = this.originals.getModel(model);
       var shadow = this.shadows.getModel(model);
-      if(shadow && (!original || original.get('rev') < shadow.get('rev'))) {
+      if(shadow && (!original || original.rev < shadow.rev)) {
         this.originals.add(shadow);
       }
       this.markClean(model);
@@ -757,7 +760,7 @@ export default class Session {
 
     // set the errors on the merged model
     // TODO: we need to do a proper merge here
-    merged.errors = Ember.copy(model.errors);
+    merged.errors = copy(model.errors);
  
     if(!model.isNew) {
       // "rollback" the shadow to have what was returned by the server
@@ -772,8 +775,6 @@ export default class Session {
   }
 
   _mergeModel(dest, ancestor, model) {
-    //Ember.assert("Cannot merge a model into it's own session", dest !== model);
-
     // if the model does not exist, no "merging"
     // is required
     if(!dest) {
@@ -824,6 +825,14 @@ export default class Session {
 
   _containsClientRev(modelA, modelB) {
     return get(modelA, 'clientRev') >= get(modelB, 'clientRev');
+  }
+  
+  toString() {
+    var res = this.name;
+    if(this.parent) {
+      res += "(child of " + this.parent.toString() + ")";
+    }
+    return res;
   }
 
 }

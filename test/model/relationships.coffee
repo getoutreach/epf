@@ -1,14 +1,13 @@
 `import setupContainer from 'epf/ember/setup_container'`
+`import {userWithPost, groupWithMembersWithUsers} from '../support/schemas'`
 `import Model from 'epf/model/model'`
-`import attr from 'epf/model/attribute'`
-`import belongsTo from 'epf/relationships/belongs_to'`
-`import hasMany from 'epf/relationships/has_many'`
 
 describe "relationships", ->
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     setupContainer(@container)
+    Ep.__container__ = @container
     @adapter = @container.lookup('adapter:main')
     @session = @adapter.newSession()
 
@@ -16,25 +15,35 @@ describe "relationships", ->
   context 'one->many', ->
 
     beforeEach ->
-      class @User extends Model
-        name: attr 'string'
+      `class User extends Model {}`
+      User.defineSchema
+        typeKey: 'user'
+        attributes:
+          name: {type: 'string'}
+      @App.User = @User = User
 
-      class @Post extends Model
-        title: attr('string')
-        user: belongsTo(@User)
-      @App.Post = @Post
+      `class Post extends Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+        relationships:
+          user: {kind: 'belongsTo', type: 'user'}
+          comments: {kind: 'hasMany', type: 'comment'}
+      @App.Post = @Post = Post
 
-      class @Comment extends Model
-        text: attr('string')
-        post: belongsTo(@Post)
+      `class Comment extends Model {}`
+      Comment.defineSchema
+        typeKey: 'comment'
+        attributes:
+          text: {type: 'string'}
+        relationships:
+          post: {kind: 'belongsTo', type: 'post'}
+      @App.Comment = @Comment = Comment
 
-      @App.Comment = @Comment
-
-      @Post.reopen
-        comments: hasMany(@Comment)
-
-      @container.register 'model:post', @Post
-      @container.register 'model:comment', @Comment
+      @container.register 'model:post', Post
+      @container.register 'model:comment', Comment
+      @container.register 'model:user', User
 
 
     it 'belongsTo updates inverse', ->
@@ -57,7 +66,7 @@ describe "relationships", ->
 
     it 'belongsTo updates inverse on delete when initially added unloaded', ->
       post = @session.merge @session.build 'post', id: 1, comments: [@Comment.create(id: 2)]
-      unloadedComment = post.comments.firstObject
+      unloadedComment = post.comments.get('firstObject')
       comment = @session.merge @session.build 'comment', id: 2, post: @Post.create(id: 1)
       unloadedComment.post = post
       expect(post.comments.toArray()).to.eql([unloadedComment])
@@ -113,13 +122,13 @@ describe "relationships", ->
       comment = @session.merge(@Comment.create(id: '2', post: null))
 
       post.comments.addObject @Comment.create(id: '2')
-      expect(post.comments.firstObject).to.eq(comment)
+      expect(post.comments.get('firstObject')).to.eq(comment)
 
 
     it 'hasMany content can be set directly', ->
       post = @session.create 'post', comments: [@Comment.create(id: '2')]
-      expect(post.comments.length).to.eq(1)
-      expect(post.comments.firstObject.id).to.eq('2')
+      expect(post.comments.get('length')).to.eq(1)
+      expect(post.comments.get('firstObject').id).to.eq('2')
 
 
     it 'supports watching belongsTo properties that have a detached cached value', ->
@@ -156,21 +165,7 @@ describe "relationships", ->
 
   context 'one->one', ->
     beforeEach ->
-      class @Post extends Model
-        title: attr('string')
-      @App.Post = @Post
-
-      class @User extends Model
-        name: attr('string')
-        post: belongsTo(@Post)
-      @App.User = @User
-
-      @Post.reopen
-        user: belongsTo(@User)
-
-      @container.register 'model:post', @Post
-      @container.register 'model:user', @User
-
+      userWithPost.apply(this)
 
     it 'updates inverse', ->
       post = @session.create('post')
@@ -192,31 +187,7 @@ describe "relationships", ->
 
   context 'multiple one->many', ->
     beforeEach ->
-      class @Group extends Model
-        name: attr('string')
-      @App.Group = @Group
-
-      class @Member extends Model
-        role: attr('string')
-        group: belongsTo(@Group)
-      @App.Member = @Member
-
-      class @User extends Model
-        name: attr('string')
-        groups: hasMany(@Group)
-        members: hasMany(@Member)
-      @App.User = @User
-
-      @Group.reopen
-        members: hasMany(@Member)
-        user: belongsTo(@User)
-
-      @Member.reopen
-        user: belongsTo(@User)
-
-      @container.register 'model:group', @Group
-      @container.register 'model:member', @Member
-      @container.register 'model:user', @User
+      groupWithMembersWithUsers.apply(this)
 
 
     it 'updates inverse on delete', ->

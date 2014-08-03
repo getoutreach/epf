@@ -15,7 +15,8 @@ export default class ErrorsSerializer extends Serializer {
       content[this.transformPropertyKey(key)] = serialized[key];
     }
     
-    var res = RestErrors.create({
+    // XXX: clean up rest errors class
+    var res = new RestErrors({
       content: content
     });
     

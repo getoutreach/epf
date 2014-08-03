@@ -1,4 +1,5 @@
 `import setup from './_shared'`
+`import Model from 'epf/model/model'`
 
 describe "rest", ->
 
@@ -13,10 +14,13 @@ describe "rest", ->
   context 'rpc with simple model', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-        submitted: Ep.attr('boolean')
-      @App.Post = @Post
+      `class Post extends Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+          submitted: {type: 'boolean'}
+      @App.Post = @Post = Post
 
       @container.register 'model:post', @Post
 
@@ -38,8 +42,8 @@ describe "rest", ->
 
       session.remoteCall('post', 'randomize').then (models) ->
           expect(models.length).to.eq(2)
-          expect(models.firstObject.title).to.eq('submitted')
-          expect(models.firstObject.submitted).to.be.true
+          expect(models.get('firstObject').title).to.eq('submitted')
+          expect(models.get('firstObject').submitted).to.be.true
           expect(adapter.h).to.eql(['POST:/posts/randomize'])
 
 
@@ -63,7 +67,7 @@ describe "rest", ->
 
       session.remoteCall('post', 'import').then (posts) ->
         expect(adapter.h).to.eql(['POST:/posts/import'])
-        expect(posts.firstObject.id).to.eq("1")
+        expect(posts.get('firstObject').id).to.eq("1")
 
 
     it 'can accept parameters', ->
@@ -140,7 +144,7 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
-          expect(models.firstObject).to.eq(post)
+          expect(models[0]).to.eq(post)
 
     it 'returns all models of a type if deserializer context is a type key', ->
       adapter.r['POST:/posts/1/submit'] = ->
@@ -153,7 +157,7 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
-          expect(models.firstObject).to.eq(post)
+          expect(models.get('firstObject')).to.eq(post)
 
 
     it 'returns all models of a type if context is a type', ->
@@ -167,4 +171,4 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/posts/1/submit'])
           expect(post.title).to.eq('submitted')
           expect(post.submitted).to.be.true
-          expect(models.firstObject).to.eq(post)
+          expect(models.get('firstObject')).to.eq(post)

@@ -13,13 +13,17 @@ describe "rest", ->
   context 'concurrent updates with simple model', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-        submitted: Ep.attr('boolean')
-      @App.Post = @Post
+      `class Post extends Ep.Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+          submitted: {type: 'boolean'}
+      @App.Post = @Post = Post
 
       @container.register 'model:post', @Post
-
+      
+      
     it 'all flushes resolve', ->
       adapter.r['PUT:/posts/1'] = (url, type, hash) ->
         posts: {id: 1, title: hash.data.post.title, submitted: "true"}

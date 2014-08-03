@@ -510,17 +510,17 @@ export default class RestAdapter extends Adapter {
                 inverse = child.constructor.inverseFor(name);
 
             if(inverse) {
-              if(!(parent instanceof inverse.type)) {
+              if(!(parent instanceof inverse.parentType)) {
                 return;
               }
               // if embedded then we are certain the parent has the correct data
-              if(this.embeddedType(inverse.type, inverse.name)) {
+              if(this.embeddedType(inverse.parentType, inverse.name)) {
                 return;
               }
 
               if(inverse.kind === 'hasMany' && parent.isFieldLoaded(inverse.name)) {
                 var parentCollection = get(parent, inverse.name);
-                if(child.get('isDeleted')) {
+                if(child.isDeleted) {
                   parentCollection.removeObject(child);
                 } else if(value && value.isEqual(parent)) {
                   // TODO: make sure it doesn't already exists (or change model arrays to sets)

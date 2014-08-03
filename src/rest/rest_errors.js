@@ -5,8 +5,8 @@ import Errors from '../model/errors';
 
 class RestErrors extends Errors {
   
-  constructor(opts) {
-    super(opts.content);
+  constructor(opts={}) {
+    super(opts.content || {});
     this.xhr = opts.xhr;
     this.status = opts.status;
   }

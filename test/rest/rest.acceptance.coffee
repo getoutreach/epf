@@ -1,4 +1,7 @@
 `import setup from './_shared'`
+`import {postWithComments, groupWithMembersWithUsers} from '../support/schemas'`
+`import Model from 'epf/model/model'`
+`import ModelSerializer from 'epf/serializers/model'`
 
 describe "rest", ->
 
@@ -17,34 +20,9 @@ describe "rest", ->
   describe "managing groups with embedded members", ->
 
     beforeEach ->
-      class @Group extends Ep.Model
-        name: Ep.attr('string')
-      @App.Group = @Group
+      groupWithMembersWithUsers.apply(this)
 
-      class @Member extends Ep.Model
-        role: Ep.attr('string')
-        group: Ep.belongsTo(@Group)
-      @App.Member = @Member
-
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        groups: Ep.hasMany(@Group)
-        members: Ep.hasMany(@Member)
-      @App.User = @User
-
-      @Group.reopen
-        members: Ep.hasMany(@Member)
-        user: Ep.belongsTo(@User)
-
-      @Member.reopen
-        user: Ep.belongsTo(@User)
-
-
-      @container.register 'model:group', @Group
-      @container.register 'model:member', @Member
-      @container.register 'model:user', @User
-
-      GroupSerializer = Ep.ModelSerializer.extend
+      GroupSerializer = ModelSerializer.extend
         properties:
           members:
             embedded: 'always'
@@ -72,9 +50,9 @@ describe "rest", ->
           expect(adapter.h).to.eql(['POST:/users', 'POST:/groups'])
           expect(user.id).to.not.be.null
           expect(group.id).to.not.be.null
-          expect(group.members.length).to.eq(1)
-          expect(user.groups.length).to.eq(1)
-          expect(user.members.length).to.eq(1)
+          expect(group.members.get('length')).to.eq(1)
+          expect(user.groups.get('length')).to.eq(1)
+          expect(user.members.get('length')).to.eq(1)
           expect(member.id).to.not.be.null
 
           childSession = session.newSession()
@@ -82,16 +60,16 @@ describe "rest", ->
           user = childSession.add(user)
           group = childSession.add(group)
           childSession.deleteModel(member)
-          expect(user.members.length).to.eq(0)
-          expect(group.members.length).to.eq(0)
-          expect(user.groups.length).to.eq(1)
+          expect(user.members.get('length')).to.eq(0)
+          expect(group.members.get('length')).to.eq(0)
+          expect(user.groups.get('length')).to.eq(1)
 
           adapter.r['PUT:/groups/2'] = -> groups: {client_id: group.clientId, id: 2, name: "brogrammers", members: [], user: 1}
           childSession.flushIntoParent().then ->
-            expect(member.get('isDeleted')).to.be.true
-            expect(group.members.length).to.eq(0)
-            expect(user.members.length).to.eq(0)
-            expect(user.groups.length).to.eq(1)
+            expect(member.isDeleted).to.be.true
+            expect(group.members.get('length')).to.eq(0)
+            expect(user.members.get('length')).to.eq(0)
+            expect(user.groups.get('length')).to.eq(1)
             expect(adapter.h).to.eql(['POST:/users', 'POST:/groups', 'PUT:/groups/2'])
 
 
@@ -100,9 +78,9 @@ describe "rest", ->
 
       session.query("group").then (result) ->
         expect(adapter.h).to.eql(['GET:/groups'])
-        expect(result.length).to.eq(1)
-        expect(result.firstObject.name).to.eq("brogrammers")
-        expect(result.firstObject.groups).to.be.undefined
+        expect(result.get('length')).to.eq(1)
+        expect(result.get('firstObject').name).to.eq("brogrammers")
+        expect(result.get('firstObject').groups).to.be.undefined
 
 
     it 'adds a member to an existing group', ->
@@ -114,43 +92,30 @@ describe "rest", ->
         childSession = session.newSession()
         childGroup = childSession.add(group)
 
-        existingMember = childGroup.members.firstObject
+        existingMember = childGroup.members.get('firstObject')
         expect(existingMember.user).to.not.be.null
         expect(existingMember.user.isDetached).to.be.false
 
         member = childSession.create('member', {name: "mollie"})
         childGroup.members.addObject(member)
 
-        expect(childGroup.members.length).to.eq(2)
-        expect(group.members.length).to.eq(1)
+        expect(childGroup.members.get('length')).to.eq(2)
+        expect(group.members.get('length')).to.eq(1)
 
         adapter.r['PUT:/groups/1'] = -> groups: {id: 1, name: "employees", members: [{id: 2, name: "kinz", group: 1}, {id: 3, client_id: member.clientId, name: "mollie", group: 1}]}
         promise = childSession.flushIntoParent().then ->
-          expect(childGroup.members.length).to.eq(2)
-          expect(group.members.length).to.eq(2)
+          expect(childGroup.members.get('length')).to.eq(2)
+          expect(group.members.get('length')).to.eq(2)
           expect(adapter.h).to.eql(['GET:/groups/1', 'PUT:/groups/1'])
 
-        expect(group.members.length).to.eq(2)
+        expect(group.members.get('length')).to.eq(2)
         promise
 
 
   describe "managing comments", ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-      @App.Post = @Post
-
-      class @Comment extends Ep.Model
-        message: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
-      @App.Comment = @Comment
-
-      @Post.reopen
-        comments: Ep.hasMany(@Comment)
-
-      @container.register 'model:post', @Post
-      @container.register 'model:comment', @Comment
+      postWithComments.apply(this)
 
 
     it 'creates a new comment within a child session', ->
@@ -165,49 +130,61 @@ describe "rest", ->
         message: '#2',
         post: childPost
 
-      expect(childPost.comments.length).to.eq(2)
+      expect(childPost.comments.get('length')).to.eq(2)
 
       promise = childSession.flushIntoParent().then ->
-        expect(childPost.comments.length).to.eq(2)
-        expect(post.comments.length).to.eq(2)
+        expect(childPost.comments.get('length')).to.eq(2)
+        expect(post.comments.get('length')).to.eq(2)
 
-      expect(childPost.comments.length).to.eq(2)
-      expect(post.comments.length).to.eq(2)
+      expect(childPost.comments.get('length')).to.eq(2)
+      expect(post.comments.get('length')).to.eq(2)
       promise
 
 
   describe "two levels of embedded", ->
 
     beforeEach ->
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        profile: Ep.belongsTo('profile')
-      @App.User = @User
+      `class User extends Model {}`
+      User.defineSchema
+        typeKey: 'user'
+        attributes:
+          name: {type: 'string'}
+        relationships:
+          profile: {kind: 'belongsTo', type: 'profile'}
+      @App.User = @User = User
 
-      class @Profile extends Ep.Model
-        bio: Ep.attr('string')
-        user: Ep.belongsTo('user')
-        tags: Ep.hasMany('tag')
-      @App.Profile = @Profile
+      `class Profile extends Model {}`
+      Profile.defineSchema
+        typeKey: 'profile'
+        attributes:
+          bio: {type: 'string'}
+        relationships:
+          user: {kind: 'belongsTo', type: 'user'}
+          tags: {kind: 'hasMany', type: 'tag'}
+      @App.Profile = @Profile = Profile
 
-      class @Tag extends Ep.Model
-        name: Ep.attr('string')
-        profile: Ep.belongsTo('profile')
-      @App.Tag = @Tag
+      `class Tag extends Model {}`
+      Tag.defineSchema
+        typeKey: 'tag'
+        attributes:
+          name: {type: 'string'}
+        relationships:
+          profile: {kind: 'belongsTo', type: 'profile'}
+      @App.Tag = @Tag = Tag
 
 
       @container.register 'model:user', @User
       @container.register 'model:profile', @Profile
       @container.register 'model:tag', @Tag
 
-      UserSerializer = Ep.ModelSerializer.extend
+      UserSerializer = ModelSerializer.extend
         properties:
           profile:
             embedded: 'always'
 
       @container.register 'serializer:user', UserSerializer
 
-      ProfileSerializer = Ep.ModelSerializer.extend
+      ProfileSerializer = ModelSerializer.extend
         properties:
           tags:
             embedded: 'always'
@@ -233,22 +210,27 @@ describe "rest", ->
 
   describe 'multiple belongsTo', ->
     beforeEach ->
-      class @Foo extends Ep.Model
-      @App.Foo = @Foo
-      class @Bar extends Ep.Model
-      @App.Bar = @Bar
-      class @Baz extends Ep.Model
-      @App.Baz = @Baz
-
-      @Foo.reopen
-        bar: Ep.belongsTo @Bar
-        baz: Ep.belongsTo @Baz
-
-      @Bar.reopen
-        foos: Ep.hasMany @Foo
-
-      @Baz.reopen
-        foos: Ep.hasMany @Foo
+      `class Foo extends Model {}`
+      Foo.defineSchema
+        typeKey: 'foo',
+        relationships:
+          bar: {kind: 'belongsTo', type: 'bar'}
+          baz: {kind: 'belongsTo', type: 'baz'}
+      @App.Foo = @Foo = Foo
+      
+      `class Bar extends Model {}`
+      Bar.defineSchema
+        typeKey: 'bar'
+        relationships:
+          foos: {kind: 'hasMany', type: 'foo'}
+      @App.Bar = @Bar = Bar
+      
+      `class Baz extends Model {}`
+      Baz.defineSchema
+        typeKey: 'baz'
+        relationships:
+          foos: {kind: 'hasMany', type: 'foo'}
+      @App.Baz = @Baz = Baz
 
       @container.register 'model:foo', @Foo
       @container.register 'model:bar', @Bar
@@ -266,8 +248,8 @@ describe "rest", ->
       foo = childSession.create 'foo'
       bar = childSession.create 'bar'
       baz = childSession.create 'baz'
-      foo.set 'bar', bar
-      foo.set 'baz', baz
+      foo.bar = bar
+      foo.baz = baz
       childSession.flushIntoParent().then ->
         expect(adapter.h).to.eql ['POST:/bars', 'POST:/bazs', 'POST:/foos']
         expect(foo.id).to.not.be.null
@@ -275,43 +257,56 @@ describe "rest", ->
         expect(baz.id).to.not.be.null
         expect(foo.bar).to.not.be.null
         expect(foo.baz).to.not.be.null
-        expect(bar.foos.length).to.eq 1
-        expect(baz.foos.length).to.eq 1
+        expect(bar.foos.get('length')).to.eq 1
+        expect(baz.foos.get('length')).to.eq 1
 
 
   describe 'deep embedded relationship with leaf referencing a model without an inverse', ->
 
     beforeEach ->
-      class @Template extends Ep.Model
-        subject: Ep.attr 'string'
-      @App.Template = @Template
+      `class Template extends Model {}`
+      Template.defineSchema
+        typeKey: 'template'
+        attributes:
+          subject: {type: 'string'}
+      @App.Template = @Template = Template
 
-      class @Campaign extends Ep.Model
-        name: Ep.attr 'string'
-        campaignSteps: Ep.hasMany 'campaign_step'
-      @App.Campaign = @Campaign
+      `class Campaign extends Model {}`
+      Campaign.defineSchema
+        typeKey: 'campaign'
+        attributes:
+          name: {type: 'string'}
+        relationships:
+          campaignSteps: {kind: 'hasMany', type: 'campaign_step'}
+      @App.Campaign = @Campaign = Campaign
 
-      class @CampaignStep extends Ep.Model
-        campaign: Ep.belongsTo 'campaign'
-        campaignTemplates: Ep.hasMany 'campaign_template'
-      @App.CampaignStep = @CampaignStep
+      `class CampaignStep extends Model {}`
+      CampaignStep.defineSchema
+        typeKey: 'campaign_step'
+        relationships:
+          campaign: {kind: 'belongsTo', type: 'campaign'}
+          campaignTemplates: {kind: 'hasMany', type: 'campaign_template'}
+      @App.CampaignStep = @CampaignStep = CampaignStep
 
-      class @CampaignTemplate extends Ep.Model
-        campaignStep: Ep.belongsTo 'campaign_step'
-        template: Ep.belongsTo 'template'
-      @App.CampaignTemplate = @CampaignTemplate
+      `class CampaignTemplate extends Model {}`
+      CampaignTemplate.defineSchema
+        typeKey: 'campaign_template'
+        relationships:
+          campaignStep: {kind: 'belongsTo', type: 'campaign_step'}
+          template: {kind: 'belongsTo', type: 'template'}
+      @App.CampaignTemplate = @CampaignTemplate = CampaignTemplate
 
       @container.register 'model:template', @Template
       @container.register 'model:campaign', @Campaign
       @container.register 'model:campaign_template', @CampaignTemplate
       @container.register 'model:campaign_step', @CampaignStep
 
-      CampaignSerializer = Ep.ModelSerializer.extend
+      CampaignSerializer = ModelSerializer.extend
         properties:
           campaignSteps:
             embedded: 'always'
 
-      CampaignStepSerializer = Ep.ModelSerializer.extend
+      CampaignStepSerializer = ModelSerializer.extend
         properties:
           campaignTemplates:
             embedded: 'always'
@@ -413,7 +408,7 @@ describe "rest", ->
         id: 3
         campaignStep: step 
 
-      expect(campaign.campaignSteps.firstObject).to.eq(step)
+      expect(campaign.campaignSteps.get('firstObject')).to.eq(step)
       session = session.newSession()
       campaign = session.add campaign
       campaign.name = 'new name'

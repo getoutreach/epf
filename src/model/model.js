@@ -61,6 +61,15 @@ export default class Model extends BaseClass {
   get isModel() {
     return true;
   }
+  
+  get session() {
+    return this._session;
+  }
+  
+  set session(value) {
+    Ember.assert("Cannot re-assign a model's session", !this._session || this._session === value);
+    this._session = value;
+  }
 
   constructor(fields) {
     this._meta = {
@@ -74,6 +83,7 @@ export default class Model extends BaseClass {
     this._attributes = {};
     this._relationships = {};
     this._suspendedRelationships = false;
+    this._session = null;
 
     for(var name in fields) {
       if(!fields.hasOwnProperty(name)) continue;
@@ -116,7 +126,7 @@ export default class Model extends BaseClass {
   }
 
   get hasErrors() {
-    !!this.errors;
+    return !!this.errors;
   }
 
   get isDetached() {
@@ -162,41 +172,28 @@ export default class Model extends BaseClass {
   }
 
   copyTo(dest) {
-    // TODO: only copy loaded
+    this.copyMeta(dest);
+    this.copyAttributes(dest);
+    this.copyRelationships(dest);
+  }
+  
+  copyMeta(dest) {
     dest._meta = copy(this._meta);
+  }
+  
+  copyAttributes(dest) {
+    // RegressionTODO keep loaded attributes on dest that aren't present here?
     dest._attributes = copy(this._attributes, true);
-    dest._relationships = lazyCopy(this._relationships);
+  }
+  
+  copyRelationships(dest) {
+    this.eachLoadedRelationship(function(name, relationship) {
+      dest[name] = this[name];
+    }, this);
   }
 
-  // copyAttributes(dest) {
-  //   dest.beginPropertyChanges();
-  //   
-  //   this.eachLoadedAttribute(function(name, meta) {
-  //     var left = get(this, name);
-  //     var right = get(dest, name);
-  //     var copy;
-  //     // Ember.copy does not support Date
-  //     if(left instanceof Date) {
-  //       copy = new Date(left.getTime());
-  //     } else {
-  //       copy = Ember.copy(left, true);
-  //     }
-  //     set(dest, name, copy);
-  //   }, this);
-  //   dest.endPropertyChanges();
-  // }
-  // 
-  // copyMeta(dest) {
-  //   dest.id = get(this, 'id');
-  //   dest.clientId = get(this, 'clientId');
-  //   dest.rev = get(this, 'rev');
-  //   dest.clientRev = get(this, 'clientRev');
-  //   dest.errors = Ember.copy(get(this, 'errors'));
-  //   dest.isDeleted = get(this, 'isDeleted');
-  // }
-
   willWatchProperty(key) {
-    // EMBERTODO
+    // EmberTODO
     if(get(this, 'isManaged') && this.shouldTriggerLoad(key)) {
       Ember.run.scheduleOnce('actions', this, this.load);
     }
@@ -280,6 +277,7 @@ export default class Model extends BaseClass {
         Ember.assert("Unkown relationship kind '" + options.kind + "'. Supported kinds are 'belongsTo' and 'hasMany'", false);
       }
       field.defineProperty(this.prototype);
+      field.parentType = this;
       this.fields.set(name, field);
     }
   }
@@ -363,7 +361,7 @@ export default class Model extends BaseClass {
     var inverseModel = this[name],
         session = this.session;
     if(session && inverseModel) {
-      session.inverseManager.unregisterRelationship(model, name, inverseModel);
+      session.inverseManager.unregisterRelationship(this, name, inverseModel);
     }
   }
 
@@ -374,7 +372,7 @@ export default class Model extends BaseClass {
     var inverseModel = this[name],
         session = this.session;
     if(session && inverseModel) {
-      session.inverseManager.registerRelationship(model, name, inverseModel);
+      session.inverseManager.registerRelationship(this, name, inverseModel);
     }
   }
 
