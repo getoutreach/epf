@@ -50,9 +50,9 @@ var es6TestModules = (function() {
     destDir: 'epf-test'
   });
 
-  // tree = emberScript(tree, {
-  //   bare: true
-  // });
+  tree = emberScript(tree, {
+    bare: true
+  });
   
   tree = coffee(tree, {
     bare: true

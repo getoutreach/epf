@@ -1,14 +1,16 @@
+`import ActiveModelAdapter from 'epf/active_model/active_model_adapter'`
+
 setup = ->
-  class TestActiveModelAdapter extends Ep.ActiveModelAdapter
+  TestActiveModelAdapter = ActiveModelAdapter.extend
     h: null
     r: null
     init: ->
-      super()
+      @_super()
       @h = []
       @r = {}
     ajax: (url, type, hash) ->
       adapter = @
-      new Ember.RSVP*.Promise (resolve, reject) ->
+      new Ember.RSVP.Promise (resolve, reject) ->
         key = type + ":" + url
         adapter.h.push(key)
         json = adapter.r[key]

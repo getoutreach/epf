@@ -1,4 +1,4 @@
-describe 'Debug', ->
+describe.skip 'Debug', ->
 
   App = null
   session = null

@@ -1,9 +1,16 @@
-describe 'Ep.ModelSet', ->
+`import Model from 'epf/model/model'`
+`import ModelSet from 'epf/collections/model_set'`
+
+describe 'ModelSet', ->
 
   beforeEach ->
-    class @Post extends Ep.Model
-      title: Ep.attr('string')
-    @set = Ep.ModelSet.create()
+    `class Post extends Model {}`
+    Post.defineSchema
+      typeKey: 'post'
+      attributes:
+        title: {type: 'string'}
+    @Post = Post
+    @set = ModelSet.create()
 
 
   it 'removes based on isEqual', ->

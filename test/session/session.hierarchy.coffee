@@ -1,25 +1,15 @@
-describe "Ep.Session", ->
+`import {postWithComments} from '../support/schemas'`
+
+describe "Session", ->
 
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     Ep.setupContainer(@container)
+    Ep.__container__ = @container
     @container.register('adapter:main', Ep.RestAdapter)
 
-    class @Post extends Ep.Model
-      title: Ep.attr('string')
-    @App.Post = @Post
-
-    class @Comment extends Ep.Model
-      text: Ep.attr('string')
-      post: Ep.belongsTo(@Post)
-    @App.Comment = @Comment
-
-    @Post.reopen
-      comments: Ep.hasMany(@Comment)
-
-    @container.register 'model:post', @Post
-    @container.register 'model:comment', @Comment
+    postWithComments.apply(this)
 
     @adapter = @container.lookup('adapter:main')
     @container = @adapter.container
@@ -99,14 +89,14 @@ describe "Ep.Session", ->
 
     it 'does not mutate parent session relationships', ->
       post = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2', post: @Post.create(id: "1"))])
-      expect(post.comments.length).to.eq(1)
+      expect(post.comments.get('length')).to.eq(1)
       child.add(post)
-      expect(post.comments.length).to.eq(1)
+      expect(post.comments.get('length')).to.eq(1)
 
 
     it 'adds hasMany correctly', ->
       parentPost = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2', post: @Post.create(id: "1"))])
       post = child.add(parentPost)
       expect(post).to.not.eq(parentPost)
-      expect(post.comments.length).to.eq(1)
-      expect(post.comments.firstObject).to.not.eq(parentPost.firstObject)
+      expect(post.comments.get('length')).to.eq(1)
+      expect(post.comments.get('firstObject')).to.not.eq(parentPost.comments.get('firstObject'))

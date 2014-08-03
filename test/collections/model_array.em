@@ -7,8 +7,12 @@ describe 'ModelArray', ->
   array = null
 
   beforeEach ->
-    class @Post extends Model
-      title: attr('string')
+    `class Post extends Model {}`
+    Post.defineSchema
+      typeKey: 'post'
+      attributes:
+        title: {type: 'string'}
+    @Post = Post
     array = ModelArray.create(content: [])
 
   describe 'removeObject', ->

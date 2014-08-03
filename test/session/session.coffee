@@ -1,8 +1,6 @@
 `import Model from 'epf/model/model'`
-`import attr from 'epf/model/attribute'`
-`import belongsTo from 'epf/relationships/belongs_to'`
-`import hasMany from 'epf/relationships/has_many'`
 `import ModelSerializer from 'epf/serializers/model'`
+`import {postWithComments} from '../support/schemas'`
 
 describe "Session", ->
 
@@ -13,21 +11,9 @@ describe "Session", ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     Ep.setupContainer(@container)
+    Ep.__container__ = @container
 
-    class @Post extends Model
-      title: attr('string')
-    @App.Post = @Post
-
-    class @Comment extends Model
-      body: attr('string')
-      post: Ep.belongsTo(@Post)
-    @App.Comment = @Comment
-
-    @Post.reopen
-      comments: Ep.hasMany(@Comment)
-
-    @container.register 'model:post', @Post
-    @container.register 'model:comment', @Comment
+    postWithComments.apply(this)
 
     adapter = @container.lookup('adapter:main')
     @container = adapter.container
@@ -113,7 +99,7 @@ describe "Session", ->
       comment = session.merge @Comment.create(id: "1", body: "obscurity", post: @Post.create(id: "2"))
       post = session.merge @Post.create(id: "2", comments: [])
       post.comments.addObject(@Comment.create(id: "1", body: "obscurity"))
-      expect(post.comments.firstObject).to.eq(comment)
+      expect(post.comments.get('firstObject')).to.eq(comment)
 
 
     it 'handles merging detached model with belongsTo child already in session', ->
@@ -125,7 +111,7 @@ describe "Session", ->
     it 'handles merging detached model with lazy belongsTo reference', ->
       post = session.merge @Post.create id: "2", comments: []
       comment = session.merge @Comment.create id: "1", body: "obscurity", post: @Post.create(id: "2")
-      expect(post.comments.firstObject).to.eq(comment)
+      expect(post.comments.get('firstObject')).to.eq(comment)
       expect(post.isDirty).to.be.false
 
 
@@ -139,7 +125,7 @@ describe "Session", ->
       post = session.merge @Post.create id: "2", comments: []
       comments = post.comments
       session.merge @Post.create id: "2", comments: [@Comment.create(id: "1", post: @Post.create(id: "2"))]
-      expect(comments.length).to.eq(1)
+      expect(comments.get('length')).to.eq(1)
 
 
   describe '.markClean', ->
@@ -228,7 +214,7 @@ describe "Session", ->
           expect(query).to.eql({q: "herpin"})
           Ember.RSVP.resolve([Post.create(id: "1", title: 'herp'), Post.create(id: "2", title: 'derp')])
         session.query('post', {q: "herpin"}).then (models) ->
-          expect(models.length).to.eq(2)
+          expect(models.get('length')).to.eq(2)
 
     describe '.load', ->
 

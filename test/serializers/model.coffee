@@ -1,3 +1,5 @@
+`import Model from 'epf/model/model'`
+
 describe 'Ep.ModelSerializer', ->
 
   App = null
@@ -6,11 +8,15 @@ describe 'Ep.ModelSerializer', ->
 
   beforeEach ->
     App = Ember.Namespace.create()
-    class App.User extends Ep.Model
-      name: Ep.attr 'string'
-      postCount: Ep.attr 'number', transient: true
+    `class User extends Model {}`
+    User.defineSchema
+      typeKey: 'user'
+      attributes:
+        name: {type: 'string'}
+        postCount: {type: 'number', transient: true}
+    App.User = @User = User
 
-    class App.UserSerializer extends Ep.ModelSerializer
+    App.UserSerializer = Ep.ModelSerializer.extend
       typeKey: 'user'
 
     @container = new Ember.Container()

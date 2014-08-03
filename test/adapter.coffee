@@ -1,10 +1,16 @@
+`import Model from 'epf/model/model'`
+
 describe 'Ep.Adapter', ->
 
   beforeEach ->
     @container = new Ember.Container()
     Ep.setupContainer(@container)
-    class @Post extends Ep.Model
-      title: Ep.attr('string')
+    `class Post extends Model {}`
+    Post.defineSchema
+      typeKey: 'post'
+      attributes:
+        title: {type: 'string'}
+    @Post = Post
     @adapter = @container.lookup('adapter:main')
 
   describe 'reifyClientId', ->

@@ -32,7 +32,7 @@ export default class HasMany extends Field {
           value = copy(value.content);
         }
         if(oldValue && oldValue instanceof HasManyArray) {
-          oldValue.content = value;
+          oldValue.set('content', value);
         } else {
           this.hasManyWillChange(name);
           value = this._relationships[name] = HasManyArray.create({
