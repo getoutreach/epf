@@ -111,7 +111,7 @@ export default class ModelSerializer extends Serializer {
   addAttributes(serialized, model) {
     model.eachLoadedAttribute(function(name, attribute) {
       // do not include transient properties
-      if(attribute.options.transient) return;
+      if(attribute.transient) return;
       this.addProperty(serialized, model, name, attribute.type);
     }, this);
   }

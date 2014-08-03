@@ -27,8 +27,8 @@ export default class Session {
     this.originals = ModelSet.create();
     this.newModels = ModelSet.create();
     this.cache = new Cache();
-    this.typeFactory = new TypeFactory(container)
-    this.mergeFactory = new MergeFactory(container)
+    this.typeFactory = new TypeFactory(container);
+    this.mergeFactory = new MergeFactory(container);
     this._dirtyCheckingSuspended = false;
   }
 
@@ -136,9 +136,9 @@ export default class Session {
   */
   remove(model) {
     // TODO: think through relationships that still reference the model
-    get(this, 'models').remove(model);
-    get(this, 'shadows').remove(model);
-    get(this, 'originals').remove(model);
+    this.models.remove(model);
+    this.shadows.remove(model);
+    this.originals.remove(model);
   }
 
   /**
@@ -203,7 +203,7 @@ export default class Session {
     // if the model is new, deleting should essentially just
     // remove the object from the session
     if(model.isNew) {
-      var newModels = get(this, 'newModels');
+      var newModels = this.newModels;
       newModels.remove(model);
     } else {
       this.modelWillBecomeDirty(model);
@@ -221,7 +221,7 @@ export default class Session {
   */
   fetch(type, id) {
     type = this.typeFor(type);
-    var typeKey = get(type, 'typeKey');
+    var typeKey = type.typeKey;
     // Always coerce to string
     id = id+'';
 
@@ -283,7 +283,7 @@ export default class Session {
 
   query(type, query, opts) {
     type = this.typeFor(type);
-    var typeKey = get(type, 'typeKey');
+    var typeKey = type.typeKey;
     // TODO: return a model array immediately here
     // and also take into account errors
     var prom = this.adapter.query(typeKey, query, opts, this);
@@ -297,14 +297,14 @@ export default class Session {
 
   flush() {
     var session = this,
-        dirtyModels = get(this, 'dirtyModels'),
-        newModels = get(this, 'newModels'),
-        shadows = get(this, 'shadows');
+        dirtyModels = this.dirtyModels,
+        newModels = this.newModels,
+        shadows = this.shadows;
 
     // increment client revisions for all models
     // that could potentially be flushed
     dirtyModels.forEach(function(model) {
-      model.incrementProperty('clientRev');
+      model.clientRev += 1;
     }, this);
     
     // the adapter will return a list of models regardless
@@ -398,7 +398,7 @@ export default class Session {
       return this.models.getModel(model);
     }, this));
 
-    get(this, 'newModels').forEach(function(model) {
+    this.newModels.forEach(function(model) {
       models.add(model);
     });
 
@@ -449,8 +449,8 @@ export default class Session {
   }
 
   getShadow(model) {
-    var shadows = get(this, 'shadows');
-    var models = get(this, 'models');
+    var shadows = this.shadows;
+    var models = this.models;
     // shadows are only created when the model is dirtied,
     // if no model exists in the `shadows` property then
     // it is safe to assume the model has not been modified
@@ -514,7 +514,7 @@ export default class Session {
     @property isDirty
   */
   get isDirty() {
-    return get(this, 'dirtyModels.length') > 0;
+    return this.dirtyModels.length > 0;
   }
 
 
@@ -542,8 +542,8 @@ export default class Session {
       throw new Ember.Error("Session does not have a parent");
     }
     // flush all local updates to the parent session
-    var dirty = get(this, 'dirtyModels'),
-        parent = get(this, 'parent');
+    var dirty = this.dirtyModels,
+        parent = this.parent;
     
     dirty.forEach(function(model) {
       // XXX: we want to do this, but we need to think about
@@ -608,7 +608,7 @@ export default class Session {
     }
     visited.add(model);
 
-    var adapter = get(this, 'adapter');
+    var adapter = this.adapter;
     adapter.willMergeModel(model);
 
     this.updateCache(model);
@@ -654,10 +654,10 @@ export default class Session {
   }
 
   _mergeSuccess(model) {
-    var models = get(this, 'models'),
-        shadows = get(this, 'shadows'),
-        newModels = get(this, 'newModels'),
-        originals = get(this, 'originals'),
+    var models = this.models,
+        shadows = this.shadows,
+        newModels = this.newModels,
+        originals = this.originals,
         merged,
         ancestor,
         existing = models.getModel(model);
@@ -716,10 +716,10 @@ export default class Session {
   }
 
   _mergeError(model) {
-    var models = get(this, 'models'),
-        shadows = get(this, 'shadows'),
-        newModels = get(this, 'newModels'),
-        originals = get(this, 'originals'),
+    var models = this.models,
+        shadows = this.shadows,
+        newModels = this.newModels,
+        originals = this.originals,
         merged,
         ancestor,
         existing = models.getModel(model);

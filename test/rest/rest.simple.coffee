@@ -13,9 +13,12 @@ describe "rest", ->
   context 'simple model', ->
 
     beforeEach ->
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-      @App.Post = @Post
+      `class Post extends Ep.Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+      @App.Post = @Post = Post
 
       @container.register 'model:post', @Post
 

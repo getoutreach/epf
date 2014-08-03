@@ -1,3 +1,5 @@
+import BaseClass from './utils/base_class';
+
 var get = Ember.get, set = Ember.set, merge = Ember.merge;
 
 var uuid = 1;
@@ -9,7 +11,7 @@ var uuid = 1;
 
   @class IdManager
 */
-export default class IdManager {
+export default class IdManager extends BaseClass {
   constructor() {
     this.idMaps = {};
   }
@@ -69,6 +71,3 @@ export default class IdManager {
   }
 
 }
-
-// necessary to play with ember's container
-IdManager.create = function() { return new this() };

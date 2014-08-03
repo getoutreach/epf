@@ -1,8 +1,8 @@
 `import setup from './_shared'`
-`import {postWithComments} from '../support/schemas'`
+`import {postWithEmbeddedComments} from '../support/schemas'`
 
 describe 'EmbeddedManager', ->
-
+  
   adapter = null
   session = null
   manager = null
@@ -13,13 +13,7 @@ describe 'EmbeddedManager', ->
     session = @session
     Ep.__container__ = @container
 
-    postWithComments.apply(this)
-
-    PostSerializer = Ep.ModelSerializer.extend
-      properties:
-        comments:
-          embedded: 'always'
-    @container.register 'serializer:post', PostSerializer
+    postWithEmbeddedComments.apply(this)
 
     manager = adapter._embeddedManager
 

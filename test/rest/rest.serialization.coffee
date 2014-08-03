@@ -1,23 +1,31 @@
 `import setup from './_shared'`
+`import Model from 'epf/model/model'`
+`import ModelSerializer from 'epf/serializers/model'`
+`import {postWithComments, postWithEmbeddedComments} from '../support/schemas'`
 
 describe 'rest serialization', ->
 
   beforeEach ->
     setup.apply(this)
+    Ep.__container__ = @container
     @serializer = @adapter.serializerFor('payload')
 
 
   context 'simple model', ->
     beforeEach ->
-      @Post = Ep.Model.extend
-        title: Ep.attr('string')
-        longTitle: Ep.attr('string')
+      `class Post extends Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+          longTitle: {type: 'string'}
+      @Post = Post
       @container.register 'model:post', @Post
 
     describe "overriding a serializer's typeKey", ->
 
       it 'returns a model of that type', ->
-        SpecialPostSerializer = Ep.ModelSerializer.extend
+        SpecialPostSerializer = ModelSerializer.extend
           typeKey: 'post'
 
         @container.register 'serializer:special_post', SpecialPostSerializer
@@ -59,7 +67,7 @@ describe 'rest serialization', ->
 
 
       it 'obeys custom keys', ->
-        class PostSerializer extends Ep.ModelSerializer
+        PostSerializer = ModelSerializer.extend
           properties:
             title:
               key: 'POST_TITLE'
@@ -135,9 +143,13 @@ describe 'rest serialization', ->
   context 'model with raw and object properties', ->
 
     beforeEach ->
-      @Post = Ep.Model.extend
-        title: Ep.attr()
-        object: Ep.attr()
+      `class Post extends Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+          object: {}
+      @Post = Post
       @container.register 'model:post', @Post
 
 
@@ -196,27 +208,14 @@ describe 'rest serialization', ->
   context 'one->many', ->
 
     beforeEach ->
-      @App = Ember.Namespace.create()
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-      @App.Post = @Post
-
-      class @Comment extends Ep.Model
-        post: Ep.belongsTo(@Post)
-      @App.Comment = @Comment
-
-      @Post.reopen
-        comments: Ep.hasMany(@Comment)
-
-      @container.register 'model:post', @Post
-      @container.register 'model:comment', @Comment
+      postWithComments.apply(this)
 
 
     it 'deserializes null hasMany', ->
-      data = {post: [{id: 1, title: 'wat', comments: null}] }
+      data = post: [{id: 1, title: 'wat', comments: null}]
       models = @serializer.deserialize(data)
       post = models[0]
-      expect(post.comments.length).to.eq(0)
+      expect(post.comments.get('length')).to.eq(0)
 
 
     it 'deserializes null belongsTo', ->
@@ -229,26 +228,7 @@ describe 'rest serialization', ->
   context 'one->many embedded', ->
 
     beforeEach ->
-      @App = Ember.Namespace.create()
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-      @App.Post = @Post
-
-      class @Comment extends Ep.Model
-        post: Ep.belongsTo(@Post)
-      @App.Comment = @Comment
-
-      @Post.reopen
-        comments: Ep.hasMany(@Comment)
-
-      PostSerializer = Ep.ModelSerializer.extend
-        properties:
-          comments: { embedded: 'always' }
-
-      @container.register 'serializer:post', PostSerializer
-
-      @container.register 'model:post', @Post
-      @container.register 'model:comment', @Comment
+      postWithEmbeddedComments.apply(this)
 
 
     it 'deserializes null belongsTo', ->
@@ -262,19 +242,25 @@ describe 'rest serialization', ->
 
     beforeEach ->
       @App = Ember.Namespace.create()
-      class @Post extends Ep.Model
-        title: Ep.attr('string')
-      @App.Post = @Post
+      `class Post extends Model {}`
+      Post.defineSchema
+        typeKey: 'post'
+        attributes:
+          title: {type: 'string'}
+        relationships:
+          user: {kind: 'belongsTo', type: 'user'}
+      @App.Post = @Post = Post
 
-      class @User extends Ep.Model
-        name: Ep.attr('string')
-        post: Ep.belongsTo(@Post)
-      @App.User = @User
+      `class User extends Model {}`
+      User.defineSchema
+        typeKey: 'user'
+        attributes:
+          name: {type: 'string'}
+        relationships:
+          post: {kind: 'belongsTo', type: 'post'}
+      @App.User = @User = User
 
-      @Post.reopen
-        user: Ep.belongsTo(@User)
-
-      PostSerializer = Ep.ModelSerializer.extend
+      PostSerializer = ModelSerializer.extend
         properties:
           user: { embedded: 'always' }
 

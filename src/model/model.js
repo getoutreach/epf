@@ -38,10 +38,10 @@ export default class Model extends BaseClass {
   }
 
   get clientRev() {
-    return this._meta['_clientId'];
+    return this._meta['_clientRev'];
   }
   set clientRev(value) {
-    return this._meta['_clientId'] = value;
+    return this._meta['_clientRev'] = value;
   }
 
   get isDeleted() {
@@ -207,7 +207,7 @@ export default class Model extends BaseClass {
   }
 
   isField(key) {
-    return !!this.constructor._fieldDefinitions[key];
+    return !!this.fields.get(key)
   }
 
   isFieldLoaded(key) {
@@ -479,17 +479,14 @@ export default class Model extends BaseClass {
     observation becomes more unified with regular observers.
   */
   suspendRelationshipObservers(callback, binding) {
-    var observers = get(this.constructor, 'relationshipNames').belongsTo;
-    var self = this;
-
     // could be nested
     if(this._suspendedRelationships) {
-      return callback.call(binding || self);
+      return callback.call(binding || this);
     }
 
     try {
       this._suspendedRelationships = true;
-      callback.call(binding || self);
+      callback.call(binding || this);
     } finally {
       this._suspendedRelationships = false;
     }
@@ -594,15 +591,16 @@ Model.reopenClass({
     var container = Ep.__container__;
     var session = container.lookup('session:main');
     return session.find(this, id);
-  },
+  }
 
-  typeKey: computed(function() {
-    var camelized = this.toString().split(/[:.]/)[1];
-    if(camelized) {
-      return Ember.String.underscore(camelized);
-    } else {
-      throw new Ember.Error("Could not infer typeKey for " + this.toString());
-    }
-  })
+  // XXX: EmberTODO
+  // typeKey: computed(function() {
+  //   var camelized = this.toString().split(/[:.]/)[1];
+  //   if(camelized) {
+  //     return Ember.String.underscore(camelized);
+  //   } else {
+  //     throw new Ember.Error("Could not infer typeKey for " + this.toString());
+  //   }
+  // })
 
 });

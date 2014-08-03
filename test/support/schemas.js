@@ -1,4 +1,5 @@
 import Model from 'epf/model/model';
+import ModelSerializer from 'epf/serializers/model';
 // Common model setups for tests
 
 function postWithComments() {
@@ -30,4 +31,16 @@ function postWithComments() {
   this.container.register('model:comment', Comment);
 }
 
-export {postWithComments}
+function postWithEmbeddedComments() {
+  postWithComments.apply(this);
+  this.PostSerializer = ModelSerializer.extend({
+    properties: {
+      comments: {
+        embedded: 'always'
+      }
+    }
+  });
+  this.container.register('serializer:post', this.PostSerializer);
+}
+
+export {postWithComments, postWithEmbeddedComments}
