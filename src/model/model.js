@@ -7,10 +7,12 @@ var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Embe
 
 import BaseClass from '../utils/base_class';
 import ModelSet from '../collections/model_set';
-import HasManyArray from '../collections/has_many_array';
 import copy from '../utils/copy';
 import lazyCopy from '../utils/lazy_copy';
 import isEqual from '../utils/is_equal';
+import Attribute from './attribute';
+import BelongsTo from './belongs_to';
+import HasMany from './has_many';
 
 export default class Model extends BaseClass {
 
@@ -185,12 +187,12 @@ export default class Model extends BaseClass {
   // }
   // 
   // copyMeta(dest) {
-  //   set(dest, 'id', get(this, 'id'));
-  //   set(dest, 'clientId', get(this, 'clientId'));
-  //   set(dest, 'rev', get(this, 'rev'));
-  //   set(dest, 'clientRev', get(this, 'clientRev'));
-  //   set(dest, 'errors', Ember.copy(get(this, 'errors')));
-  //   set(dest, 'isDeleted', get(this, 'isDeleted'));
+  //   dest.id = get(this, 'id');
+  //   dest.clientId = get(this, 'clientId');
+  //   dest.rev = get(this, 'rev');
+  //   dest.clientRev = get(this, 'clientRev');
+  //   dest.errors = Ember.copy(get(this, 'errors'));
+  //   dest.isDeleted = get(this, 'isDeleted');
   // }
 
   willWatchProperty(key) {
@@ -260,20 +262,25 @@ export default class Model extends BaseClass {
     var attributes = schema.attributes || {};
     for(var name in attributes) {
       if(!attributes.hasOwnProperty(name)) continue;
-      defineAttribute(this, name, attributes[name]);
+      var field = new Attribute(name, attributes[name]);
+      field.defineProperty(this.prototype);
+      this.fields.set(name, field);
     }
     var relationships = schema.relationships || {};
     for(var name in relationships) {
       if(!relationships.hasOwnProperty(name)) continue;
       var options = relationships[name];
       Ember.assert("Relationships must have a 'kind' property specified", options.kind);
+      var field;
       if(options.kind === 'belongsTo') {
-        defineBelongsTo(this, name, options);
+        field = new BelongsTo(name, options);
       } else if(options.kind === 'hasMany') {
-        defineHasMany(this, name, options);
+        field = new HasMany(name, options);
       } else {
         Ember.assert("Unkown relationship kind '" + options.kind + "'. Supported kinds are 'belongsTo' and 'hasMany'", false);
       }
+      field.defineProperty(this.prototype);
+      this.fields.set(name, field);
     }
   }
   
@@ -299,22 +306,9 @@ export default class Model extends BaseClass {
     var res = new Map();
     this.fields.forEach(function(options, name) {
       if(options.kind === 'belongsTo' || options.kind === 'hasMany') {
+        reifyRelationshipType(options);
         res.set(name, options);
       }
-    });
-    return res;
-  }
-  
-  static get relationshipsByType() {
-    var res = new Map();
-    this.relationships.forEach(function(options, name) {
-      var type = options.type;
-      var rels = res.get(type);
-      if(!rels) {
-        rels = [];
-        res.set(type, rels);
-      }
-      rels.push(options);
     });
     return res;
   }
@@ -503,17 +497,14 @@ export default class Model extends BaseClass {
   
   static inverseFor(name) {
     var relationship = this.relationships.get(name);
-    reifyRelationshipType(relationship);
-
     if (!relationship) { return null; }
-      
+    
     var inverseType = relationship.type;
 
-    if (relationship.inverse) {
-      inverseName = relationship.inverse;
-      return inverseType.relationships.get(inverseName);
+    if (typeof relationship.inverse !== 'undefined') {
+      var inverseName = relationship.inverse;
+      return inverseName && inverseType.relationships.get(inverseName);
     }
-    
     
     var possibleRelationships = findPossibleInverses(this, inverseType);
 
@@ -524,17 +515,16 @@ export default class Model extends BaseClass {
     function findPossibleInverses(type, inverseType, possibleRelationships) {
       possibleRelationships = possibleRelationships || [];
       
-      var relationships = inverseType.relationshipsByType.get(type);
+      var relationships = inverseType.relationships;
       
       var typeKey = type.typeKey;
-      if (relationships.length > 0 && typeKey) {
-        // Match inverse based on typeKey
-        var propertyName = camelize(typeKey);
-        var inverse = relationships.get(propertyName) || relationships.get(pluralize(propertyName));
-        if(inverse) {
-          possibleRelationships.push(inverse);
-        }
+      // Match inverse based on typeKey
+      var propertyName = camelize(typeKey);
+      var inverse = relationships.get(propertyName) || relationships.get(pluralize(propertyName));
+      if(inverse) {
+        possibleRelationships.push(inverse);
       }
+      
       if (type.superclass && type.superclass !== Model) {
         findPossibleInverses(type.superclass, inverseType, possibleRelationships);
       }
@@ -545,101 +535,6 @@ export default class Model extends BaseClass {
   }
 }
 
-function defineAttribute(constructor, name, options) {
-  Object.defineProperty(constructor.prototype, name, {
-    enumerable: true,
-    get: function() {
-      return this._attributes[name];
-    },
-    set: function(value) {
-      var oldValue = this._attributes[name];
-      if(isEqual(oldValue, value)) return;
-      this.attributeWillChange(name);
-      this._attributes[name] = value;
-      this.attributeDidChange(name);
-      return value;
-    }
-  });
-
-  options.kind = 'attribute';
-  options.name = name;
-
-  constructor.fields.set(name, options);
-}
-
-function defineBelongsTo(constructor, name, options) {
-  Object.defineProperty(constructor.prototype, name, {
-    enumerable: true,
-    get: function() {
-      var value = this._relationships[name],
-          session = this.session;
-      if(session && value && value.session !== session) {
-        value = this._relationships[name] = this.session.add(value);
-      }
-      return value;
-    },
-    set: function(value) {
-      var oldValue = this._attributes[name];
-      if(isEqual(oldValue, value)) return;
-      this.belongsToWillChange(name);
-      var session = this.session;
-      if(session) {
-        session.modelWillBecomeDirty(this);
-        value = session.add(value);
-      }
-      this._relationships[name] = value;
-      this.belongsToDidChange(name);
-      return value;
-    }
-  });
-
-  options.kind = 'belongsTo';
-  options.name = name;
-  reifyRelationshipType(options);
-  
-  constructor.fields.set(name, options);
-}
-
-function defineHasMany(constructor, name, options) {
-  Object.defineProperty(constructor.prototype, name, {
-    enumerable: true,
-    get: function() {
-      var value = this._relationships[name];
-      if(this.isNew && !value) {
-        value = this._relationships[name] = HasManyArray.create({
-          owner: this,
-          name: name,
-          content: []
-        });
-      }
-      return value;
-    },
-    set: function(value) {
-      var oldValue = this._attributes[name];
-      if(isEqual(oldValue, value)) return;
-      if(oldValue && oldValue instanceof HasManyArray) {
-        // XXX: make sure the content is not an ArrayProxy
-        set(oldValue, 'content', value);
-      } else {
-        this.hasManyWillChange(name);
-        value = this._relationships[name] = HasManyArray.create({
-          owner: this,
-          name: name,
-          content: value
-        });
-        this.hasManyDidChange(name);
-      }
-      return value;
-    }
-  });
-
-  options.kind = 'hasMany';
-  options.name = name;
-  reifyRelationshipType(options);
-
-  constructor.fields.set(name, options);
-}
-
 function reifyRelationshipType(relationship) {
   if(typeof relationship.type === 'string') {
     relationship.typeKey = relationship.type;
@@ -648,8 +543,14 @@ function reifyRelationshipType(relationship) {
   if(!relationship.type) {
     relationship.type = Ep.__container__.lookupFactory('model:' + relationship.typeKey);
   }
+  if(!relationship.type) {
+    throw new Ember.Error("Could not find a type for '" + relationship.name + "' with typeKey '" + relationship.typeKey + "'");
+  }
+  if(!relationship.type.typeKey) {
+    throw new Ember.Error("Relationship '" + relationship.name + "' has no typeKey");
+  }
   if(!relationship.typeKey) {
-    relationship.typeKey = type.typeKey;
+    relationship.typeKey = relationship.type.typeKey;
   }
 }
 

@@ -29,7 +29,7 @@ export default class EmbeddedManager extends BaseClass {
   }
 
   findParent(model) {
-    var parent = this._parentMap[get(model, 'clientId')];
+    var parent = this._parentMap[model.clientId];
     return parent;
   }
 
@@ -44,7 +44,7 @@ export default class EmbeddedManager extends BaseClass {
 
     type.eachRelationship(function(name, relationship) {
       var serializer = adapter.serializerFor(relationship.typeKey),
-          inverse = type.inverseFor(relationship.key);
+          inverse = type.inverseFor(relationship.name);
       
       // TODO: this currently won't support embedded relationships
       // that don't have an inverse

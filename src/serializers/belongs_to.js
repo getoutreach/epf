@@ -35,7 +35,7 @@ export default class BelongsToSerializer extends Serializer {
       return this.serializeModel(model, opts);
     }
     var idSerializer = this.serializerFor('id');
-    return idSerializer.serialize(get(model, 'id'));
+    return idSerializer.serialize(model.id);
   }
 
   serializeModel(model, opts) {

@@ -79,16 +79,16 @@ export default class OperationGraph {
       // skip any promises that aren't loaded
       // TODO: think through edge cases in depth
       // XXX:
-      // if(!get(model, 'isLoaded')) {
+      // if(!model.isLoaded) {
       //   return;
       // }
 
       var shadow = shadows.getModel(model);
 
-      Ember.assert("Shadow does not exist for non-new model", shadow || get(model, 'isNew'));
+      Ember.assert("Shadow does not exist for non-new model", shadow || model.isNew);
 
       var op = ops.get(model);
-      set(op, 'shadow', shadow);
+      op.shadow = shadow;
 
       var rels = get(op, 'dirtyRelationships');
       for(var i = 0; i < rels.length; i++) {
@@ -111,7 +111,7 @@ export default class OperationGraph {
         // walk up the embedded tree and mark root as dirty
         var rootModel = adapter.findEmbeddedRoot(model, models);
         var rootOp = this.getOp(rootModel);
-        set(rootOp, 'force', true);
+        rootOp.force = true;
 
         // ensure the embedded parent is a parent of the operation
         var parentModel = adapter._embeddedManager.findParent(model);

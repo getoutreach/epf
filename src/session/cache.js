@@ -20,16 +20,16 @@ export default class Cache {
   }
 
   removeModel(model) {
-    delete this._data[get(model, 'clientId')];
+    delete this._data[model.clientId];
   }
 
   addPromise(model, promise) {
-    this._data[get(model, 'clientId')] = promise;
+    this._data[model.clientId] = promise;
   }
 
   getPromise(model) {
-    Ember.assert("Model does not have a client id", get(model, 'clientId'));
-    return this._data[get(model, 'clientId')];
+    Ember.assert("Model does not have a client id", model.clientId);
+    return this._data[model.clientId];
   }
 
 }

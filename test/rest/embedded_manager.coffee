@@ -1,6 +1,7 @@
 `import setup from './_shared'`
+`import {postWithComments} from '../support/schemas'`
 
-describe 'Ep.EmbeddedManager', ->
+describe 'EmbeddedManager', ->
 
   adapter = null
   session = null
@@ -12,20 +13,7 @@ describe 'Ep.EmbeddedManager', ->
     session = @session
     Ep.__container__ = @container
 
-    @App = Ember.Namespace.create()
-    class @Post extends Ep.Model
-      title: Ep.attr('string')
-    @App.Post = @Post
-    @container.register 'model:post', @Post
-
-    class @Comment extends Ep.Model
-      message: Ep.attr('string')
-      post: Ep.belongsTo(@Post)
-    @App.Comment = @Comment
-    @container.register 'model:comment', @Comment
-
-    @Post.reopen
-      comments: Ep.hasMany(@Comment) 
+    postWithComments.apply(this)
 
     PostSerializer = Ep.ModelSerializer.extend
       properties:
@@ -43,4 +31,3 @@ describe 'Ep.EmbeddedManager', ->
     expect(manager.isEmbedded(@post)).to.be.false
     expect(manager.isEmbedded(@comment)).to.be.true
     
-

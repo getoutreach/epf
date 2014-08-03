@@ -359,10 +359,10 @@ export default class RestAdapter extends Adapter {
         if(!result) {
           result = context;
         }
-        set(result, 'meta', get(merged, 'meta'));
+        result.meta = get(merged, 'meta');
         // TODO: we might want to merge errors here
         if(get(merged, 'errors') && (!get(result, 'errors') || result === context)) {
-          set(result, 'errors', get(merged, 'errors'));
+          result.errors = get(merged, 'errors');
         }
         return result;
       }
@@ -543,7 +543,7 @@ export default class RestAdapter extends Adapter {
   */
   isRelationshipOwner(relationship) {
     var config = this.configFor(relationship.parentType);
-    var owner = config[relationship.key] && config[relationship.key].owner;
+    var owner = config[relationship.name] && config[relationship.name].owner;
     // TODO: use lack of an inverse to determine this value as well
     return relationship.kind === 'belongsTo' && owner !== false ||
       relationship.kind === 'hasMany' && owner === true

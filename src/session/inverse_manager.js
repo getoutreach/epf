@@ -51,7 +51,7 @@ export default class InverseManager {
   }
   
   unregister(model) {
-    var clientId = get(model, 'clientId'),
+    var clientId = model.clientId,
         inverses = this._inverses(model);
     for(var name in inverses) {
       var inverseModels = inverses[name],
@@ -85,7 +85,7 @@ export default class InverseManager {
   }
 
   _inverses(model) {
-    var clientId = get(model, 'clientId'),
+    var clientId = model.clientId,
         inverses = this.map[clientId];
 
     if(!inverses) {

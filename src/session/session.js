@@ -62,21 +62,21 @@ export default class Session {
 
   adopt(model) {
     this.reifyClientId(model);
-    Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !get(model, 'session') || get(model, 'session') === this);
+    Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !model.session || model.session === this);
     Ember.assert("An equivalent model already exists in the session!", !this.models.getModel(model) || this.models.getModel(model) === model);
 
-    if(get(model, 'isNew')) {
+    if(model.isNew) {
       this.newModels.add(model);
     }
     // Only loaded models are stored on the session
-    if(!get(model, 'session')) {
+    if(!model.session) {
       this.models.add(model);
       // Need to register with the inverse manager before being added to the
       // session. Otherwise, in a child session, the entire graph will be
       // materialized.
       this.inverseManager.register(model);
     }
-    set(model, 'session', this);
+    model.session = this;
     return model;
   }
 
@@ -106,14 +106,14 @@ export default class Session {
     var dest = this.getModel(model);
     if(dest) return dest;
     
-    if(get(model, 'session') === this) return model;
+    if(model.session === this) return model;
 
     // If new and detached we can re-use. If the model is
     // detached but *not* new we have undefined semantics
     // so for the time being we just create a lazy copy.
-    if(get(model, 'isNew') && get(model, 'isDetached')) {
+    if(model.isNew && model.isDetached) {
       dest = model;
-    } else if(get(model, 'isNew')) {
+    } else if(model.isNew) {
       dest = model.copy();
       // TODO: we need to recurse here for new children, otherwise
       // they will become lazy
@@ -157,22 +157,22 @@ export default class Session {
     this.reifyClientId(model);
     var dest = this.getModel(model);
 
-    if(get(model, 'isNew') && !dest) {
+    if(model.isNew && !dest) {
       dest = model.constructor.create();
       // need to set the clientId for adoption
-      set(dest, 'clientId', get(model, 'clientId'));
+      dest.clientId = model.clientId;
       this.adopt(dest);
     }
 
     // if the model is detached or does not exist
     // in the target session, updating is semantically
     // equivalent to adding
-    if(get(model, 'isDetached') || !dest) {
+    if(model.isDetached || !dest) {
       return this.add(model);
     }
 
     // handle deletion
-    if(get(model, 'isDeleted')) {
+    if(model.isDeleted) {
       // no-op if already deleted
       if(!get(dest, 'isDeleted')) {
         this.deleteModel(dest);
@@ -202,13 +202,13 @@ export default class Session {
   deleteModel(model) {
     // if the model is new, deleting should essentially just
     // remove the object from the session
-    if(get(model, 'isNew')) {
+    if(model.isNew) {
       var newModels = get(this, 'newModels');
       newModels.remove(model);
     } else {
       this.modelWillBecomeDirty(model);
     }
-    set(model, 'isDeleted', true);
+    model.isDeleted = true;
     this.collectionManager.modelWasDeleted(model);
     this.inverseManager.unregister(model);
   }
@@ -251,7 +251,7 @@ export default class Session {
     @returns {Promise}
   */
   loadModel(model, opts) {
-    Ember.assert("Cannot load a model with an id", get(model, 'id'));
+    Ember.assert("Cannot load a model with an id", model.id);
     // TODO: this should be done on a per-attribute bases
     var promise = this.cache.getPromise(model);
 
@@ -499,7 +499,7 @@ export default class Session {
     @param {Ep.Model} model
   */
   touch(model) {
-    if(!get(model, 'isNew')) {
+    if(!model.isNew) {
       var shadow = this.shadows.getModel(model);
       if(!shadow) {
         this.shadows.addObject(model.copy())
@@ -624,7 +624,7 @@ export default class Session {
 
     var merged;
 
-    if(get(model, 'hasErrors')) {
+    if(model.hasErrors) {
       merged = this._mergeError(model);
     } else {
       merged = this._mergeSuccess(model);
@@ -710,7 +710,7 @@ export default class Session {
     
     // clear the errors on the merged model
     // TODO: we need to do a proper merge here
-    set(merged, 'errors', null);
+    merged.errors = null;
     
     return merged;
   }
@@ -757,9 +757,9 @@ export default class Session {
 
     // set the errors on the merged model
     // TODO: we need to do a proper merge here
-    set(merged, 'errors', Ember.copy(get(model, 'errors')));
+    merged.errors = Ember.copy(model.errors);
  
-    if(!get(model, 'isNew')) {
+    if(!model.isNew) {
       // "rollback" the shadow to have what was returned by the server
       shadows.addData(model);
 
@@ -777,7 +777,7 @@ export default class Session {
     // if the model does not exist, no "merging"
     // is required
     if(!dest) {
-      if(get(model, 'isDetached')) {
+      if(model.isDetached) {
         dest = model;
       } else {
         dest = model.copy();
@@ -788,11 +788,11 @@ export default class Session {
     }
 
     // set id for new records
-    set(dest, 'id', get(model, 'id'));
-    set(dest, 'clientId', get(model, 'clientId'));
+    dest.id = model.id;
+    dest.clientId = model.clientId;
     // copy the server revision
-    set(dest, 'rev', get(model, 'rev'));
-    set(dest, 'isDeleted', get(model, 'isDeleted'));
+    dest.rev = model.rev;
+    dest.isDeleted = model.isDeleted;
 
     //XXX: why do we need this? at this point shouldn't the dest always be in
     // the session?

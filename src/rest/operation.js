@@ -33,7 +33,7 @@ export default class Operation {
         rels = [],
         shadow = this.shadow;
 
-    if(get(model, 'isNew')) {
+    if(model.isNew) {
       // if the model is new, all relationships are considered dirty
       model.eachRelationship(function(name, relationship) {
         if(adapter.isRelationshipOwner(relationship)) {
@@ -81,9 +81,9 @@ export default class Operation {
 
   get dirtyType() {
     var model = this.model;
-    if(get(model, 'isNew')) {
+    if(model.isNew) {
       return "created";
-    } else if(get(model, 'isDeleted')) {
+    } else if(model.isDeleted) {
       return "deleted";
     } else if(this.isDirtyFromUpdates || this.force) {
       return "updated";
@@ -118,8 +118,8 @@ export default class Operation {
     promise = promise.then(function(serverModel) {
       // in the case of new records we need to assign the id
       // of the model so dependent operations can use it
-      if(!get(model, 'id')) {
-        set(model, 'id', get(serverModel, 'id'));
+      if(!model.id) {
+        model.id = get(serverModel, 'id');
       }
       if(!serverModel) {
         // if no data returned, assume that the server data
@@ -133,7 +133,7 @@ export default class Operation {
         if(!get(serverModel, 'clientRev')) {
           // ensure the clientRev is set on the returned model
           // 0 is the default value
-          set(serverModel, 'clientRev', get(model, 'clientRev'));
+          serverModel.clientRev = model.clientRev;
         }
       }
       return serverModel;

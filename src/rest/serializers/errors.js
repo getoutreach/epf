@@ -20,8 +20,8 @@ export default class ErrorsSerializer extends Serializer {
     });
     
     if(xhr) {
-      set(res, 'status', xhr.status);
-      set(res, 'xhr', xhr);
+      res.status = xhr.status;
+      res.xhr = xhr;
     }
     
     return res;

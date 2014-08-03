@@ -19,10 +19,10 @@ import isEqual from '../utils/is_equal';
 export default class PerField extends Base {
 
   merge(ours, ancestor, theirs) {
-    ours.beginPropertyChanges();
+    //ours.beginPropertyChanges();
     this.mergeAttributes(ours, ancestor, theirs);
     this.mergeRelationships(ours, ancestor, theirs);
-    ours.endPropertyChanges();
+    //ours.endPropertyChanges();
     return ours;
   }
 

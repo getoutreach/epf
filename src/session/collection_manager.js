@@ -12,7 +12,7 @@ export default class CollectionManager {
   }
 
   register(array, model) {
-    var clientId = get(model, 'clientId'),
+    var clientId = model.clientId,
         arrays = this.modelMap[clientId];
     if(!arrays) {
       arrays = this.modelMap[clientId] = [];
@@ -22,7 +22,7 @@ export default class CollectionManager {
   }
 
   unregister(array, model) {
-    var clientId = get(model, 'clientId'),
+    var clientId = model.clientId,
         arrays = this.modelMap[clientId];
     if(arrays) {
       _.pull(arrays, array);
@@ -33,7 +33,7 @@ export default class CollectionManager {
   }
 
   modelWasDeleted(model) {
-    var clientId = get(model, 'clientId'),
+    var clientId = model.clientId,
         arrays = this.modelMap[clientId];
 
     if(arrays) {

@@ -26,7 +26,7 @@ export default class PayloadSerializer extends Serializer {
     to a payload object.
   */
   serialize(model) {
-    var typeKey = get(model, 'typeKey'),
+    var typeKey = model.typeKey,
         root = this.rootForTypeKey(typeKey),
         res = {},
         serializer = this.serializerFor(typeKey);
@@ -43,7 +43,7 @@ export default class PayloadSerializer extends Serializer {
         xhr = opts.xhr;
 
     if(context && typeof context === 'string') {
-      set(result, 'context', []);
+      result.context = [];
     }
 
     /**
@@ -105,7 +105,7 @@ export default class PayloadSerializer extends Serializer {
       if(!errors) {
         var serializer = this.serializerFor('errors'),
             errors = serializer.deserialize({}, opts);
-        set(result, 'errors', errors);
+        result.errors = errors;
       }
     }
 
