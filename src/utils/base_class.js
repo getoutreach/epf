@@ -34,8 +34,4 @@ export default class Base {
     }
     return this;
   }
-  
-  static get superclass() {
-    return Object.getPrototypeOf(this);
-  }
 }

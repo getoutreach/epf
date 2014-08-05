@@ -13,7 +13,7 @@ import RevisionSerializer from '../serializers/revision';
 import StringSerializer from '../serializers/string';
 
 import PerField from '../merge/per_field';
-import DebugAdapter from '../debug/debug_adapter';
+import DebugAdapter from '../ember/debug/debug_adapter';
 
 import RestAdapter from '../rest/rest_adapter';
 

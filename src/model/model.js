@@ -520,8 +520,9 @@ export default class Model extends BaseClass {
         possibleRelationships.push(inverse);
       }
       
-      if (type.superclass && type.superclass !== Model) {
-        findPossibleInverses(type.superclass, inverseType, possibleRelationships);
+      var superclass = Object.getPrototypeOf(type);
+      if (superclass && superclass !== Model) {
+        findPossibleInverses(superclass, inverseType, possibleRelationships);
       }
       return possibleRelationships;
     }

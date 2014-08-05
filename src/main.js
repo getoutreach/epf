@@ -46,7 +46,7 @@ import Session from './session/session';
 
 import isEqual from './utils/is_equal';
 
-import DebugAdapter from './debug/debug_adapter';
+import DebugAdapter from './ember/debug/debug_adapter';
 
 Ep.Adapter = Adapter;
 Ep.IdManager = IdManager;

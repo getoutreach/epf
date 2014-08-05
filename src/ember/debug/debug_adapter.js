@@ -3,7 +3,7 @@
 */
 var get = Ember.get, capitalize = Ember.String.capitalize, underscore = Ember.String.underscore;
 
-import Model from '../model/model';
+import Model from '../model';
 import './debug_info';
 
 /**
