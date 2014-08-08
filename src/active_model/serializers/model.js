@@ -3,7 +3,7 @@ import ModelSerializer from '../../serializers/model';
 export default class ActiveModelSerializer extends ModelSerializer {
 
   keyForType(name, type, opts) {
-    var key = this._super(name, type);
+    var key = super(name, type);
     if(!opts || !opts.embedded) {
       if(type === 'belongs-to') {
         return key + '_id';

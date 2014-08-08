@@ -47,22 +47,6 @@ describe 'Model', ->
       user.session = session
       expect(user.isDirty).to.be.false
 
-    xit 'is observable', ->
-      user = session.merge new @User
-        id: '1'
-        name: 'Wes'
-
-      expect(user.isDirty).to.be.false
-      observerHit = false
-
-      Ember.addObserver user, 'isDirty', ->
-        expect(user.isDirty).to.be.true
-        observerHit = true
-
-      user.name = 'Brogrammer'
-      expect(user.isDirty).to.be.true
-      expect(observerHit).to.be.true
-
 
   it 'can use .find', ->
     User = @User
@@ -138,3 +122,26 @@ describe 'Model', ->
       expect(user).to.not.eq(copy)
       expect(user.raw).to.not.eq(copy.raw)
       expect(user.raw).to.eql(copy.raw)
+      
+      
+  describe 'subclassing', ->
+    
+    beforeEach ->
+      User = @User
+      `class Admin extends User {}`
+      Admin.defineSchema
+        attributes:
+          role: {type: 'string'}
+      @Admin = Admin
+    
+    it 'can add fields', ->
+      expect(@Admin.fields.get('role')).to.exist
+      
+    it 'inherits fields from parent', ->
+      expect(@Admin.fields.get('name')).to.exist
+    
+    it 'does not modify the parent fields', ->
+      expect(@User.fields.get('role')).to.not.exist
+          
+          
+      

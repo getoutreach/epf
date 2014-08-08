@@ -31,7 +31,7 @@ for(var key in Model) {
 var ClassMixin = Mixin.create(ModelClassProps, CoreObject.ClassMixin);
 ClassMixin.reopen({
   extend: function() {
-    var klass = this._super();
+    var klass = this._super.apply(this, arguments);
     SPECIAL_PROPS.forEach(function(name) {
       var desc = Object.getOwnPropertyDescriptor(Model, name);
       Object.defineProperty(klass, name, desc);
@@ -44,17 +44,42 @@ ClassMixin.apply(EmberModel);
 ClassMixin.ownerConstructor = EmberModel;
 EmberModel.ClassMixin = ClassMixin;
 
-EmberModel = EmberModel.extend({
-  
-  init: function() {
-    Model.apply(this, arguments);
-  }
-  
-});
-
 EmberModel.proto = function() {
   return this.prototype;
 }
+
+EmberModel = EmberModel.extend(Observable, {
+  
+  init: function() {
+    Model.apply(this, arguments);
+    this._super.apply(this, arguments);
+  },
+  
+  attributeWillChange: function(name) {
+    Ember.propertyWillChange(this, name);
+  },
+  
+  attributeDidChange: function(name) {
+    Ember.propertyDidChange(this, name);
+  },
+  
+  belongsToWillChange: function(name) {
+    Ember.propertyWillChange(this, name);
+  },
+  
+  belongsToDidChange: function(name) {
+    Ember.propertyDidChange(this, name);
+  },
+  
+  hasManyWillChange: function(name) {
+    Ember.propertyWillChange(this, name);
+  },
+  
+  hasManyDidChange: function(name) {
+    Ember.propertyDidChange(this, name);
+  }
+  
+});
 
 function Attr(type, options={}) {
   this.type = type;
@@ -88,28 +113,56 @@ function belongsTo(type, options={}) {
   return new BelongsTo(type, options);
 }
 
+var META_KEYS = ['id', 'clientId', 'rev', 'clientRev', 'errors', 'isDeleted'];
+
 EmberModel.reopenClass({
   
-  extend: function(hash) {
+  create: function(hash) {
+    // Need to not set fields via Ember initProperties since they depend on
+    // the underlying Model constructor being ran
+    var fields = {};
+    for(var key in hash) {
+      if(!hash.hasOwnProperty(key)) continue;
+      if(this.fields.get(key) || META_KEYS.indexOf(key) !== -1) {
+        fields[key] = hash[key];
+        delete hash[key];
+      }
+    }
+    var res = this._super.apply(this, arguments);
+    for(var key in fields) {
+      if(!fields.hasOwnProperty(key)) continue;
+      res[key] = fields[key];
+    }
+    return res;
+  },
+  
+  extend: function() {
     
     var schema = {
       attributes: {},
       relationships: {}
     };
-    for(var key in hash) {
-      if(!hash.hasOwnProperty(key)) return;
-      var value = hash[key];
+    for(var i = 0; i < arguments.length; i++) {
+      var hash = arguments[i];
+      if(hash instanceof Mixin) continue;
       
-      if(value instanceof Attr) {
-        delete hash[key];
-        schema.attributes[key] = value;
-      } else if(value instanceof HasMany || value instanceof BelongsTo) {
-        delete hash[key];
-        schema.relationships[key] = value;
+      for(var key in hash) {
+        if(!hash.hasOwnProperty(key)) return;
+        var value = hash[key];
+        
+        if(value instanceof Attr) {
+          delete hash[key];
+          schema.attributes[key] = value;
+        } else if(value instanceof HasMany || value instanceof BelongsTo) {
+          delete hash[key];
+          schema.relationships[key] = value;
+        }
       }
     }
     
-    var klass = this._super(hash);
+    var klass = this._super.apply(this, arguments);
+    // copy fields down since not part of ClassMixin
+    klass._fields = this._fields;
     klass.defineSchema(schema);
     return klass;
   }

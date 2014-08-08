@@ -261,7 +261,7 @@ export default class Model extends BaseClass {
       if(!attributes.hasOwnProperty(name)) continue;
       var field = new Attribute(name, attributes[name]);
       field.defineProperty(this.prototype);
-      this.fields.set(name, field);
+      this.addFieldDefinition(field);
     }
     var relationships = schema.relationships || {};
     for(var name in relationships) {
@@ -278,8 +278,19 @@ export default class Model extends BaseClass {
       }
       field.defineProperty(this.prototype);
       field.parentType = this;
-      this.fields.set(name, field);
+      this.addFieldDefinition(field);
     }
+  }
+  
+  static addFieldDefinition(field) {
+    // Make immutable for subclassing
+    var fields = new Map();
+    this.fields.forEach(function(field, name) {
+      fields.set(name, field);
+    });
+    fields.set(field.name, field);
+    this._fields = fields;
+    return field;
   }
   
   static get fields() {
@@ -521,7 +532,7 @@ export default class Model extends BaseClass {
       }
       
       var superclass = Object.getPrototypeOf(type);
-      if (superclass && superclass !== Model) {
+      if (superclass && superclass.typeKey) {
         findPossibleInverses(superclass, inverseType, possibleRelationships);
       }
       return possibleRelationships;

@@ -1,6 +1,8 @@
 
 import Ep from './namespace';
 
+import './ember';
+
 import Adapter from './adapter';
 import IdManager from './id_manager';
 
@@ -16,6 +18,9 @@ import Model from './model/model';
 import './model/diff';
 import Errors from './model/errors';
 import ModelPromise from './model/promise';
+
+import EmberModel from './ember/model';
+import {attr, hasMany, belongsTo} from './ember/model';
 
 import RestErrorsSerializer from './rest/serializers/errors';
 import PayloadSerializer from './rest/serializers/payload';
@@ -58,7 +63,10 @@ Ep.ModelSet = ModelSet;
 Ep.MergeStrategy = MergeStrategy;
 Ep.PerField = PerField;
 
-Ep.Model = Model;
+Ep.Model = EmberModel;
+Ep.attr = attr;
+Ep.belongsTo = belongsTo;
+Ep.hasMany = hasMany;
 Ep.Errors = Errors;
 
 Ep.ModelPromise = ModelPromise;
