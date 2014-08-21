@@ -63,7 +63,8 @@ Ep.ModelSet = ModelSet;
 Ep.MergeStrategy = MergeStrategy;
 Ep.PerField = PerField;
 
-Ep.Model = EmberModel;
+Ep.Model = Model;
+Ep.EmberModel = EmberModel;
 Ep.attr = attr;
 Ep.belongsTo = belongsTo;
 Ep.hasMany = hasMany;

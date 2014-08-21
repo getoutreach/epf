@@ -159,7 +159,7 @@ export default class Operation {
         parentModel = this.adapter._embeddedManager.findParent(model),
         graph = this.graph;
 
-    Ember.assert("Embedded parent does not exist!", parentModel);
+    console.assert(parentModel, "Embedded parent does not exist!");
 
     return graph.getOp(parentModel);
   }

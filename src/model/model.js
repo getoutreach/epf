@@ -13,6 +13,7 @@ import isEqual from '../utils/is_equal';
 import Attribute from './attribute';
 import BelongsTo from './belongs_to';
 import HasMany from './has_many';
+import Error from '../error';
 
 export default class Model extends BaseClass {
 
@@ -67,7 +68,7 @@ export default class Model extends BaseClass {
   }
   
   set session(value) {
-    Ember.assert("Cannot re-assign a model's session", !this._session || this._session === value);
+    console.assert(!this._session || this._session === value, "Cannot re-assign a model's session");
     this._session = value;
   }
 
@@ -267,14 +268,14 @@ export default class Model extends BaseClass {
     for(var name in relationships) {
       if(!relationships.hasOwnProperty(name)) continue;
       var options = relationships[name];
-      Ember.assert("Relationships must have a 'kind' property specified", options.kind);
+      console.assert(options.kind, "Relationships must have a 'kind' property specified");
       var field;
       if(options.kind === 'belongsTo') {
         field = new BelongsTo(name, options);
       } else if(options.kind === 'hasMany') {
         field = new HasMany(name, options);
       } else {
-        Ember.assert("Unkown relationship kind '" + options.kind + "'. Supported kinds are 'belongsTo' and 'hasMany'", false);
+        console.assert(false, "Unkown relationship kind '" + options.kind + "'. Supported kinds are 'belongsTo' and 'hasMany'");
       }
       field.defineProperty(this.prototype);
       field.parentType = this;
@@ -516,7 +517,7 @@ export default class Model extends BaseClass {
 
     if (possibleRelationships.length === 0) { return null; }
 
-    Ember.assert("You defined the '" + name + "' relationship on " + this + ", but multiple possible inverse relationships of type " + this + " were found on " + inverseType + ".", possibleRelationships.length === 1);
+    console.assert(possibleRelationships.length === 1, "You defined the '" + name + "' relationship on " + this + "but multiple possible inverse relationships of type " + this + " were found on " + inverseType + ".");
 
     function findPossibleInverses(type, inverseType, possibleRelationships) {
       possibleRelationships = possibleRelationships || [];
@@ -551,10 +552,10 @@ function reifyRelationshipType(relationship) {
     relationship.type = Ep.__container__.lookupFactory('model:' + relationship.typeKey);
   }
   if(!relationship.type) {
-    throw new Ember.Error("Could not find a type for '" + relationship.name + "' with typeKey '" + relationship.typeKey + "'");
+    throw new Error("Could not find a type for '" + relationship.name + "' with typeKey '" + relationship.typeKey + "'");
   }
   if(!relationship.type.typeKey) {
-    throw new Ember.Error("Relationship '" + relationship.name + "' has no typeKey");
+    throw new Error("Relationship '" + relationship.name + "' has no typeKey");
   }
   if(!relationship.typeKey) {
     relationship.typeKey = relationship.type.typeKey;
@@ -564,7 +565,7 @@ function reifyRelationshipType(relationship) {
 function sessionAlias(name) {
   return function () {
     var session = this.session;
-    Ember.assert("Cannot call " + name + " on a detached model", session);
+    console.assert(session, "Cannot call " + name + " on a detached model");
     var args = [].splice.call(arguments,0);
     args.unshift(this);
     return session[name].apply(session, args);
@@ -596,7 +597,7 @@ Model.reopenClass({
   */
   find: function(id) {
     if(!Ep.__container__) {
-      throw new Ember.Error("The Ep.__container__ property must be set in order to use static find methods.");
+      throw new Error("The Ep.__container__ property must be set in order to use static find methods.");
     }
     var container = Ep.__container__;
     var session = container.lookup('session:main');
@@ -609,7 +610,7 @@ Model.reopenClass({
   //   if(camelized) {
   //     return Ember.String.underscore(camelized);
   //   } else {
-  //     throw new Ember.Error("Could not infer typeKey for " + this.toString());
+  //     throw new Error("Could not infer typeKey for " + this.toString());
   //   }
   // })
 

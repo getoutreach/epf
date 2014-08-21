@@ -9,7 +9,7 @@ export default class MergeFactory {
   }
 
   mergeFor(typeKey) {
-    Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
+    console.assert(typeof typeKey === 'string', 'Passed in typeKey must be a string');
     var mergeStrategy = this.container.lookup('merge-strategy:' + typeKey);
     // if none exists, create and register a default
     if(!mergeStrategy) {

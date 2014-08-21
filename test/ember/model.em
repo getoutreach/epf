@@ -40,7 +40,7 @@ describe 'ember/model', ->
       post.title = 'new?'
       expect(post.title).to.eq('new?')
       
-    it.only 'supports mixins', ->
+    it 'supports mixins', ->
       mixin HasName
         nameDisplay: ~> @name.toUpperCase()
         

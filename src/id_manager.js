@@ -44,7 +44,7 @@ export default class IdManager extends BaseClass {
 
     if(id && clientId) {
       var existingClientId = idMap[id];
-      Ember.assert("clientId has changed for " + model.toString(), !existingClientId || existingClientId === clientId);
+      console.assert(!existingClientId || existingClientId === clientId, "clientId has changed for " + model.toString());
       if(!existingClientId) {
         idMap[id] = clientId;
       }

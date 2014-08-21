@@ -2,6 +2,7 @@ var get = Ember.get, set = Ember.set, isEmpty = Ember.isEmpty;
 
 import RestErrors from '../rest_errors';
 import Serializer from '../../serializers/base';
+import Error from '../../error';
 
 export default class ErrorsSerializer extends Serializer {
 
@@ -33,7 +34,7 @@ export default class ErrorsSerializer extends Serializer {
   }
 
   serialize(id) {
-    throw new Ember.Error("Errors are not currently serialized down to the server.");
+    throw new Error("Errors are not currently serialized down to the server.");
   }
 
 }

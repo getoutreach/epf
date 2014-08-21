@@ -28,7 +28,7 @@ export default class Cache {
   }
 
   getPromise(model) {
-    Ember.assert("Model does not have a client id", model.clientId);
+    console.assert(model.clientId, "Model does not have a client id");
     return this._data[model.clientId];
   }
 

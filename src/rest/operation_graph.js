@@ -85,7 +85,7 @@ export default class OperationGraph {
 
       var shadow = shadows.getModel(model);
 
-      Ember.assert("Shadow does not exist for non-new model", shadow || model.isNew);
+      console.assert(shadow || model.isNew, "Shadow does not exist for non-new model");
 
       var op = ops.get(model);
       op.shadow = shadow;

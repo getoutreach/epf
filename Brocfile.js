@@ -105,17 +105,7 @@ var prodDist = (function() {
     enabled: true,
     enableStripDebug: true,
     debugStatements: [
-      "Ember.warn",
-      "emberWarn",
-      "Ember.assert",
-      "emberAssert",
-      "Ember.deprecate",
-      "emberDeprecate",
-      "Ember.debug",
-      "emberDebug",
-      "Ember.Logger.info",
-      "Ember.runInDebug",
-      "runInDebug"
+      "console.assert"
     ]
   });
 

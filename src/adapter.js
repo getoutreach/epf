@@ -1,8 +1,10 @@
 var get = Ember.get, set = Ember.set, merge = Ember.merge;
 
+import Error from './error';
+
 function mustImplement(name) {
   return function() {
-    throw new Ember.Error("Your adapter " + this.toString() + " does not implement the required method " + name);
+    throw new Error("Your adapter " + this.toString() + " does not implement the required method " + name);
   };
 }
 
@@ -90,11 +92,11 @@ export default class Adapter extends BaseClass {
 
 Adapter.reopen({
 
-  mergeError: Ember.aliasMethod('mergeData'),
-
-  willMergeModel: Ember.K,
-
-  didMergeModel: Ember.K,
+  mergeError: Adapter.mergeData,
+  
+  willMergeModel: function() {},
+  
+  didMergeModel: function() {},
 
   load: mustImplement("load"),
 

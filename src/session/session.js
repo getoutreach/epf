@@ -8,6 +8,7 @@ import Cache from './cache';
 import TypeFactory from '../factories/type';
 import MergeFactory from '../factories/merge';
 import copy from '../utils/copy';
+import Error from '../error';
 
 var get = Ember.get, set = Ember.set;
 
@@ -65,8 +66,8 @@ export default class Session {
 
   adopt(model) {
     this.reifyClientId(model);
-    Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !model.session || model.session === this);
-    Ember.assert("An equivalent model already exists in the session!", !this.models.getModel(model) || this.models.getModel(model) === model);
+    console.assert(!model.session || model.session === this, "Models instances cannot be moved between sessions. Use `add` or `update` instead.");
+    console.assert(!this.models.getModel(model) || this.models.getModel(model) === model, "An equivalent model already exists in the session!");
 
     if(model.isNew) {
       this.newModels.add(model);
@@ -254,7 +255,7 @@ export default class Session {
     @returns {Promise}
   */
   loadModel(model, opts) {
-    Ember.assert("Cannot load a model with an id", model.id);
+    console.assert(model.id, "Cannot load a model with an id");
     // TODO: this should be done on a per-attribute bases
     var promise = this.cache.getPromise(model);
 
@@ -542,7 +543,7 @@ export default class Session {
   */
   updateParent() {
     if(!this.parent) {
-      throw new Ember.Error("Session does not have a parent");
+      throw new Error("Session does not have a parent");
     }
     // flush all local updates to the parent session
     var dirty = this.dirtyModels,
@@ -574,7 +575,7 @@ export default class Session {
   */
   flushIntoParent() {
     if(!this.parent) {
-      throw new Ember.Error("Session does not have a parent");
+      throw new Error("Session does not have a parent");
     }
     this.updateParent();
     return this.flush();

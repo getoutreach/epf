@@ -11,7 +11,7 @@ export default class SerializerFactory {
   }
 
   serializerFor(typeKey) {
-    Ember.assert('Passed in typeKey must be a string', typeof typeKey === 'string');
+    console.assert(typeof typeKey === 'string', 'Passed in typeKey must be a string');
     var serializer = this.container.lookup('serializer:' + typeKey);
     // if no serializer exists and this typeKey corresponds to a model
     // then create a default serializer

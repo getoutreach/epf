@@ -11,7 +11,7 @@ export default class TypeFactory {
   typeFor(typeKey) {
     var factory = this.container.lookupFactory('model:' + typeKey);
 
-    Ember.assert("No model was found for '" + typeKey + "'", factory);
+    console.assert(factory, "No model was found for '" + typeKey + "'");
 
     factory.session = this;
     factory.typeKey = typeKey;
