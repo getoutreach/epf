@@ -36,7 +36,7 @@ export default class PayloadSerializer extends Serializer {
 
   deserialize(hash, opts) {
     opts = opts || {};
-    var result = Payload.create(),
+    var result = new Payload(),
         metaKey = get(this, 'metaKey'),
         errorsKey = get(this, 'errorsKey'),
         context = opts.context,

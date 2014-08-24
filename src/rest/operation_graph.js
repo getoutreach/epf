@@ -94,7 +94,7 @@ export default class OperationGraph {
       for(var i = 0; i < rels.length; i++) {
         var d = rels[i];
         var name = d.name;
-        var parentModel = model[name] || shadows.getModel(d.oldValue);
+        var parentModel = model[name] || d.oldValue && shadows.getModel(d.oldValue);
         // embedded children should not be dependencies
         var isEmbeddedRel = adapter.embeddedType(model.constructor, name);
 

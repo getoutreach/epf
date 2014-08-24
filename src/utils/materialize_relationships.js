@@ -10,7 +10,7 @@ import ModelSet from '../collections/model_set';
 export default function materializeRelationships(models, idManager) {
 
   if(!(models instanceof ModelSet)) {
-    models = ModelSet.fromArray(models);
+    models = new ModelSet(models);
   }
 
   models.forEach(function(model) {
@@ -27,7 +27,7 @@ export default function materializeRelationships(models, idManager) {
       } else if(relationship.kind === 'hasMany') {
         // TODO: merge could be per item
         var children = get(model, name);
-        var lazyChildren = ModelSet.create();
+        var lazyChildren = new ModelSet();
         lazyChildren.addObjects(children);
         children.clear();
         lazyChildren.forEach(function(child) {

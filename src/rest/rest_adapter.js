@@ -419,7 +419,7 @@ export default class RestAdapter extends Adapter {
     // take a snapshot of the models and their shadows
     // (these will be updated by the session before the flush is complete)
     var models = this.buildDirtySet(session);
-    var shadows = ModelSet.fromArray(models.map(function(model) {
+    var shadows = new ModelSet(Array.from(models).map(function(model) {
       // shadows are already frozen copies so no need to re-copy
       return session.shadows.getModel(model) || model.copy();
     }));
@@ -595,7 +595,7 @@ export default class RestAdapter extends Adapter {
     Build the set of dirty models that are part of the flush
   */
   buildDirtySet(session) {
-    var result = ModelSet.create()
+    var result = new ModelSet()
     get(session, 'dirtyModels').forEach(function(model) {
       result.add(model.copy());
       // ensure embedded model graphs are part of the set

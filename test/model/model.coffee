@@ -33,7 +33,7 @@ describe 'Model', ->
     it 'returns true when dirty', ->
       user = null
       Object.defineProperty session, 'dirtyModels',
-        get: -> ModelSet.fromArray([user])
+        get: -> new ModelSet([user])
 
       user = new @User()
       user.session = session

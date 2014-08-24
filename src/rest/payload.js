@@ -1,32 +1,35 @@
-var get = Ember.get, set = Ember.set;
+var isArray = Ember.isArray;
 
 import ModelSet from '../collections/model_set';
 
-var Payload = ModelSet.extend({
+class Payload extends ModelSet {
 
-  isPayload: true,
-  context: null,
-  meta: null,
-
-  merge: function(session) {
-    var merged = this.map(function(model) {
+  constructor(iterable) {
+    super(iterable)
+    this.isPayload = true;
+    this.context = null;
+    this.meta = null;
+  }
+  
+  merge(session) {
+    var merged = Array.from(this).map(function(model) {
       return session.merge(model);
     }, this);
-    var context = get(this, 'context');
-    if(context && Ember.isArray(context)) {
+    var context = this.context;
+    if(context && isArray(context)) {
       context = context.map(function(model) {
         return session.getModel(model);
       });
     } else if(context) {
       context = session.getModel(context);
     }
-    var result = Payload.fromArray(merged);
+    var result = new Payload(merged);
     result.context = context;
     result.meta = this.meta;
     result.errors = this.errors;
     return result;
   }
 
-});
+}
 
 export default Payload;

@@ -54,7 +54,7 @@ Model.reopen({
         }
       } else if(relationship.kind === 'hasMany') {
         var dirty = false;
-        var cache = ModelSet.create();
+        var cache = new ModelSet();
         left.forEach(function(model) {
           cache.add(model);
         });

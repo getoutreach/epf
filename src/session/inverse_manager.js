@@ -1,6 +1,7 @@
 var get = Ember.get, set = Ember.set;
 
 import ModelSet from '../collections/model_set';
+import copy from '../utils/copy';
 
 /**
   Manages updating inverses within a session.
@@ -55,7 +56,7 @@ export default class InverseManager {
         inverses = this._inverses(model);
     for(var name in inverses) {
       var inverseModels = inverses[name],
-          copiedInverseModels = Ember.copy(inverseModels);
+          copiedInverseModels = copy(inverseModels);
 
       copiedInverseModels.forEach(function (inverseModel) {
         this.unregisterRelationship(model, name, inverseModel);

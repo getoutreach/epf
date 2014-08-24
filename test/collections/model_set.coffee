@@ -10,7 +10,7 @@ describe 'ModelSet', ->
       attributes:
         title: {type: 'string'}
     @Post = Post
-    @set = ModelSet.create()
+    @set = new ModelSet()
 
 
   it 'removes based on isEqual', ->
@@ -23,11 +23,11 @@ describe 'ModelSet', ->
 
     @set.add(postA)
 
-    expect(@set.length).to.eq(1)
+    expect(@set.size).to.eq(1)
 
-    @set.remove(postB)
+    @set.delete(postB)
 
-    expect(@set.length).to.eq(0)
+    expect(@set.size).to.eq(0)
 
 
   it 'adds based on isEqual and always overwrites', ->
@@ -40,11 +40,11 @@ describe 'ModelSet', ->
 
     @set.add(postA)
 
-    expect(@set.length).to.eq(1)
+    expect(@set.size).to.eq(1)
 
     @set.add(postB)
 
-    expect(@set.length).to.eq(1)
+    expect(@set.size).to.eq(1)
     expect(@set[0]).to.eq(postB)
 
 

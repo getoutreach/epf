@@ -23,12 +23,12 @@ export default class Session {
     this.idManager = idManager;
     this.container = container;
     this.parent = parent;
-    this.models = ModelSet.create();
+    this.models = new ModelSet();
     this.collectionManager = new CollectionManager();
     this.inverseManager = new InverseManager(this);
-    this.shadows = ModelSet.create();
-    this.originals = ModelSet.create();
-    this.newModels = ModelSet.create();
+    this.shadows = new ModelSet();
+    this.originals = new ModelSet();
+    this.newModels = new ModelSet();
     this.cache = new Cache();
     this.typeFactory = new TypeFactory(container);
     this.mergeFactory = new MergeFactory(container);
@@ -398,7 +398,7 @@ export default class Session {
   }
 
   get dirtyModels() {
-    var models = ModelSet.fromArray(this.shadows.map(function(model) {
+    var models = new ModelSet(Array.from(this.shadows).map(function(model) {
       return this.models.getModel(model);
     }, this));
 
@@ -518,7 +518,7 @@ export default class Session {
     @property isDirty
   */
   get isDirty() {
-    return this.dirtyModels.length > 0;
+    return this.dirtyModels.size > 0;
   }
 
 

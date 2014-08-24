@@ -32,4 +32,4 @@ describe "RestAdapter", ->
 
     it 'should merge with no context', ->
       models = adapter.mergePayload(data, null, session)
-      expect(models.length).to.eq(3)
+      expect(models.size).to.eq(3)

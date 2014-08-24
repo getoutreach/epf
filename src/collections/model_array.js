@@ -62,18 +62,19 @@ export default Ember.ArrayProxy.extend(Copyable, {
     @return dest
   */
   copyTo: function(dest) {
-    var existing = ModelSet.create();
-    existing.addObjects(dest);
+    var existing = new ModelSet(dest);
 
     this.forEach(function(model) {
-      if(existing.contains(model)) {
-        existing.remove(model);
+      if(existing.has(model)) {
+        existing.delete(model);
       } else {
         dest.pushObject(model);
       }
     });
 
-    dest.removeObjects(existing);
+    for(var model of existing) {
+      dest.removeObject(model);
+    }
   },
 
   diff: function(arr) {
