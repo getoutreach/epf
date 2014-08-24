@@ -89,14 +89,14 @@ describe "Session", ->
 
     it 'does not mutate parent session relationships', ->
       post = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2', post: @Post.create(id: "1"))])
-      expect(post.comments.get('length')).to.eq(1)
+      expect(post.comments.length).to.eq(1)
       child.add(post)
-      expect(post.comments.get('length')).to.eq(1)
+      expect(post.comments.length).to.eq(1)
 
 
     it 'adds hasMany correctly', ->
       parentPost = parent.merge @Post.create(id: "1", title: 'parent', comments: [@Comment.create(id: '2', post: @Post.create(id: "1"))])
       post = child.add(parentPost)
       expect(post).to.not.eq(parentPost)
-      expect(post.comments.get('length')).to.eq(1)
-      expect(post.comments.get('firstObject')).to.not.eq(parentPost.comments.get('firstObject'))
+      expect(post.comments.length).to.eq(1)
+      expect(post.comments.firstObject).to.not.eq(parentPost.comments.firstObject)

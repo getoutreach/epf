@@ -44,8 +44,7 @@ describe "rest", ->
             expect(post.errors.get('createdAt')).to.eq('cannot be in the past')
             expect(adapter.h).to.eql(['PUT:/posts/1'])
             
-      it.only 'overwrites existing errors when error-only payload returned', ->
-        debugger
+      it 'overwrites existing errors when error-only payload returned', ->
         adapter.r['PUT:/posts/1'] = ->
           throw status: 422, responseText: JSON.stringify(errors: {title: 'is too short'})
 

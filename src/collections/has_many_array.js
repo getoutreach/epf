@@ -1,32 +1,24 @@
-var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
-
 import ModelArray from '../collections/model_array';
 
-export default ModelArray.extend({
-
-  name: null,
-  owner: null,
-  session: Ember.computed(function() {
-    return this.owner.session;
-  }).volatile(),
-
-  objectAtContent: function(index) {
-    var content = get(this, 'content'),
-        model = content.objectAt(index),
-        session = get(this, 'session');
-
-    if (session && model) {
-      // This will replace proxies with their actual models
-      // if they are loaded
-      return session.add(model);
+export default class HasManyArray extends ModelArray {
+  
+  get session() {
+    return this.owner && this.owner.session;
+  }
+  
+  replace(idx, amt, objects) {
+    if(this.session) {
+      objects = objects.map(function(model) {
+        return this.session.add(model);
+      }, this);
     }
-    return model;
-  },
+    super(idx, amt, objects);
+  }
 
-  arrayContentWillChange: function(index, removed, added) {
-    var model = get(this, 'owner'),
-        name = get(this, 'name'),
-        session = get(this, 'session');
+  arrayContentWillChange(index, removed, added) {
+    var model = this.owner,
+        name = this.name,
+        session = this.session;
 
     if(session) {
       session.modelWillBecomeDirty(model);
@@ -38,15 +30,15 @@ export default ModelArray.extend({
       }
     }
 
-    return this._super.apply(this, arguments);
-  },
+    return super(index, removed, added);
+  }
 
-  arrayContentDidChange: function(index, removed, added) {
-    this._super.apply(this, arguments);
+  arrayContentDidChange(index, removed, added) {
+    super(index, removed, added);
 
-    var model = get(this, 'owner'),
-        name = get(this, 'name'),
-        session = get(this, 'session');
+    var model = this.owner,
+        name = this.name,
+        session = this.session;
 
     if (session && !model._suspendedRelationships) {
       for (var i=index; i<index+added; i++) {
@@ -54,6 +46,6 @@ export default ModelArray.extend({
         session.inverseManager.registerRelationship(model, name, inverseModel);
       }
     }
-  },
+  }
 
-});
+}

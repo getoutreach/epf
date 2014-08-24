@@ -13,7 +13,7 @@ describe 'ModelArray', ->
       attributes:
         title: {type: 'string'}
     @Post = Post
-    array = ModelArray.create(content: [])
+    array = new ModelArray()
 
   describe 'removeObject', ->
 
@@ -28,7 +28,7 @@ describe 'ModelArray', ->
     dest = null
 
     beforeEach ->
-      dest = ModelArray.create(content: [])
+      dest = new ModelArray()
 
     it 'should copy objects', ->
       array.addObjects [@Post.create(clientId: '1'), @Post.create(clientId: '2')]
