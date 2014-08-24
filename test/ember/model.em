@@ -1,9 +1,9 @@
-`import setupContainer from 'epf/ember/setup_container'`
-`import Model from 'epf/ember/model'`
-`import {attr, hasMany, belongsTo} from 'epf/ember/model'`
-`import Attribute from 'epf/model/attribute'`
-`import BelongsTo from 'epf/model/belongs_to'`
-`import HasMany from 'epf/model/has_many'`
+`import setupContainer from 'coalesce/ember/setup_container'`
+`import Model from 'coalesce/ember/model'`
+`import {attr, hasMany, belongsTo} from 'coalesce/ember/model'`
+`import Attribute from 'coalesce/model/attribute'`
+`import BelongsTo from 'coalesce/model/belongs_to'`
+`import HasMany from 'coalesce/model/has_many'`
 
 describe 'ember/model', ->
 
@@ -14,7 +14,7 @@ describe 'ember/model', ->
     App = Ember.Namespace.create()
     @container = new Ember.Container()
     setupContainer(@container)
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
   
   describe 'class definition', ->
   

@@ -1,4 +1,4 @@
-import RestAdapter from 'epf/rest/rest_adapter';
+import RestAdapter from 'coalesce/rest/rest_adapter';
 
 export default class TestRestAdapter extends RestAdapter {
   constructor() {

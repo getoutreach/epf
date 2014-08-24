@@ -1,5 +1,5 @@
-`import Model from 'epf/model/model'`
-`import ModelSet from 'epf/collections/model_set'`
+`import Model from 'coalesce/model/model'`
+`import ModelSet from 'coalesce/collections/model_set'`
 
 describe 'ModelSet', ->
 

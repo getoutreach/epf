@@ -2,7 +2,7 @@
 
 npm run-script build
 
-REPO="git@github.com:getoutreach/epf-shim.git"
+REPO="git@github.com:getoutreach/coalesce-shim.git"
 STAGING_DIR="staging"
 REV=`git rev-parse HEAD`
 
@@ -24,7 +24,7 @@ VERSION=`cat bower.json | jsawk 'return this.version'`
 echo "Releasing version ${VERSION}"
 
 git add --all .
-git commit -m "Version ${VERSION}: https://github.com/getoutreach/epf/commits/${REV}"
+git commit -m "Version ${VERSION}: https://github.com/getoutreach/coalesce/commits/${REV}"
 
 git push origin master
 

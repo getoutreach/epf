@@ -1,6 +1,6 @@
-`import Model from 'epf/model/model'`
+`import Model from 'coalesce/model/model'`
 
-describe 'Ep.ModelSerializer', ->
+describe 'ModelSerializer', ->
 
   App = null
   session = null
@@ -16,11 +16,11 @@ describe 'Ep.ModelSerializer', ->
         postCount: {type: 'number', transient: true}
     App.User = @User = User
 
-    App.UserSerializer = Ep.ModelSerializer.extend
+    App.UserSerializer = Coalesce.ModelSerializer.extend
       typeKey: 'user'
 
     @container = new Ember.Container()
-    Ep.setupContainer(@container)
+    Coalesce.setupContainer(@container)
     @container.register 'model:user', App.User
     @container.register 'serializer:user', App.UserSerializer
     session = @container.lookup('session:main')

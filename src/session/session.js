@@ -102,7 +102,7 @@ export default class Session {
     For now we assume this only works with new models or models from a parent session.
 
     @method add
-    @param {Ep.Model} model The model to add to the session
+    @param {Coalesce.Model} model The model to add to the session
   */
   add(model) {
     this.reifyClientId(model);
@@ -136,7 +136,7 @@ export default class Session {
     just that the session should no longer keep track of it.
 
     @method remove
-    @param {Ep.Model} model The model to remove from the session
+    @param {Coalesce.Model} model The model to remove from the session
   */
   remove(model) {
     // TODO: think through relationships that still reference the model
@@ -155,7 +155,7 @@ export default class Session {
     model will be updated.
 
     @method update
-    @param {Ep.Model} model A model containing updated properties
+    @param {Coalesce.Model} model A model containing updated properties
   */
   update(model) {
     this.reifyClientId(model);
@@ -475,7 +475,7 @@ export default class Session {
     effect of making the next `load` call hit the server.
 
     @method invalidate
-    @param {Ep.Model} model
+    @param {Coalesce.Model} model
   */
   invalidate(model) {
     this.cache.removeModel(model);
@@ -487,7 +487,7 @@ export default class Session {
     the server until the model is marked dirty again.
 
     @method markClean
-    @param {Ep.Model} model
+    @param {Coalesce.Model} model
   */
   markClean(model) {
     // as an optimization, model's without shadows
@@ -500,7 +500,7 @@ export default class Session {
     to be sent to the adapter during a flush.
 
     @method touch
-    @param {Ep.Model} model
+    @param {Coalesce.Model} model
   */
   touch(model) {
     if(!model.isNew) {
@@ -595,7 +595,7 @@ export default class Session {
     this data is assumed to have not seen the latest client changes.
 
     @method merge
-    @param {Ep.Model} model The model to merge
+    @param {Coalesce.Model} model The model to merge
     @param {Ember.Set} [visited] Cache used to break recursion. This is required for non-version-aware backends.
   */
   merge(model, visited) {

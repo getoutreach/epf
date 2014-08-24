@@ -1,7 +1,7 @@
 `import setup from './_shared'`
 `import {postWithComments, groupWithMembersWithUsers} from '../support/schemas'`
-`import Model from 'epf/model/model'`
-`import ModelSerializer from 'epf/serializers/model'`
+`import Model from 'coalesce/model/model'`
+`import ModelSerializer from 'coalesce/serializers/model'`
 
 describe "rest", ->
 
@@ -12,10 +12,10 @@ describe "rest", ->
     setup.apply(this)
     adapter = @adapter
     session = @session
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
 
   afterEach ->
-    delete Ep.__container__
+    delete Coalesce.__container__
 
   describe "managing groups with embedded members", ->
 

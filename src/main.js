@@ -1,5 +1,5 @@
 
-import Ep from './namespace';
+import Coalesce from './namespace';
 
 import './ember';
 
@@ -53,54 +53,54 @@ import isEqual from './utils/is_equal';
 
 import DebugAdapter from './ember/debug/debug_adapter';
 
-Ep.Adapter = Adapter;
-Ep.IdManager = IdManager;
-Ep.setupContainer = setupContainer;
+Coalesce.Adapter = Adapter;
+Coalesce.IdManager = IdManager;
+Coalesce.setupContainer = setupContainer;
 
-Ep.ModelArray = ModelArray;
-Ep.ModelSet = ModelSet;
+Coalesce.ModelArray = ModelArray;
+Coalesce.ModelSet = ModelSet;
 
-Ep.MergeStrategy = MergeStrategy;
-Ep.PerField = PerField;
+Coalesce.MergeStrategy = MergeStrategy;
+Coalesce.PerField = PerField;
 
-Ep.Model = Model;
-Ep.EmberModel = EmberModel;
-Ep.attr = attr;
-Ep.belongsTo = belongsTo;
-Ep.hasMany = hasMany;
-Ep.Errors = Errors;
+Coalesce.Model = Model;
+Coalesce.EmberModel = EmberModel;
+Coalesce.attr = attr;
+Coalesce.belongsTo = belongsTo;
+Coalesce.hasMany = hasMany;
+Coalesce.Errors = Errors;
 
-Ep.ModelPromise = ModelPromise;
+Coalesce.ModelPromise = ModelPromise;
 
-Ep.RestErrorsSerializer = RestErrorsSerializer;
-Ep.PayloadSerializer = PayloadSerializer;
-Ep.EmbeddedManager = EmbeddedManager;
-Ep.Operation = Operation;
-Ep.OperationGraph = OperationGraph;
-Ep.Payload = Payload;
-Ep.RestAdapter = RestAdapter;
-Ep.RestErrors = RestErrors;
+Coalesce.RestErrorsSerializer = RestErrorsSerializer;
+Coalesce.PayloadSerializer = PayloadSerializer;
+Coalesce.EmbeddedManager = EmbeddedManager;
+Coalesce.Operation = Operation;
+Coalesce.OperationGraph = OperationGraph;
+Coalesce.Payload = Payload;
+Coalesce.RestAdapter = RestAdapter;
+Coalesce.RestErrors = RestErrors;
 
-Ep.ActiveModelAdapter = ActiveModelAdapter;
-Ep.ActiveModelSerializer = ActiveModelSerializer;
+Coalesce.ActiveModelAdapter = ActiveModelAdapter;
+Coalesce.ActiveModelSerializer = ActiveModelSerializer;
 
-Ep.Serializer = Serializer;
-Ep.BelongsToSerializer = BelongsToSerializer;
-Ep.BooleanSerializer = BooleanSerializer;
-Ep.DateSerializer = DateSerializer;
-Ep.HasManySerializer = HasManySerializer;
-Ep.IdSerializer = IdSerializer;
-Ep.NumberSerializer = NumberSerializer;
-Ep.ModelSerializer = ModelSerializer;
-Ep.RevisionSerializer = RevisionSerializer;
-Ep.StringSerializer = StringSerializer;
+Coalesce.Serializer = Serializer;
+Coalesce.BelongsToSerializer = BelongsToSerializer;
+Coalesce.BooleanSerializer = BooleanSerializer;
+Coalesce.DateSerializer = DateSerializer;
+Coalesce.HasManySerializer = HasManySerializer;
+Coalesce.IdSerializer = IdSerializer;
+Coalesce.NumberSerializer = NumberSerializer;
+Coalesce.ModelSerializer = ModelSerializer;
+Coalesce.RevisionSerializer = RevisionSerializer;
+Coalesce.StringSerializer = StringSerializer;
 
-Ep.CollectionManager = CollectionManager;
-Ep.InverseManager = InverseManager;
-Ep.Session = Session;
+Coalesce.CollectionManager = CollectionManager;
+Coalesce.InverseManager = InverseManager;
+Coalesce.Session = Session;
 
-Ep.isEqual = isEqual;
+Coalesce.isEqual = isEqual;
 
-Ep.DebugAdapter = DebugAdapter;
+Coalesce.DebugAdapter = DebugAdapter;
 
-export default Ep;
+export default Coalesce;

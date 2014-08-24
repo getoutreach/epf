@@ -549,7 +549,7 @@ function reifyRelationshipType(relationship) {
     delete relationship.type;
   }
   if(!relationship.type) {
-    relationship.type = Ep.__container__.lookupFactory('model:' + relationship.typeKey);
+    relationship.type = Coalesce.__container__.lookupFactory('model:' + relationship.typeKey);
   }
   if(!relationship.type) {
     throw new Error("Could not find a type for '" + relationship.name + "' with typeKey '" + relationship.typeKey + "'");
@@ -589,17 +589,17 @@ Model.reopenClass({
     with Ember's default model conventions in the router. It is preferred
     to explicitly call `load` on a session.
 
-    In order to use this method, you must set the Ep.__container__ property. E.g.
+    In order to use this method, you must set the Coalesce.__container__ property. E.g.
 
     ```
-      Ep.__container__ = App.__container__;
+      Coalesce.__container__ = App.__container__;
     ```
   */
   find: function(id) {
-    if(!Ep.__container__) {
-      throw new Error("The Ep.__container__ property must be set in order to use static find methods.");
+    if(!Coalesce.__container__) {
+      throw new Error("The Coalesce.__container__ property must be set in order to use static find methods.");
     }
-    var container = Ep.__container__;
+    var container = Coalesce.__container__;
     var session = container.lookup('session:main');
     return session.find(this, id);
   }

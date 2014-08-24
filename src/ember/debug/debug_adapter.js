@@ -7,10 +7,9 @@ import Model from '../model';
 import './debug_info';
 
 /**
-  Extend `Ember.DataAdapter` with Epf specific code.
+  Extend `Ember.DataAdapter` with Coalesce specific code.
 
   @class DebugAdapter
-  @namespace Ep
   @extends Ember.DataAdapter
   @private
 */

@@ -1,5 +1,5 @@
 {
-  "name": "epf",
+  "name": "coalesce",
   "version": "0.4.0+dev",
   "description": "A framework to keep you Ember.js apps in sync.",
   "main": "./lib/index.js",
@@ -8,7 +8,7 @@
     "test": "testem ci",
     "postinstall": "bower install"
   },
-  "repository": "https://github.com/getoutreach/epf.git",
+  "repository": "https://github.com/getoutreach/coalesce.git",
   "keywords": [
     "ember.js",
     "orm",

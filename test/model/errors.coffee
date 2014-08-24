@@ -1,4 +1,4 @@
-`import Errors from 'epf/model/errors'`
+`import Errors from 'coalesce/model/errors'`
 
 describe 'Errors', ->
 

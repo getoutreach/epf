@@ -1,13 +1,13 @@
-`import setupContainer from 'epf/ember/setup_container'`
+`import setupContainer from 'coalesce/ember/setup_container'`
 `import {userWithPost, groupWithMembersWithUsers} from '../support/schemas'`
-`import Model from 'epf/model/model'`
+`import Model from 'coalesce/model/model'`
 
 describe "relationships", ->
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
     setupContainer(@container)
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
     @adapter = @container.lookup('adapter:main')
     @session = @adapter.newSession()
 

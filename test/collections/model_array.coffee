@@ -1,6 +1,6 @@
-`import ModelArray from 'epf/collections/model_array'`
-`import Model from 'epf/model/model'`
-`import attr from 'epf/model/attribute'`
+`import ModelArray from 'coalesce/collections/model_array'`
+`import Model from 'coalesce/model/model'`
+`import attr from 'coalesce/model/attribute'`
 
 describe 'ModelArray', ->
 

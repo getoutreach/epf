@@ -14,7 +14,7 @@ var decamelize = Ember.String.decamelize,
   [active_model_serializers](http://github.com/rails-api/active_model_serializers)
   Ruby gem.
 
-  This adapter extends the Ep.RestAdapter by making consistent use of the camelization,
+  This adapter extends the Coalesce.RestAdapter by making consistent use of the camelization,
   decamelization and pluralization methods to normalize the serialized JSON into a
   format that is compatible with a conventional Rails backend.
 
@@ -31,10 +31,10 @@ var decamelize = Ember.String.decamelize,
   For example, if you have a `Person` model:
 
   ```js
-  App.FamousPerson = Ep.Model.extend({
-    firstName: Ep.attr('string'),
-    lastName: Ep.attr('string'),
-    occupation: Ep.attr('string')
+  App.FamousPerson = Coalesce.Model.extend({
+    firstName: Coalesce.attr('string'),
+    lastName: Coalesce.attr('string'),
+    occupation: Coalesce.attr('string')
   });
   ```
 

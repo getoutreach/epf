@@ -1,25 +1,25 @@
 /**
-  @module epf
+  @module coalesce
 */
 
 /**
   All Ember Data methods and functions are defined inside of this namespace.
 
-  @class Ep
+  @class Coalesce
   @static
 */
 
-var Ep;
-if ('undefined' === typeof Ep) {
+var Coalesce;
+if ('undefined' === typeof Coalesce) {
   /**
     @property VERSION
     @type String
     @default '<%= versionStamp %>'
     @static
   */
-  Ep = Ember.Namespace.create({
+  Coalesce = Ember.Namespace.create({
     VERSION: 'VERSION_STRING_PLACEHOLDER'
   });
 }
 
-export default Ep;
+export default Coalesce;

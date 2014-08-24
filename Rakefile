@@ -2,7 +2,7 @@ desc 'Build distribution js files'
 task :dist do
   puts 'Building js distribution...'
   `npm install && ./build-browser`
-  puts 'Successfully built epf at dist/'
+  puts 'Successfully built coalesce at dist/'
 end
 
 # bundler tasks

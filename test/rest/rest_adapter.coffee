@@ -10,14 +10,14 @@ describe "RestAdapter", ->
     setup.apply(this)
     adapter = @adapter
     session = @session
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
 
     postWithComments.apply(this)
     
     @container.register 'model:comment', @Comment
 
   afterEach ->
-    delete Ep.__container__
+    delete Coalesce.__container__
 
   describe '.mergePayload', ->
 

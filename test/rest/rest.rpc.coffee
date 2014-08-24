@@ -1,5 +1,5 @@
 `import setup from './_shared'`
-`import Model from 'epf/model/model'`
+`import Model from 'coalesce/model/model'`
 
 describe "rest", ->
 

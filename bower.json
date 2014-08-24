@@ -1,5 +1,5 @@
 {
-  "name": "epf",
+  "name": "coalesce",
   "private": true,
   "devDependencies": {
     "ember": "~1.6.0",

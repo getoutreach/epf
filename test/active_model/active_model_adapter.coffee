@@ -1,5 +1,5 @@
 `import setup from './_shared'`
-`import Model from 'epf/model/model'`
+`import Model from 'coalesce/model/model'`
 
 describe "ActiveModelAdapter", ->
 
@@ -10,7 +10,7 @@ describe "ActiveModelAdapter", ->
     setup.apply(this)
     adapter = @adapter
     session = @session
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
 
     `class MessageThread extends Model {}`
     MessageThread.defineSchema
@@ -21,7 +21,7 @@ describe "ActiveModelAdapter", ->
     @container.register 'model:message_thread', @MessageThread
 
   afterEach ->
-    delete Ep.__container__
+    delete Coalesce.__container__
 
   describe '.pathForType', ->
 

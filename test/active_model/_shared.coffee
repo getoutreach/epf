@@ -1,4 +1,4 @@
-`import ActiveModelAdapter from 'epf/active_model/active_model_adapter'`
+`import ActiveModelAdapter from 'coalesce/active_model/active_model_adapter'`
 
 setup = ->
   TestActiveModelAdapter = ActiveModelAdapter.extend
@@ -24,7 +24,7 @@ setup = ->
 
   @App = Ember.Namespace.create()
   @container = new Ember.Container()
-  Ep.setupContainer(@container)
+  Coalesce.setupContainer(@container)
 
   # TestAdapter already is a subclass
   @RestAdapter = TestActiveModelAdapter.extend()

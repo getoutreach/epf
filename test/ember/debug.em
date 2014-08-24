@@ -6,25 +6,25 @@ describe.skip 'Debug', ->
   beforeEach ->
     App = Ember.Namespace.create()
     @container = new Ember.Container()
-    Ep.setupContainer(@container)
+    Coalesce.setupContainer(@container)
 
-    class App.User extends Ep.Model
-      name: Ep.attr('string')
+    class App.User extends Coalesce.Model
+      name: Coalesce.attr('string')
 
-    class App.Post extends Ep.Model
-      title: Ep.attr('string')
-      body: Ep.attr('string')
-      user: Ep.belongsTo(App.User)
+    class App.Post extends Coalesce.Model
+      title: Coalesce.attr('string')
+      body: Coalesce.attr('string')
+      user: Coalesce.belongsTo(App.User)
 
-    class App.Comment extends Ep.Model
-      body: Ep.attr('string')
-      post: Ep.belongsTo(App.Post)
+    class App.Comment extends Coalesce.Model
+      body: Coalesce.attr('string')
+      post: Coalesce.belongsTo(App.Post)
 
     App.Post.reopen
-      comments: Ep.hasMany(App.Comment)
+      comments: Coalesce.hasMany(App.Comment)
 
     App.User.reopen
-      posts: Ep.hasMany(App.Post)
+      posts: Coalesce.hasMany(App.Post)
 
     @container.register 'model:user', App.User
     @container.register 'model:post', App.Post

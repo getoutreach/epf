@@ -1,6 +1,6 @@
-`import setupContainer from 'epf/ember/setup_container'`
-`import PerField from 'epf/merge/per_field'`
-`import Model from 'epf/model/model'`
+`import setupContainer from 'coalesce/ember/setup_container'`
+`import PerField from 'coalesce/merge/per_field'`
+`import Model from 'coalesce/model/model'`
 
 describe 'PerField', ->
 
@@ -11,7 +11,7 @@ describe 'PerField', ->
     App = Ember.Namespace.create()
     @container = new Ember.Container()
     setupContainer(@container)
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
 
     `class User extends Model {}`
     User.defineSchema

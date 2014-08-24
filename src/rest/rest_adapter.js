@@ -48,10 +48,10 @@ import materializeRelationships from '../utils/materialize_relationships';
   For example, if you have a `Person` model:
 
   ```js
-  App.Person = Ep.Model.extend({
-    firstName: Ep.attr('string'),
-    lastName: Ep.attr('string'),
-    occupation: Ep.attr('string')
+  App.Person = Coalesce.Model.extend({
+    firstName: Coalesce.attr('string'),
+    lastName: Coalesce.attr('string'),
+    occupation: Coalesce.attr('string')
   });
   ```
 
@@ -75,7 +75,7 @@ import materializeRelationships from '../utils/materialize_relationships';
   property on the adapter:
 
   ```js
-  Ep.RestAdapter.reopen({
+  Coalesce.RestAdapter.reopen({
     namespace: 'api/1'
   });
   ```
@@ -86,7 +86,7 @@ import materializeRelationships from '../utils/materialize_relationships';
   An adapter can target other hosts by setting the `host` property.
 
   ```js
-  Ep.RestAdapter.reopen({
+  Coalesce.RestAdapter.reopen({
     host: 'https://api.example.com'
   });
   ```
@@ -97,7 +97,7 @@ import materializeRelationships from '../utils/materialize_relationships';
   headers can be added to the adapter which are passed with every request:
 
   ```js
-   Ep.RestAdapter.reopen({
+   Coalesce.RestAdapter.reopen({
     headers: {
       "API_KEY": "secret key",
       "ANOTHER_HEADER": "Some header value"
@@ -727,7 +727,7 @@ export default class RestAdapter extends Adapter {
     endpoint of "/line_items/".
 
     ```js
-    Ep.RESTAdapter.reopen({
+    Coalesce.RESTAdapter.reopen({
       pathForType(type) {
         var decamelized = Ember.String.decamelize(type);
         return Ember.String.pluralize(decamelized);
@@ -747,19 +747,19 @@ export default class RestAdapter extends Adapter {
   /**
     Takes an ajax response, and returns a relevant error.
 
-    Returning a `Ep.InvalidError` from this method will cause the
+    Returning a `Coalesce.InvalidError` from this method will cause the
     record to transition into the `invalid` state and make the
     `errors` object available on the record.
 
     ```javascript
-    App.ApplicationAdapter = Ep.RESTAdapter.extend({
+    App.ApplicationAdapter = Coalesce.RESTAdapter.extend({
       ajaxError(jqXHR) {
         var error = this._super(jqXHR);
 
         if (jqXHR && jqXHR.status === 422) {
           var jsonErrors = Ember.$.parseJSON(jqXHR.responseText)["errors"];
 
-          return new Ep.InvalidError(jsonErrors);
+          return new Coalesce.InvalidError(jsonErrors);
         } else {
           return error;
         }
@@ -825,7 +825,7 @@ export default class RestAdapter extends Adapter {
       };
 
       Ember.$.ajax(hash);
-    }, "Ep: RestAdapter#ajax " + type + " to " + url);
+    }, "Coalesce: RestAdapter#ajax " + type + " to " + url);
   }
 
   /**

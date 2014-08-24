@@ -21,16 +21,16 @@ var licenseJs = fs.readFileSync('./generators/license.js').toString();
 var es6Modules = (function() {
   var tree = pickFiles('src', {
     srcDir: '/',
-    destDir: 'epf'
+    destDir: 'coalesce'
   });
   var vendoredPackage = moveFile(tree, {
-    srcFile: 'epf/main.js',
-    destFile: '/epf.js'
+    srcFile: 'coalesce/main.js',
+    destFile: '/coalesce.js'
   });
 
   tree = mergeTrees([tree, vendoredPackage]);
   tree = removeFile(tree,  {
-    files: ['epf/main.js']
+    files: ['coalesce/main.js']
   });
   var transpiled = traceur(tree, {
     moduleName: true,
@@ -39,7 +39,7 @@ var es6Modules = (function() {
   });
   return concat(transpiled, {
     inputFiles: ['**/*.js'],
-    outputFile: '/epf-modules.js'
+    outputFile: '/coalesce-modules.js'
   });
 })();
 
@@ -47,7 +47,7 @@ var es6Modules = (function() {
 var es6TestModules = (function() {
   var tree = pickFiles('test', {
     srcDir: '/',
-    destDir: 'epf-test'
+    destDir: 'coalesce-test'
   });
 
   tree = emberScript(tree, {
@@ -64,7 +64,7 @@ var es6TestModules = (function() {
   });
   return concat(transpiled, {
     inputFiles: ['**/*.js'],
-    outputFile: '/epf-test-modules.js'
+    outputFile: '/coalesce-test-modules.js'
   });
 })();
 
@@ -73,7 +73,7 @@ var devDist = (function() {
 
   var iifeStart = writeFile('iife-start', '(function() {');
   var iifeStop  = writeFile('iife-stop', '})();');
-  var bootstrap = writeFile('bootstrap', 'this.Ep = requireModule("epf")["default"];\n');
+  var bootstrap = writeFile('bootstrap', 'this.Ep = requireModule("coalesce")["default"];\n');
 
   var trees = findBowerTrees().concat(['vendor', iifeStart, iifeStop, bootstrap, es6Modules]);
 
@@ -84,11 +84,11 @@ var devDist = (function() {
       'bundle.js', // jsondiffpatch dist
       'loader.js',
       'traceur-runtime.js',
-      'epf-modules.js',
+      'coalesce-modules.js',
       'bootstrap',
       'iife-stop'
     ],
-    outputFile: '/epf.js'
+    outputFile: '/coalesce.js'
   });
 
 })();
@@ -97,8 +97,8 @@ var devDist = (function() {
 var prodDist = (function() {
 
   var tree = moveFile(devDist, {
-    srcFile: 'epf.js',
-    destFile: '/epf.prod.js'
+    srcFile: 'coalesce.js',
+    destFile: '/coalesce.prod.js'
   });
 
   tree = defeatureify(tree, {
@@ -116,18 +116,18 @@ var prodDist = (function() {
 var minDist = (function() {
 
   var tree = moveFile(prodDist, {
-    srcFile: 'epf.prod.js',
-    destFile: '/epf.min.js'
+    srcFile: 'coalesce.prod.js',
+    destFile: '/coalesce.min.js'
   });
   return uglify(tree);
 
 })();
 
 var bowerJSON = writeFile('bower.json', JSON.stringify({
-  name: 'epf',
+  name: 'coalesce',
   version: 'VERSION_STRING_PLACEHOLDER',
   license: "MIT",
-  main: 'epf.js',
+  main: 'coalesce.js',
   keywords: [
     "ember.js",
     "orm",

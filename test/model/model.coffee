@@ -1,5 +1,5 @@
-`import ModelSet from 'epf/collections/model_set'`
-`import Model from 'epf/model/model'`
+`import ModelSet from 'coalesce/collections/model_set'`
+`import Model from 'coalesce/model/model'`
 
 describe 'Model', ->
 
@@ -16,14 +16,14 @@ describe 'Model', ->
     @User = User
     
     @container = new Ember.Container()
-    Ep.setupContainer(@container)
+    Coalesce.setupContainer(@container)
     @container.register 'model:user', User
     session = @container.lookup('session:main')
 
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
 
   afterEach ->
-    delete Ep.__container__
+    delete Coalesce.__container__
 
   describe '.isDirty', ->      
 
@@ -60,12 +60,12 @@ describe 'Model', ->
 
   describe 'typeKey class var', ->
     xit 'works with global Ember', ->
-      class App.SomeThing extends Ep.Model
+      class App.SomeThing extends Coalesce.Model
       typeKey = Ember.get(App.SomeThing, 'typeKey')
       expect(typeKey).to.eq('some_thing')
 
     xit 'works with modular Ember', ->
-      class SomeThing extends Ep.Model
+      class SomeThing extends Coalesce.Model
       SomeThing._toString = "my-app@model:some-thing:"
       typeKey = Ember.get(SomeThing, 'typeKey')
       expect(typeKey).to.eq('some_thing')

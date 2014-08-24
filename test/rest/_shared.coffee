@@ -3,7 +3,7 @@
 setup = ->
   @App = Ember.Namespace.create()
   @container = new Ember.Container()
-  Ep.setupContainer(@container)
+  Coalesce.setupContainer(@container)
 
   # TestAdapter already is a subclass
   @RestAdapter = TestRestAdapter.extend()
@@ -15,7 +15,7 @@ setup = ->
 
   @container = @adapter.container
   
-  Ep.__container__ = @container
+  Coalesce.__container__ = @container
 
 
 `export default setup`

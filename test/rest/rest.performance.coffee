@@ -10,10 +10,10 @@ describe "rest", ->
     setup.apply(this)
     adapter = @adapter
     session = @session
-    Ep.__container__ = @container
+    Coalesce.__container__ = @container
 
   afterEach ->
-    delete Ep.__container__
+    delete Coalesce.__container__
 
   context 'many children', ->
 

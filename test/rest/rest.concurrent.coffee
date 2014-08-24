@@ -13,7 +13,7 @@ describe "rest", ->
   context 'concurrent updates with simple model', ->
 
     beforeEach ->
-      `class Post extends Ep.Model {}`
+      `class Post extends Coalesce.Model {}`
       Post.defineSchema
         typeKey: 'post'
         attributes:

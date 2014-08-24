@@ -2,7 +2,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>Epf Tests</title>
+    <title>Coalesce Tests</title>
     <link rel="stylesheet" href="../bower_components/mocha/mocha.css">
     <base href="..">
 </head>
@@ -23,13 +23,13 @@
     <script src="vendor/ember-inflector.js"></script>
     <script src="bower_components/jsondiffpatch/build/bundle.js"></script>
     <script src="bower_components/traceur-runtime/traceur-runtime.js"></script>
-    <script src="dist/epf-modules.js"></script>
-    <script src="dist/epf-test-modules.js"></script>
+    <script src="dist/coalesce-modules.js"></script>
+    <script src="dist/coalesce-test-modules.js"></script>
     <script>
-        this.Ep = requireModule('epf')['default'];
-        requireModule('epf-test/_setup');
+        this.Coalesce = requireModule('coalesce')['default'];
+        requireModule('coalesce-test/_setup');
         Ember.keys(requirejs.entries).forEach(function(entry) {
-          if ((/epf\-test/).test(entry)) {
+          if ((/coalesce\-test/).test(entry)) {
             require(entry, null, null, true);
           }
         });

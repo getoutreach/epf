@@ -15,7 +15,7 @@
 //     - Flags relationship CPs as expensive properties.
 // 
 //     @method _debugInfo
-//     @for Ep.Model
+//     @for Coalesce.Model
 //     @private
 //   */
 //   _debugInfo: function() {

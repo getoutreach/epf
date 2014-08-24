@@ -1,8 +1,8 @@
-import Ep from './namespace';
+import Coalesce from './namespace';
 import './ember/initializers';
 
 if (Ember.libraries) {
-  Ember.libraries.registerCoreLibrary('EPF', Ep.VERSION);
+  Ember.libraries.registerCoreLibrary('Coalesce', Coalesce.VERSION);
 }
 
 import f from './ember/setup_container';

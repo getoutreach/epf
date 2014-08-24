@@ -5,9 +5,9 @@ describe "Session", ->
   beforeEach ->
     @App = Ember.Namespace.create()
     @container = new Ember.Container()
-    Ep.setupContainer(@container)
-    Ep.__container__ = @container
-    @container.register('adapter:main', Ep.RestAdapter)
+    Coalesce.setupContainer(@container)
+    Coalesce.__container__ = @container
+    @container.register('adapter:main', Coalesce.RestAdapter)
 
     postWithComments.apply(this)
 

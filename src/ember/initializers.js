@@ -7,11 +7,11 @@ import setupContainer from './setup_container';
 */
 Ember.onLoad('Ember.Application', function(Application) {
   Application.initializer({
-    name: "epf.container",
+    name: "coalesce.container",
 
     initialize: function(container, application) {
       // Set the container to allow for static `find` methods on model classes
-      Ep.__container__ = container;
+      Coalesce.__container__ = container;
       setupContainer(container, application);
     }
   });

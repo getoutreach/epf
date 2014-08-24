@@ -1,10 +1,10 @@
-`import Model from 'epf/model/model'`
+`import Model from 'coalesce/model/model'`
 
-describe 'Ep.Adapter', ->
+describe 'Adapter', ->
 
   beforeEach ->
     @container = new Ember.Container()
-    Ep.setupContainer(@container)
+    Coalesce.setupContainer(@container)
     `class Post extends Model {}`
     Post.defineSchema
       typeKey: 'post'

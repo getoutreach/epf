@@ -1,10 +1,10 @@
-import Model from 'epf/model/model';
-import ModelSerializer from 'epf/serializers/model';
+import Model from 'coalesce/model/model';
+import ModelSerializer from 'coalesce/serializers/model';
 // Common model setups for tests
 
 function postWithComments() {
   this.App = Ember.Namespace.create();
-  class Post extends Ep.Model {}
+  class Post extends Coalesce.Model {}
   Post.defineSchema({
     typeKey: 'post',
     attributes: {
@@ -17,7 +17,7 @@ function postWithComments() {
   this.App.Post = this.Post = Post;
   this.container.register('model:post', Post);
 
-  class Comment extends Ep.Model {}
+  class Comment extends Coalesce.Model {}
   Comment.defineSchema({
     typeKey: 'comment',
     attributes: {

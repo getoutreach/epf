@@ -1,6 +1,6 @@
 `import setup from './_shared'`
-`import Model from 'epf/model/model'`
-`import ModelSerializer from 'epf/serializers/model'`
+`import Model from 'coalesce/model/model'`
+`import ModelSerializer from 'coalesce/serializers/model'`
 `import {postWithComments} from '../support/schemas'`
 
 describe "rest", ->

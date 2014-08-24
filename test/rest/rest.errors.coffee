@@ -1,6 +1,6 @@
 `import setup from './_shared'`
-`import Model from 'epf/model/model'`
-`import Errors from 'epf/model/errors'`
+`import Model from 'coalesce/model/model'`
+`import Errors from 'coalesce/model/errors'`
 
 describe "rest", ->
 

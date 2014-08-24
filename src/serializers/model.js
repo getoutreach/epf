@@ -13,7 +13,7 @@ export default class ModelSerializer extends Serializer {
     For example:
 
     ```
-    App.PostSerializer = Epf.JsonSerializer.extend({
+    App.PostSerializer = Coalesce.JsonSerializer.extend({
       properties: {
         title: {
           key: 'TITLE1'
@@ -84,7 +84,7 @@ export default class ModelSerializer extends Serializer {
     For example, the type `App.UserGroup` will have the root
     `user_group`.
 
-    @param {Ep.Model subclass} type
+    @param {Coalesce.Model subclass} type
     @returns {String} name of the root element
   */
   rootForType(type) {
